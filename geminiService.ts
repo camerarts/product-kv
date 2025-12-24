@@ -8,11 +8,11 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 核心目标：
 1. 识别产品细节（通过提供的1-2张参考图）。如果提供多张图片，请综合分析。
 2. 根据产品调性推荐或接受用户的视觉风格与排版选择。
-3. 生成中英文双语、极其详尽、且具备高度落地性的Midjourney/Stable Diffusion提示词。
+3. 生成中英文双语、极其详尽、且具备高度落地性的渲染提示词。
 
 必须遵循的排版格式：
-海报必须包含：中文提示词、英文Prompt、负面词、详细的中英文排版布局说明。
-所有海报必须保持风格统一，LOGO位置统一。`;
+海报必须包含：详细的中英文提示词、排版布局说明。
+所有海报必须保持品牌风格统一，LOGO位置合理且一致。`;
 
 export const extractProductInfo = async (imagesB64: string[], textDescription: string): Promise<RecognitionReport> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -29,21 +29,21 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
     });
   }
   
-  parts.push({ text: `分析上述产品图片（可能提供多角度或多张）并生成一份详尽的【识别报告】。
+  parts.push({ text: `分析上述产品图片并生成一份详尽的识别报告。
   请根据以下JSON格式返回数据：
   {
-    "brandName": "品牌中文 / 品牌英文",
-    "productType": "大类 - 具体产品",
-    "productSpecs": "具体规格",
+    "brandName": "识别到的品牌名",
+    "productType": "产品类别",
+    "productSpecs": "规格参数",
     "coreSellingPoints": ["卖点1", "卖点2", "卖点3", "卖点4", "卖点5"],
-    "mainColors": "颜色名称 (#HEX) + 颜色名称 (#HEX)",
-    "auxColors": "颜色名称 (#HEX)",
-    "designStyle": "风格描述",
-    "targetAudience": "用户画像",
-    "brandTone": "调性描述",
-    "packagingHighlights": "特殊设计元素"
+    "mainColors": "配色说明",
+    "auxColors": "辅助色说明",
+    "designStyle": "设计语言描述",
+    "targetAudience": "目标受众",
+    "brandTone": "品牌调性",
+    "packagingHighlights": "包装亮点"
   }
-  描述内容：${textDescription || '无额外描述'}` });
+  用户提供的描述：${textDescription || '无'}` });
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-preview-09-2025',
@@ -79,37 +79,35 @@ export const generatePosterSystem = async (
   specialNeeds: string
 ): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `基于以下识别报告生成【十张海报全案系统】（共11个模块，包含LOGO生成提示词）。
+  const prompt = `基于以下产品报告生成一套电商全系统海报（共11个模块，含LOGO提示词）。
   
-  【识别报告】
+  【产品信息】
   品牌：${report.brandName}
   类型：${report.productType}
   核心卖点：${report.coreSellingPoints.join(', ')}
-  主色调：${report.mainColors}
-  品牌调性：${report.brandTone}
-  包装亮点：${report.packagingHighlights}
+  主视觉：${report.mainColors}
+  调性：${report.brandTone}
   
-  【选定配置】
-  视觉风格：${visualStyle}
-  排版效果：${typography}
-  特殊需求：${specialNeeds}
+  【设计配置】
+  风格：${visualStyle}
+  排版：${typography}
+  特殊要求：${specialNeeds}
   
-  要求：
-  - 严格还原包装设计、颜色、LOGO位置。
-  - 必须严格按以下标题格式输出，以便系统解析：
-    ### LOGO生成提示词
-    ### 海报01 - 主KV视觉
-    ### 海报02 - 生活场景
-    ### 海报03 - 工艺技术
-    ### 海报04 - 细节特写01
-    ### 海报05 - 细节特写02
-    ### 海报06 - 功能细节
-    ### 海报07 - 细节特写04
-    ### 海报08 - 品牌故事
-    ### 海报09 - 产品参数表
-    ### 海报10 - 使用指南
-  - 必须在中英文Prompt中强调“严格还原包装设计、颜色、LOGO位置”。
-  - 提供极其详细的排版布局（中英双语如何排、位置坐标、字体风格、色值）。`;
+  输出要求：
+  - 每张图必须包含极其精细的提示词。
+  - 必须按以下格式输出标题以便解析：
+    ### LOGO方案提示词
+    ### 海报01 - 核心主KV
+    ### 海报02 - 使用场景图
+    ### 海报03 - 核心工艺拆解
+    ### 海报04 - 细节质感图01
+    ### 海报05 - 细节质感图02
+    ### 海报06 - 核心功效说明
+    ### 海报07 - 内部结构/成分图
+    ### 海报08 - 品牌情感大片
+    ### 海报09 - 详细参数图
+    ### 海报10 - 使用流程图
+  - 提示词必须强调：严格还原包装形态、品牌颜色和标识位置。`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-preview-09-2025',

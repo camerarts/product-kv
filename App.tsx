@@ -4,7 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { extractProductInfo, generatePosterSystem } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 
-// 保存初始的后台配置密钥，防止被前端覆盖后丢失
+// 获取初始的后台配置密钥
 const BACKEND_API_KEY = process.env.API_KEY;
 
 const App: React.FC = () => {
@@ -15,12 +15,10 @@ const App: React.FC = () => {
   // 初始化：从 localStorage 加载用户自定义密钥
   useEffect(() => {
     const savedKey = localStorage.getItem('GEMINI_API_KEY_OVERRIDE');
-    if (savedKey) {
+    if (savedKey && savedKey !== "undefined") {
       setCustomKey(savedKey);
-      // 动态注入到 process.env 以供 SDK 使用，实现优先级覆盖
       (process.env as any).API_KEY = savedKey;
-    } else if (BACKEND_API_KEY) {
-      // 确保没有自定义密钥时，使用后台默认密钥
+    } else if (BACKEND_API_KEY && BACKEND_API_KEY !== "undefined") {
       (process.env as any).API_KEY = BACKEND_API_KEY;
     }
   }, []);
@@ -37,16 +35,18 @@ const App: React.FC = () => {
       alert('设置已保存：系统将优先使用您输入的手工密钥。');
     } else {
       localStorage.removeItem('GEMINI_API_KEY_OVERRIDE');
-      // 恢复使用后台配置的默认密钥
       (process.env as any).API_KEY = BACKEND_API_KEY;
-      alert('已清除自定义密钥，系统将使用默认配置。');
+      alert('已清除自定义密钥，系统将使用后台默认配置。');
     }
     setIsSettingsOpen(false);
   };
 
   const ensureApiKey = async () => {
-    // 检查当前环境下是否有可用密钥（包括自定义或后台注入的）
-    if (process.env.API_KEY) return true;
+    // 核心逻辑：如果 process.env.API_KEY 有效，直接返回 true，不弹窗
+    const currentKey = process.env.API_KEY;
+    if (currentKey && currentKey !== "undefined" && currentKey.length > 5) {
+      return true;
+    }
 
     // 检查 AI Studio 环境
     // @ts-ignore
@@ -56,12 +56,13 @@ const App: React.FC = () => {
       if (!hasKey) {
         // @ts-ignore
         await window.aistudio.openSelectKey();
+        return true; // 触发选择后默认尝试继续
       }
       return true;
     }
     
     // 只有在彻底没有密钥的情况下才提示
-    alert('检测到未配置 API 密钥，请在“设置”中手动输入。');
+    alert('检测到未配置有效 API 密钥，请在“设置”中输入。');
     setIsSettingsOpen(true);
     return false;
   };
@@ -184,7 +185,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       if (err?.message?.includes("Requested entity was not found")) {
-        alert("API 密钥无效，请点击右上角‘设置’进行检查。");
+        alert("API 密钥无效或无权限，请检查设置。");
         setIsSettingsOpen(true);
       } else {
         alert('分析失败，请检查 API 配置或网络状态');
@@ -210,12 +211,7 @@ const App: React.FC = () => {
       setFinalPrompts(res);
     } catch (err: any) {
       console.error(err);
-      if (err?.message?.includes("Requested entity was not found")) {
-        alert("API 密钥无效，请检查设置。");
-        setIsSettingsOpen(true);
-      } else {
-        alert('系统方案生成失败');
-      }
+      alert('系统方案生成失败');
     } finally { setLoading(false); }
   };
 
@@ -228,23 +224,23 @@ const App: React.FC = () => {
       const targetRatio = isLogo ? "1:1" : aspectRatio;
       setGeneratingModules(prev => ({ ...prev, [index]: true }));
       
+      // 使用 gemini-2.5-flash-image 以便更好地配合后台 API 密钥
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const imageParts = images.map(img => ({
         inlineData: { data: img, mimeType: 'image/jpeg' }
       }));
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-image-preview',
+        model: 'gemini-2.5-flash-image',
         contents: {
           parts: [
             ...imageParts,
-            { text: `High-end e-commerce commercial photography. PRODUCT: Accurately reconstruct the product in reference images. STYLE: ${prompt} FORMAT: ${targetRatio} aspect ratio. Professional lighting, 8k resolution, photorealistic.` },
+            { text: `高端电商商业摄影。产品：准确还原参考图中的包装、品牌标识和颜色。风格：${prompt}。画面比例：${targetRatio}。专业影棚光，8k分辨率，真实质感。` },
           ],
         },
         config: { 
           imageConfig: { 
-            aspectRatio: targetRatio as any,
-            imageSize: "1K" 
+            aspectRatio: targetRatio as any
           } 
         }
       });
@@ -261,15 +257,11 @@ const App: React.FC = () => {
       if (imageUrl) {
         setGeneratedImages(prev => ({ ...prev, [index]: imageUrl }));
       } else {
-        throw new Error("模型未返回图像数据");
+        throw new Error("渲染未返回图像");
       }
     } catch (err: any) {
       console.error(err);
-      if (err?.message?.includes("Requested entity was not found")) {
-        setIsSettingsOpen(true);
-      } else {
-        alert(`渲染失败: ${err?.message || '请检查 API Key 权限'}`);
-      }
+      alert(`渲染失败: ${err?.message || '请检查密钥配置'}`);
     } finally { 
       setGeneratingModules(prev => ({ ...prev, [index]: false })); 
     }
@@ -282,7 +274,7 @@ const App: React.FC = () => {
     let match;
     const splitPoints: { index: number; title: string }[] = [];
     while ((match = regex.exec(finalPrompts)) !== null) splitPoints.push({ index: match.index, title: match[1].trim() });
-    if (splitPoints.length === 0) return [{ title: "系统方案", content: finalPrompts }];
+    if (splitPoints.length === 0) return [{ title: "全案方案", content: finalPrompts }];
     for (let i = 0; i < splitPoints.length; i++) {
       const current = splitPoints[i], next = splitPoints[i + 1];
       const start = current.index + `### ${current.title}`.length;
@@ -311,19 +303,19 @@ const App: React.FC = () => {
 
   const renderReportContent = (rep: RecognitionReport, isLarge: boolean = false) => (
     <div className={`space-y-${isLarge ? '6' : '3'}`}>
-      <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1`}>品牌</p><p className={`${isLarge ? 'text-3xl' : 'text-xl'} font-black text-neutral-900`}>{rep.brandName}</p></div>
-      <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1`}>类型</p><p className={`${isLarge ? 'text-xl' : 'text-lg'} font-bold text-neutral-800`}>{rep.productType}</p></div>
+      <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1`}>品牌名称</p><p className={`${isLarge ? 'text-3xl' : 'text-xl'} font-black text-neutral-900`}>{rep.brandName}</p></div>
+      <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1`}>产品类型</p><p className={`${isLarge ? 'text-xl' : 'text-lg'} font-bold text-neutral-800`}>{rep.productType}</p></div>
       <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1.5`}>核心卖点</p><div className="flex flex-wrap gap-1.5">{rep.coreSellingPoints.map((p, i) => <span key={i} className={`px-3 py-1 bg-neutral-50 text-neutral-600 ${isLarge ? 'text-sm' : 'text-[10px]'} font-bold rounded-lg border border-neutral-100`}>{p}</span>)}</div></div>
       <div className={`grid ${isLarge ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
-        <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-0.5`}>配色方案</p><p className={`${isLarge ? 'text-lg' : 'text-base'} font-bold text-neutral-800`}>{rep.mainColors}</p></div>
-        <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-0.5`}>品牌调性</p><p className={`${isLarge ? 'text-lg' : 'text-base'} font-bold text-neutral-800`}>{rep.brandTone}</p></div>
+        <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-0.5`}>主视觉配色</p><p className={`${isLarge ? 'text-lg' : 'text-base'} font-bold text-neutral-800`}>{rep.mainColors}</p></div>
+        <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-0.5`}>品牌风格调性</p><p className={`${isLarge ? 'text-lg' : 'text-base'} font-bold text-neutral-800`}>{rep.brandTone}</p></div>
       </div>
       {isLarge && (
         <>
-          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">设计风格</p><p className="text-lg font-bold text-neutral-800">{rep.designStyle}</p></div>
-          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">目标受众</p><p className="text-lg font-bold text-neutral-800">{rep.targetAudience}</p></div>
-          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">包装亮点</p><p className="text-lg font-bold text-neutral-800">{rep.packagingHighlights}</p></div>
-          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">产品规格</p><p className="text-lg font-bold text-neutral-800">{rep.productSpecs}</p></div>
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">设计细节说明</p><p className="text-lg font-bold text-neutral-800">{rep.designStyle}</p></div>
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">目标消费群体</p><p className="text-lg font-bold text-neutral-800">{rep.targetAudience}</p></div>
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">包装工艺亮点</p><p className="text-lg font-bold text-neutral-800">{rep.packagingHighlights}</p></div>
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">详细参数规格</p><p className="text-lg font-bold text-neutral-800">{rep.productSpecs}</p></div>
         </>
       )}
     </div>
@@ -338,14 +330,14 @@ const App: React.FC = () => {
             <header className="pb-4 border-b border-neutral-200">
               <div className="space-y-2">
                 <h1 className="text-lg md:text-xl font-black tracking-tighter text-neutral-900 leading-tight uppercase whitespace-nowrap overflow-hidden text-ellipsis">
-                  电商全系统产品详情图片专家
+                  电商详情图视觉全案系统
                 </h1>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <div className="w-1 h-4 bg-blue-600 rounded-full"></div>
                     <h2 className="text-base font-black tracking-tight text-neutral-500">核心配置</h2>
                   </div>
-                  <div className="text-[9px] font-black text-neutral-300 tracking-[0.1em]">版本 3.6.0</div>
+                  <div className="text-[9px] font-black text-neutral-300 tracking-[0.1em]">专业版 3.6.0</div>
                 </div>
               </div>
             </header>
@@ -354,13 +346,13 @@ const App: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
-                <h3 className="text-lg font-black uppercase">01 智能分析</h3>
+                <h3 className="text-lg font-black uppercase">01 产品智能分析</h3>
               </div>
               
               <div className="flex gap-3 items-stretch h-[160px]">
                 <div className="w-[40%] flex flex-col gap-1.5">
                   <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest leading-none">
-                    提示：粘贴描述或上传图
+                    上传参考图或粘贴描述
                   </p>
                   <div className="flex flex-row gap-1.5 items-end overflow-x-auto pb-0.5 flex-1">
                     {[0, 1].map((idx) => (
@@ -377,7 +369,7 @@ const App: React.FC = () => {
                             <img 
                               src={`data:image/jpeg;base64,${images[idx]}`} 
                               className="w-full h-full object-contain cursor-zoom-in" 
-                              alt={`参考图 ${idx + 1}`} 
+                              alt={`产品图 ${idx + 1}`} 
                               onClick={() => setPreviewImageUrl(`data:image/jpeg;base64,${images[idx]}`)}
                             />
                             <button 
@@ -396,7 +388,7 @@ const App: React.FC = () => {
                   </div>
                   <textarea 
                     className="w-full h-7 px-3 py-1 bg-white border border-neutral-200 rounded-lg outline-none focus:border-neutral-900 text-xs font-bold shadow-sm resize-none overflow-hidden shrink-0" 
-                    placeholder="粘贴产品描述..." 
+                    placeholder="粘贴或输入产品说明..." 
                     rows={1}
                     value={description} 
                     onChange={(e) => setDescription(e.target.value)} 
@@ -406,7 +398,7 @@ const App: React.FC = () => {
                     disabled={loading || images.length === 0} 
                     className="w-full h-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:from-blue-700 hover:to-indigo-700 disabled:opacity-20 active:scale-95 transition-all shadow-md shrink-0"
                   >
-                    {loading ? '处理中...' : '解析产品报告'}
+                    {loading ? '分析中...' : '解析产品报告'}
                   </button>
                 </div>
 
@@ -416,7 +408,7 @@ const App: React.FC = () => {
                   </div>
                   <textarea 
                     className="flex-1 w-full bg-transparent outline-none text-[11px] font-bold resize-none placeholder:text-neutral-300 custom-scrollbar-thin"
-                    placeholder="填写品牌..."
+                    placeholder="识别中..."
                     value={manualBrand}
                     onChange={(e) => setManualBrand(e.target.value)}
                   />
@@ -424,7 +416,7 @@ const App: React.FC = () => {
 
                 <div className="flex-1 min-w-0 relative bg-white border border-neutral-200 rounded-xl p-3 shadow-sm group flex flex-col overflow-hidden">
                   <div className="flex items-center justify-between border-b border-neutral-50 pb-1.5 mb-2 shrink-0">
-                    <span className="text-[9px] font-black text-neutral-400 uppercase">报告预览</span>
+                    <span className="text-[9px] font-black text-neutral-400 uppercase">分析摘要</span>
                     {report && (
                       <button 
                         onClick={() => setIsReportExpanded(true)}
@@ -444,7 +436,7 @@ const App: React.FC = () => {
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center opacity-20 py-2">
                         <div className="text-xl font-black">?</div>
-                        <p className="text-[8px] font-black uppercase tracking-widest">等待分析</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest">待分析</p>
                       </div>
                     )}
                   </div>
@@ -456,11 +448,11 @@ const App: React.FC = () => {
             <div className="space-y-4 pt-3 border-t border-neutral-200">
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
-                <h3 className="text-lg font-black uppercase">02 视觉定义</h3>
+                <h3 className="text-lg font-black uppercase">02 视觉风格定义</h3>
               </div>
               
               <div className="space-y-2">
-                <span className="text-sm font-black text-neutral-400 uppercase">2.1 视觉风格</span>
+                <span className="text-sm font-black text-neutral-400 uppercase">2.1 基础视觉风格</span>
                 <div className="grid grid-cols-4 gap-2">
                   {Object.values(VisualStyle).map(v => (
                     <div key={v} className="group relative">
@@ -477,7 +469,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <span className="text-sm font-black text-neutral-400 uppercase">2.2 排版架构</span>
+                <span className="text-sm font-black text-neutral-400 uppercase">2.2 页面排版逻辑</span>
                 <div className="grid grid-cols-3 gap-2">
                   {Object.values(TypographyStyle).map(t => (
                     <div key={t} className="group relative">
@@ -494,33 +486,33 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-3 bg-white/50 p-4 rounded-2xl border border-neutral-200">
-                <span className="text-xs font-black text-neutral-400 uppercase tracking-widest">2.3 特殊需求</span>
+                <span className="text-xs font-black text-neutral-400 uppercase tracking-widest">2.3 个性化业务需求</span>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between bg-white/40 p-2 rounded-lg border border-neutral-100 shadow-sm">
-                      <label className="text-xs font-bold text-neutral-600">模特</label>
+                      <label className="text-xs font-bold text-neutral-600">真人模特</label>
                       <button onClick={()=>setNeedsModel(!needsModel)} className={`w-8 h-4 rounded-full transition-all relative ${needsModel ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
                         <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm ${needsModel ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
                     {needsModel && (
-                      <input className="w-full h-7 px-3 bg-white border border-neutral-200 rounded-lg text-[10px] font-medium focus:border-neutral-900 outline-none transition-all shadow-sm" placeholder="模特详情" value={modelType} onChange={e=>setModelType(e.target.value)} />
+                      <input className="w-full h-7 px-3 bg-white border border-neutral-200 rounded-lg text-[10px] font-medium focus:border-neutral-900 outline-none transition-all shadow-sm" placeholder="如：亚洲女性" value={modelType} onChange={e=>setModelType(e.target.value)} />
                     )}
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between bg-white/40 p-2 rounded-lg border border-neutral-100 shadow-sm">
-                      <label className="text-xs font-bold text-neutral-600">场景</label>
+                      <label className="text-xs font-bold text-neutral-600">定制场景</label>
                       <button onClick={()=>setNeedsScene(!needsScene)} className={`w-8 h-4 rounded-full transition-all relative ${needsScene ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
                         <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm ${needsScene ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
                     {needsScene && (
-                      <input className="w-full h-7 px-3 bg-white border border-neutral-200 rounded-lg text-[10px] font-medium focus:border-neutral-900 outline-none transition-all shadow-sm" placeholder="场景详情" value={sceneType} onChange={e=>setSceneType(e.target.value)} />
+                      <input className="w-full h-7 px-3 bg-white border border-neutral-200 rounded-lg text-[10px] font-medium focus:border-neutral-900 outline-none transition-all shadow-sm" placeholder="如：厨房桌面" value={sceneType} onChange={e=>setSceneType(e.target.value)} />
                     )}
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between bg-white/40 p-2 rounded-lg border border-neutral-100 shadow-sm">
-                      <label className="text-xs font-bold text-neutral-600">数据</label>
+                      <label className="text-xs font-bold text-neutral-600">数据图表</label>
                       <button onClick={()=>setNeedsDataVis(!needsDataVis)} className={`w-8 h-4 rounded-full transition-all relative ${needsDataVis ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
                         <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm ${needsDataVis ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                       </button>
@@ -529,7 +521,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="space-y-2 border-t border-neutral-50 pt-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter">2.4 其他要求</label>
+                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter">2.4 补充需求备选项</label>
                   </div>
                   <div className="flex flex-wrap gap-1.5 mb-1.5">
                     {quickOptions.map(opt => (
@@ -544,7 +536,7 @@ const App: React.FC = () => {
                   </div>
                   <textarea 
                     className="w-full h-14 bg-white border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-neutral-900 text-xs font-bold resize-none shadow-sm transition-all" 
-                    placeholder="例如：对比图、展示效果..." 
+                    placeholder="输入其他具体要求..." 
                     value={otherNeeds} 
                     onChange={(e) => setOtherNeeds(e.target.value)} 
                   />
@@ -556,7 +548,7 @@ const App: React.FC = () => {
             <div className="space-y-4 pt-3 border-t border-neutral-200">
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
-                <h3 className="text-lg font-black uppercase">03 比例</h3>
+                <h3 className="text-lg font-black uppercase">03 方案画面比例</h3>
               </div>
               <div className="grid grid-cols-5 gap-3">
                 {Object.keys(ratioIcons).map(r => (
@@ -580,11 +572,11 @@ const App: React.FC = () => {
 
             <div className="pt-4">
               <button 
-                onClick={startExtraction} 
-                disabled={loading || images.length === 0} 
+                onClick={startGeneration} 
+                disabled={loading || !report} 
                 className="w-full h-16 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-500 text-white rounded-xl text-lg font-black uppercase tracking-widest shadow-xl hover:scale-[1.01] disabled:opacity-20 transition-all flex items-center justify-center gap-3 border border-white/20"
               >
-                {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : '生成视觉系统'}
+                {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : '生成视觉方案提示词'}
               </button>
             </div>
           </div>
@@ -593,7 +585,7 @@ const App: React.FC = () => {
         {/* 右侧面板 */}
         <section className="w-[58%] relative flex flex-col bg-white overflow-hidden">
           <header className="h-20 px-10 border-b border-neutral-50 flex items-center justify-between z-30 bg-white/95 backdrop-blur-md sticky top-0">
-            <h2 className="text-xl font-black tracking-tighter uppercase">产品海报方案</h2>
+            <h2 className="text-xl font-black tracking-tighter uppercase">生成效果方案预览</h2>
             <div className="flex gap-3">
               <button 
                 onClick={handleOpenSettings}
@@ -603,17 +595,17 @@ const App: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                设置
+                配置中心
               </button>
-              {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-8 h-10 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 shadow-md transition-all">批量渲染方案</button>}
+              {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-8 h-10 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 shadow-md transition-all">全案批量渲染</button>}
             </div>
           </header>
           
           <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
             {!finalPrompts ? (
               <div className="h-full flex flex-col items-center justify-center opacity-5 select-none">
-                <div className="text-[10rem] font-black tracking-tighter leading-none">视觉方案</div>
-                <p className="text-lg font-black uppercase tracking-[0.4em]">系统离线中</p>
+                <div className="text-[10rem] font-black tracking-tighter leading-none">预览区</div>
+                <p className="text-lg font-black uppercase tracking-[0.4em]">请在左侧点击生成</p>
               </div>
             ) : (
               <div className="max-w-6xl mx-auto space-y-20 pb-56">
@@ -633,7 +625,7 @@ const App: React.FC = () => {
                             <pre className="text-[10px] text-neutral-600 font-bold whitespace-pre-wrap leading-relaxed max-h-[250px] overflow-y-auto custom-scrollbar">{m.content}</pre>
                           </div>
                           <div className="flex items-center gap-3">
-                            <button onClick={() => generateSingleImage(idx, m.content, isLogo)} disabled={isGenerating} className="flex-1 py-3 bg-neutral-900 text-white rounded-lg text-[9px] font-black uppercase hover:bg-neutral-800 disabled:opacity-20 transition-all">{isGenerating ? '渲染中...' : '生成渲染图'}</button>
+                            <button onClick={() => generateSingleImage(idx, m.content, isLogo)} disabled={isGenerating} className="flex-1 py-3 bg-neutral-900 text-white rounded-lg text-[9px] font-black uppercase hover:bg-neutral-800 disabled:opacity-20 transition-all">{isGenerating ? '生成中...' : '渲染此画面'}</button>
                           </div>
                         </div>
                       </div>
@@ -643,7 +635,7 @@ const App: React.FC = () => {
                             <img src={generatedImages[idx]} className="w-full h-full object-cover cursor-zoom-in" onClick={() => setPreviewImageUrl(generatedImages[idx])} />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              {isGenerating ? <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin"></div> : <span className="opacity-10 font-black text-5xl">无预览</span>}
+                              {isGenerating ? <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin"></div> : <span className="opacity-10 font-black text-5xl">暂无预览</span>}
                             </div>
                           )}
                         </div>
@@ -663,14 +655,14 @@ const App: React.FC = () => {
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
             <div className="p-8 space-y-6">
               <div className="space-y-1.5">
-                <h3 className="text-xl font-black uppercase tracking-tight">接口配置</h3>
+                <h3 className="text-xl font-black uppercase tracking-tight">接口密钥配置</h3>
                 <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">
-                  请在此配置您的 Google Gemini API 密钥。如果设置了自定义密钥，系统将优先使用。
+                  后台已默认配置可用密钥。如需使用自己的 Key，请在下方输入，它将保存在本地并优先使用。
                 </p>
               </div>
               
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Gemini 密钥</label>
+                <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Gemini API 密钥</label>
                 <input 
                   type="password"
                   value={customKey}
@@ -678,16 +670,6 @@ const App: React.FC = () => {
                   placeholder="在此输入您的 API 密钥..."
                   className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:border-neutral-900 outline-none font-mono text-xs shadow-inner transition-all"
                 />
-                <div className="flex flex-col gap-0.5">
-                  <a 
-                    href="https://ai.google.dev/gemini-api/docs/billing" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[9px] text-blue-600 font-bold hover:underline"
-                  >
-                    如何获取密钥? →
-                  </a>
-                </div>
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -695,13 +677,13 @@ const App: React.FC = () => {
                   onClick={() => setIsSettingsOpen(false)}
                   className="flex-1 px-3 py-3 border border-neutral-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neutral-50 transition-all"
                 >
-                  取消
+                  返回
                 </button>
                 <button 
                   onClick={handleSaveSettings}
                   className="flex-[1.5] px-3 py-3 bg-neutral-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] shadow-lg transition-all"
                 >
-                  保存配置
+                  保存并应用
                 </button>
               </div>
             </div>
