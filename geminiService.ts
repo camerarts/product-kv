@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { VisualStyle, TypographyStyle, RecognitionReport } from "./types";
 
 const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家和AI绘画提示词专家。
@@ -24,9 +24,12 @@ const getEffectiveKey = (userKey?: string, isAdmin: boolean = false) => {
   }
 
   if (isAdmin) {
-    const systemKey = process.env.API_KEY || import.meta.env.VITE_API_KEY;
-    if (systemKey) {
-      return systemKey;
+    // In Vite, process.env.API_KEY is replaced by define, but we should also check import.meta.env
+    // The previous implementation had checks. 
+    // We trust that the key is available via process.env.API_KEY (injected by Vite define)
+    const systemKey = process.env.API_KEY; 
+    if (systemKey && systemKey.length > 0) {
+        return systemKey;
     }
   }
   
@@ -74,7 +77,7 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
   }
   用户提供的描述：${textDescription || '无'}` });
 
-  // Use ai.models.generateContent with model and contents in one call
+  // Use gemini-3-flash-preview for analysis
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: { parts },
@@ -95,34 +98,53 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
           brandTone: { type: Type.STRING },
           packagingHighlights: { type: Type.STRING }
         }
-      }
+      },
+      safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      ]
     }
   });
 
-  // Clean the text to remove potential markdown formatting before parsing
-  let text = response.text || '{}';
-  console.log("Raw Analysis Response:", text); // Debug log
+  let text = response.text;
+  
+  if (!text) {
+    console.warn("AI returned empty text. Full response:", response);
+    // Fallback object to prevent total crash if AI refuses to generate text
+    return {
+       brandName: "识别失败",
+       productType: "未知品类",
+       productSpecs: "暂无数据",
+       coreSellingPoints: ["AI未能提取卖点", "请尝试更清晰的图片"],
+       mainColors: "暂无",
+       auxColors: "暂无",
+       designStyle: "暂无",
+       targetAudience: "未知",
+       brandTone: "未知",
+       packagingHighlights: "暂无"
+    };
+  }
+
+  console.log("Raw Analysis Response:", text);
 
   try {
-    // 1. Aggressive Markdown Cleanup: Remove ```json, ```, and standard markdown wrappers
-    text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
-
-    // 2. Substring Extraction: Find the valid JSON object { ... }
-    // This handles cases where the model adds "Here is your JSON:" prefix
+    // 1. Locate JSON object wrapper
     const firstOpen = text.indexOf('{');
     const lastClose = text.lastIndexOf('}');
     
     if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
         text = text.substring(firstOpen, lastClose + 1);
+    } else {
+        throw new Error("Cannot find JSON braces");
     }
 
-    // 3. Remove trailing commas in arrays/objects which cause JSON.parse to fail
-    // Replace ", }" with "}" and ", ]" with "]"
+    // 2. Basic cleanup for common trailing commas issues in JSON
     text = text.replace(/,(\s*[}\]])/g, '$1');
 
     const parsed = JSON.parse(text);
 
-    // Ensure strictly valid structure with defaults to prevent crashes
     return {
       brandName: parsed.brandName || '',
       productType: parsed.productType || '',
@@ -153,8 +175,8 @@ export const generatePosterSystem = async (
   const apiKey = getEffectiveKey(userApiKey, isAdmin);
   const ai = new GoogleGenAI({ apiKey });
   
-  // Safety check for array joining
-  const sellingPointsStr = Array.isArray(report.coreSellingPoints) 
+  // Robust check for array
+  const sellingPointsStr = (report.coreSellingPoints && Array.isArray(report.coreSellingPoints))
     ? report.coreSellingPoints.join(', ') 
     : String(report.coreSellingPoints || '');
 
@@ -193,7 +215,13 @@ export const generatePosterSystem = async (
     contents: prompt,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
-      thinkingConfig: { thinkingBudget: 16384 }
+      thinkingConfig: { thinkingBudget: 16384 },
+      safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      ]
     }
   });
 
@@ -218,7 +246,15 @@ export const generateImageContent = async (
         { text: `高端电商摄影风格。还原参考图产品。场景描述：${prompt}。比例：${aspectRatio}。电影级光影。` }
       ] 
     },
-    config: { imageConfig: { aspectRatio: aspectRatio as any } }
+    config: { 
+      imageConfig: { aspectRatio: aspectRatio as any },
+      safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      ]
+    }
   });
   
   return response.candidates?.[0]?.content?.parts.find(p => p.inlineData)?.inlineData?.data;
