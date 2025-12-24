@@ -107,6 +107,12 @@ const App: React.FC = () => {
     "4:3": { w: "w-9", h: "h-7" },
   };
 
+  const quickOptions = ["对比图", "爆炸图", "使用步骤", "成分分析", "多口味展示", "礼盒包装"];
+
+  const handleQuickOptionClick = (opt: string) => {
+    setOtherNeeds(prev => prev ? `${prev}，${opt}` : opt);
+  };
+
   const processFile = (file: File) => {
     if (images.length >= 2) return;
     if (!file.type.startsWith('image/')) return;
@@ -447,7 +453,12 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-4 gap-2">
                   {Object.values(VisualStyle).map(v => (
                     <div key={v} className="group relative">
-                      <button onClick={() => setSelectedStyle(v)} className={`w-full px-1.5 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedStyle === v ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>{v.split(' ').slice(-1)[0]}</button>
+                      <button onClick={() => setSelectedStyle(v)} className={`w-full px-1 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedStyle === v ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
+                        <span className="flex items-center justify-center gap-1">
+                          <span>{v.split(' ')[0]}</span>
+                          <span className="truncate">{v.split(' ').slice(-1)[0].replace('风格', '')}</span>
+                        </span>
+                      </button>
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-neutral-900 text-white text-[10px] font-bold rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center">{styleDescriptions[v]}<div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-neutral-900"></div></div>
                     </div>
                   ))}
@@ -459,7 +470,12 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-3 gap-2">
                   {Object.values(TypographyStyle).map(t => (
                     <div key={t} className="group relative">
-                      <button onClick={() => setSelectedTypography(t)} className={`w-full px-2 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedTypography === t ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>{t.split(' ').slice(1, 2)[0]}</button>
+                      <button onClick={() => setSelectedTypography(t)} className={`w-full px-1.5 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedTypography === t ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
+                        <span className="flex items-center justify-center gap-1">
+                          <span>{t.split(' ')[0]}</span>
+                          <span className="truncate">{t.split(' ').slice(1, 2)[0]}</span>
+                        </span>
+                      </button>
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-neutral-900 text-white text-[10px] font-bold rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center">{typographyDescriptions[t]}<div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-neutral-900"></div></div>
                     </div>
                   ))}
@@ -501,7 +517,20 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-2 border-t border-neutral-50 pt-3">
-                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter">2.4 其他要求 / OTHERS</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter">2.4 其他要求 / OTHERS</label>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {quickOptions.map(opt => (
+                      <button 
+                        key={opt}
+                        onClick={() => handleQuickOptionClick(opt)}
+                        className="px-2 py-0.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-500 hover:text-neutral-900 rounded-md text-[9px] font-bold transition-all border border-neutral-200"
+                      >
+                        + {opt}
+                      </button>
+                    ))}
+                  </div>
                   <textarea 
                     className="w-full h-14 bg-white border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-neutral-900 text-xs font-bold resize-none shadow-sm transition-all" 
                     placeholder="如：对比图..." 
