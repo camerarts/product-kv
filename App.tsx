@@ -10,10 +10,16 @@ const App: React.FC = () => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loginPassword, setLoginPassword] = useState('');
 
-  // 初始化：检查登录状态
+  // --- API 密钥管理 ---
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [manualApiKey, setManualApiKey] = useState('');
+
+  // 初始化：加载本地缓存
   useEffect(() => {
     const loginStatus = sessionStorage.getItem('APP_IS_LOGGED_IN') === 'true';
     setIsLoggedIn(loginStatus);
+    const savedKey = localStorage.getItem('GEMINI_MANUAL_API_KEY');
+    if (savedKey) setManualApiKey(savedKey);
   }, []);
 
   const handleLogin = () => {
@@ -34,19 +40,38 @@ const App: React.FC = () => {
     }
   };
 
-  // --- API 密钥管理 ---
+  const saveManualKey = () => {
+    if (manualApiKey.trim()) {
+      localStorage.setItem('GEMINI_MANUAL_API_KEY', manualApiKey.trim());
+      alert('API 密钥已保存。');
+      setIsKeyModalOpen(false);
+    } else {
+      alert('请输入有效的 API 密钥');
+    }
+  };
+
+  const getEffectiveApiKey = async () => {
+    // 优先级：手动输入 > 环境变量 > AI Studio
+    if (manualApiKey.trim()) return manualApiKey.trim();
+    if (process.env.API_KEY && process.env.API_KEY !== "undefined" && process.env.API_KEY.length > 5) return process.env.API_KEY;
+    
+    // @ts-ignore
+    if (window.aistudio) {
+      // @ts-ignore
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      if (hasKey) return process.env.API_KEY;
+    }
+    return null;
+  };
+
   const handleOpenKeySelection = async () => {
     // @ts-ignore
     if (window.aistudio && window.aistudio.openSelectKey) {
       // @ts-ignore
       await window.aistudio.openSelectKey();
     } else {
-      // 检查环境变量是否已配置
-      if (process.env.API_KEY && process.env.API_KEY !== "undefined") {
-        alert("系统检测到后台已配置 API 密钥，您可以直接登录使用。");
-      } else {
-        alert("当前环境不支持手动输入密钥，且未检测到后台变量，请检查 Cloudflare 配置。");
-      }
+      // 如果不在 AI Studio 环境，开启手动配置弹窗
+      setIsKeyModalOpen(true);
     }
   };
 
@@ -56,26 +81,12 @@ const App: React.FC = () => {
       return false;
     }
 
-    // 只要有环境变量 key 或者是 aistudio 环境已选 key，就放行
-    if (process.env.API_KEY && process.env.API_KEY !== "undefined") {
-      return true;
+    const key = await getEffectiveApiKey();
+    if (!key) {
+      setIsKeyModalOpen(true);
+      return false;
     }
-
-    // @ts-ignore
-    if (window.aistudio) {
-      // @ts-ignore
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-        return true; // 触发后假设可用
-      }
-      return true;
-    }
-
-    // 如果都没有，给出具体提示
-    alert("未检测到有效的 API 密钥配置，请联系管理员或检查配置。");
-    return false;
+    return true;
   };
 
   // --- 核心业务逻辑 ---
@@ -186,16 +197,19 @@ const App: React.FC = () => {
     try {
       const ok = await checkAuthAndKey();
       if (!ok) return;
+      const key = await getEffectiveApiKey();
+      if (!key) return;
+
       if (images.length === 0) return alert('请至少上传一张产品图片');
       setLoading(true);
-      const res = await extractProductInfo(images, description);
+      const res = await extractProductInfo(images, description, key);
       setReport(res);
       if (!manualBrand && res.brandName) {
         setManualBrand(res.brandName);
       }
     } catch (err: any) {
       console.error('Extraction Error:', err);
-      alert(`分析失败: ${err.message || '请确认后台 API_KEY 已发布且可用'}`);
+      alert(`分析失败: ${err.message || '请确认 API 密钥已正确配置'}`);
     } finally { setLoading(false); }
   };
 
@@ -203,6 +217,9 @@ const App: React.FC = () => {
     try {
       const ok = await checkAuthAndKey();
       if (!ok) return;
+      const key = await getEffectiveApiKey();
+      if (!key) return;
+
       if (!report) return alert('请先解析产品报告');
       setLoading(true);
       const combinedNeeds = [
@@ -213,7 +230,7 @@ const App: React.FC = () => {
       ].filter(Boolean).join('；');
 
       const finalReport = { ...report, brandName: manualBrand || report.brandName };
-      const res = await generatePosterSystem(finalReport, selectedStyle, selectedTypography, combinedNeeds);
+      const res = await generatePosterSystem(finalReport, selectedStyle, selectedTypography, combinedNeeds, key);
       setFinalPrompts(res);
     } catch (err: any) {
       console.error('Generation Error:', err);
@@ -225,12 +242,15 @@ const App: React.FC = () => {
     try {
       const ok = await checkAuthAndKey();
       if (!ok) return;
+      const key = await getEffectiveApiKey();
+      if (!key) return;
+
       if (images.length === 0) return alert("请上传产品参考图");
       
       const targetRatio = isLogo ? "1:1" : aspectRatio;
       setGeneratingModules(prev => ({ ...prev, [index]: true }));
       
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: key });
       const imageParts = images.map(img => ({
         inlineData: { data: img, mimeType: 'image/jpeg' }
       }));
@@ -313,14 +333,6 @@ const App: React.FC = () => {
         <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-0.5`}>主视觉配色</p><p className={`${isLarge ? 'text-lg' : 'text-base'} font-bold text-neutral-800`}>{rep.mainColors}</p></div>
         <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-0.5`}>品牌风格调性</p><p className={`${isLarge ? 'text-lg' : 'text-base'} font-bold text-neutral-800`}>{rep.brandTone}</p></div>
       </div>
-      {isLarge && (
-        <>
-          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">设计细节说明</p><p className="text-lg font-bold text-neutral-800">{rep.designStyle}</p></div>
-          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">目标消费群体</p><p className="text-lg font-bold text-neutral-800">{rep.targetAudience}</p></div>
-          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">包装工艺亮点</p><p className="text-lg font-bold text-neutral-800">{rep.packagingHighlights}</p></div>
-          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">详细参数规格</p><p className="text-lg font-bold text-neutral-800">{rep.productSpecs}</p></div>
-        </>
-      )}
     </div>
   );
 
@@ -332,9 +344,7 @@ const App: React.FC = () => {
           <div className="p-5 space-y-4 pb-10" onPaste={handlePasteToDescription}>
             <header className="pb-4 border-b border-neutral-200">
               <div className="space-y-2">
-                <h1 className="text-lg md:text-xl font-black tracking-tighter text-neutral-900 leading-tight uppercase whitespace-nowrap overflow-hidden text-ellipsis">
-                  电商详情图视觉全案系统
-                </h1>
+                <h1 className="text-lg md:text-xl font-black tracking-tighter text-neutral-900 leading-tight uppercase whitespace-nowrap overflow-hidden text-ellipsis">电商详情图视觉全案系统</h1>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <div className="w-1 h-4 bg-blue-600 rounded-full"></div>
@@ -560,7 +570,7 @@ const App: React.FC = () => {
             <div className="p-8 space-y-6">
               <div className="space-y-1.5">
                 <h3 className="text-xl font-black uppercase tracking-tight">系统登录</h3>
-                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">请输入访问密码以解锁功能，资源已由后台自动匹配。</p>
+                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">请输入您的访问密码以解锁全部策划功能。</p>
               </div>
               <div className="space-y-2">
                 <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">访问密码</label>
@@ -575,7 +585,29 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* 大图预览与报告 */}
+      {/* --- API 密钥配置弹窗 --- */}
+      {isKeyModalOpen && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in" onClick={() => setIsKeyModalOpen(false)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
+            <div className="p-8 space-y-6">
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-black uppercase tracking-tight">配置 API 密钥</h3>
+                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">请输入您的 Gemini API 密钥。如果您的 Cloudflare 环境变量未生效，可在此手动设置。</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">GEMINI API KEY</label>
+                <input type="text" value={manualApiKey} onChange={(e) => setManualApiKey(e.target.value)} placeholder="输入以 AIza 开头的密钥..." className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:border-neutral-900 outline-none font-mono text-xs shadow-inner transition-all" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setIsKeyModalOpen(false)} className="flex-1 px-3 py-3 border border-neutral-100 rounded-xl text-[10px] font-black uppercase hover:bg-neutral-50 transition-all">关闭</button>
+                <button onClick={saveManualKey} className="flex-[1.5] px-3 py-3 bg-neutral-900 text-white rounded-xl text-[10px] font-black uppercase hover:scale-[1.02] shadow-lg transition-all">保存配置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 其他预览/大图/报告弹窗 */}
       {previewImageUrl && <div className="fixed inset-0 z-[100] bg-white/98 backdrop-blur-2xl flex items-center justify-center p-8 animate-fade-in" onClick={() => setPreviewImageUrl(null)}><img src={previewImageUrl} className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-2xl" onClick={(e) => e.stopPropagation()} /></div>}
       {isReportExpanded && report && <div className="fixed inset-0 z-[110] bg-white/98 backdrop-blur-2xl flex items-center justify-center p-8 animate-fade-in" onClick={() => setIsReportExpanded(false)}><div className="bg-white rounded-[2.5rem] shadow-2xl border border-neutral-100 w-full max-w-4xl max-h-[85vh] overflow-y-auto p-12" onClick={(e) => e.stopPropagation()}>{renderReportContent({ ...report, brandName: manualBrand || report.brandName }, true)}</div></div>}
 
