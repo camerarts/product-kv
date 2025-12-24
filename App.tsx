@@ -10,16 +10,23 @@ const App: React.FC = () => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loginPassword, setLoginPassword] = useState('');
 
-  // --- API 密钥管理 ---
+  // --- API 密钥配置 ---
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
-  const [manualApiKey, setManualApiKey] = useState('');
+  const [manualApiKey, setManualApiKey] = useState(() => localStorage.getItem('VISION_MANUAL_API_KEY') || '');
 
-  // 初始化：加载本地缓存
+  // 密钥掩码逻辑：除最后6位外全部隐藏
+  const maskedKey = useMemo(() => {
+    if (!manualApiKey) return '';
+    if (manualApiKey.length <= 6) return manualApiKey;
+    const prefix = '•'.repeat(manualApiKey.length - 6);
+    const suffix = manualApiKey.slice(-6);
+    return `${prefix}${suffix}`;
+  }, [manualApiKey]);
+
+  // 初始化：检查登录状态
   useEffect(() => {
     const loginStatus = sessionStorage.getItem('APP_IS_LOGGED_IN') === 'true';
     setIsLoggedIn(loginStatus);
-    const savedKey = localStorage.getItem('GEMINI_MANUAL_API_KEY');
-    if (savedKey) setManualApiKey(savedKey);
   }, []);
 
   const handleLogin = () => {
@@ -29,7 +36,7 @@ const App: React.FC = () => {
       setIsLoginOpen(false);
       setLoginPassword('');
     } else {
-      alert('访问密码错误，请检查。');
+      alert('访问密码错误，请确认后重试。');
     }
   };
 
@@ -40,50 +47,19 @@ const App: React.FC = () => {
     }
   };
 
-  const saveManualKey = () => {
-    if (manualApiKey.trim()) {
-      localStorage.setItem('GEMINI_MANUAL_API_KEY', manualApiKey.trim());
-      alert('API 密钥已保存。');
-      setIsKeyModalOpen(false);
-    } else {
-      alert('请输入有效的 API 密钥');
-    }
+  const handleSaveApiKey = () => {
+    localStorage.setItem('VISION_MANUAL_API_KEY', manualApiKey);
+    setIsKeyModalOpen(false);
+    alert('API 密钥已更新');
   };
 
-  const getEffectiveApiKey = async () => {
-    // 优先级：手动输入 > 环境变量 > AI Studio
-    if (manualApiKey.trim()) return manualApiKey.trim();
-    if (process.env.API_KEY && process.env.API_KEY !== "undefined" && process.env.API_KEY.length > 5) return process.env.API_KEY;
-    
-    // @ts-ignore
-    if (window.aistudio) {
-      // @ts-ignore
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      if (hasKey) return process.env.API_KEY;
-    }
-    return null;
+  const handleOpenKeySelection = () => {
+    setIsKeyModalOpen(true);
   };
 
-  const handleOpenKeySelection = async () => {
-    // @ts-ignore
-    if (window.aistudio && window.aistudio.openSelectKey) {
-      // @ts-ignore
-      await window.aistudio.openSelectKey();
-    } else {
-      // 如果不在 AI Studio 环境，开启手动配置弹窗
-      setIsKeyModalOpen(true);
-    }
-  };
-
-  const checkAuthAndKey = async () => {
+  const checkAuth = () => {
     if (!isLoggedIn) {
       setIsLoginOpen(true);
-      return false;
-    }
-
-    const key = await getEffectiveApiKey();
-    if (!key) {
-      setIsKeyModalOpen(true);
       return false;
     }
     return true;
@@ -109,29 +85,21 @@ const App: React.FC = () => {
   const [needsDataVis, setNeedsDataVis] = useState(false);
   const [otherNeeds, setOtherNeeds] = useState('');
 
+  // 备选项配置
+  const quickOptions = ["对比图", "爆炸图", "使用步骤", "成分分析", "多口味展示", "礼盒包装", "核心工艺", "真人实拍", "光影氛围"];
+
+  const handleQuickOptionClick = (opt: string) => {
+    setOtherNeeds(prev => {
+      if (!prev) return opt;
+      if (prev.includes(opt)) return prev;
+      return `${prev}，${opt}`;
+    });
+  };
+
   const [aspectRatio, setAspectRatio] = useState<string>("9:16");
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
   const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({});
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-
-  const styleDescriptions: Record<VisualStyle, string> = {
-    [VisualStyle.MAGAZINE]: '高级、专业、大片感、粗衬线标题、极简留白',
-    [VisualStyle.WATERCOLOR]: '温暖、柔和、晕染效果、手绘质感',
-    [VisualStyle.TECH]: '冷色调、几何图形、数据可视化、蓝光效果',
-    [VisualStyle.RETRO]: '颗粒质感、暖色调、怀旧氛围、宝丽来边框',
-    [VisualStyle.NORDIC]: '性冷淡、大留白、几何线条、黑白灰',
-    [VisualStyle.NEON]: '荧光色、描边发光、未来都市、暗色背景',
-    [VisualStyle.NATURAL]: '植物元素、大地色系、手工质感、环保理念',
-  };
-
-  const typographyDescriptions: Record<TypographyStyle, string> = {
-    [TypographyStyle.SERIF_GRID]: '杂志风：粗衬线大标题 + 细线装饰 + 网格对齐',
-    [TypographyStyle.GLASS_MODERN]: '现代风：玻璃拟态卡片 + 半透明背景 + 柔和圆角',
-    [TypographyStyle.LUXURY_3D]: '奢华风：3D浮雕文字 + 金属质感 + 光影效果',
-    [TypographyStyle.WATERCOLOR_ART]: '艺术风：手写体标注 + 水彩笔触 + 不规则布局',
-    [TypographyStyle.NEON_CYBER]: '赛博风：无衬线粗体 + 霓虹描边 + 发光效果',
-    [TypographyStyle.MINIMAL_LINE]: '极简风：极细线条字 + 大量留白 + 精确对齐',
-  };
 
   const ratioIcons: Record<string, { w: string, h: string }> = {
     "1:1": { w: "w-6", h: "h-6" },
@@ -139,12 +107,6 @@ const App: React.FC = () => {
     "9:16": { w: "w-5", h: "h-9" },
     "3:4": { w: "w-6", h: "h-8" },
     "4:3": { w: "w-9", h: "h-7" },
-  };
-
-  const quickOptions = ["对比图", "爆炸图", "使用步骤", "成分分析", "多口味展示", "礼盒包装"];
-
-  const handleQuickOptionClick = (opt: string) => {
-    setOtherNeeds(prev => prev ? `${prev}，${opt}` : opt);
   };
 
   const processFile = (file: File) => {
@@ -194,34 +156,28 @@ const App: React.FC = () => {
   };
 
   const startExtraction = async () => {
+    if (!checkAuth()) return;
+    if (images.length === 0) return alert('请至少上传一张产品图片');
+    
+    setLoading(true);
     try {
-      const ok = await checkAuthAndKey();
-      if (!ok) return;
-      const key = await getEffectiveApiKey();
-      if (!key) return;
-
-      if (images.length === 0) return alert('请至少上传一张产品图片');
-      setLoading(true);
-      const res = await extractProductInfo(images, description, key);
+      const res = await extractProductInfo(images, description, manualApiKey);
       setReport(res);
       if (!manualBrand && res.brandName) {
         setManualBrand(res.brandName);
       }
     } catch (err: any) {
       console.error('Extraction Error:', err);
-      alert(`分析失败: ${err.message || '请确认 API 密钥已正确配置'}`);
+      alert(`分析失败: ${err.message || 'API 访问异常，请检查密钥配置或后台限制'}`);
     } finally { setLoading(false); }
   };
 
   const startGeneration = async () => {
+    if (!checkAuth()) return;
+    if (!report) return alert('请先解析产品报告');
+    
+    setLoading(true);
     try {
-      const ok = await checkAuthAndKey();
-      if (!ok) return;
-      const key = await getEffectiveApiKey();
-      if (!key) return;
-
-      if (!report) return alert('请先解析产品报告');
-      setLoading(true);
       const combinedNeeds = [
         needsModel ? `需要模特: ${modelType || '默认合适模特'}` : '不需要模特',
         needsScene ? `需要场景: ${sceneType || '默认合适场景'}` : '不需要场景',
@@ -230,7 +186,7 @@ const App: React.FC = () => {
       ].filter(Boolean).join('；');
 
       const finalReport = { ...report, brandName: manualBrand || report.brandName };
-      const res = await generatePosterSystem(finalReport, selectedStyle, selectedTypography, combinedNeeds, key);
+      const res = await generatePosterSystem(finalReport, selectedStyle, selectedTypography, combinedNeeds, manualApiKey);
       setFinalPrompts(res);
     } catch (err: any) {
       console.error('Generation Error:', err);
@@ -239,18 +195,15 @@ const App: React.FC = () => {
   };
 
   const generateSingleImage = async (index: number, prompt: string, isLogo: boolean = false) => {
+    if (!checkAuth()) return;
+    if (images.length === 0) return alert("请上传产品参考图");
+    
+    const targetRatio = isLogo ? "1:1" : aspectRatio;
+    setGeneratingModules(prev => ({ ...prev, [index]: true }));
+    
     try {
-      const ok = await checkAuthAndKey();
-      if (!ok) return;
-      const key = await getEffectiveApiKey();
-      if (!key) return;
-
-      if (images.length === 0) return alert("请上传产品参考图");
-      
-      const targetRatio = isLogo ? "1:1" : aspectRatio;
-      setGeneratingModules(prev => ({ ...prev, [index]: true }));
-      
-      const ai = new GoogleGenAI({ apiKey: key });
+      const apiKey = manualApiKey || process.env.API_KEY;
+      const ai = new GoogleGenAI({ apiKey });
       const imageParts = images.map(img => ({
         inlineData: { data: img, mimeType: 'image/jpeg' }
       }));
@@ -308,15 +261,12 @@ const App: React.FC = () => {
   }, [finalPrompts]);
 
   const generateAllImages = async () => {
-    try {
-      const ok = await checkAuthAndKey();
-      if (!ok) return;
-      if (!finalPrompts) return;
-      for (let i = 0; i < promptModules.length; i++) {
-        const isLogo = promptModules[i].title.toUpperCase().includes("LOGO");
-        await generateSingleImage(i, promptModules[i].content, isLogo);
-      }
-    } catch (err) {}
+    if (!checkAuth()) return;
+    if (!finalPrompts) return;
+    for (let i = 0; i < promptModules.length; i++) {
+      const isLogo = promptModules[i].title.toUpperCase().includes("LOGO");
+      await generateSingleImage(i, promptModules[i].content, isLogo);
+    }
   };
 
   const getAspectClass = (r: string) => {
@@ -366,11 +316,7 @@ const App: React.FC = () => {
                   <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest leading-none">上传参考图或粘贴描述</p>
                   <div className="flex flex-row gap-1.5 items-end overflow-x-auto pb-0.5 flex-1">
                     {[0, 1].map((idx) => (
-                      <div 
-                        key={idx}
-                        className="group relative bg-white border border-neutral-200 rounded-lg overflow-hidden flex items-center justify-center transition-all hover:border-neutral-900 shadow-sm shrink-0 h-full"
-                        style={{ aspectRatio: imageRatios[idx] ? `${imageRatios[idx]}/1` : '1/1', minWidth: images[idx] ? 'auto' : '60px' }}
-                      >
+                      <div key={idx} className="group relative bg-white border border-neutral-200 rounded-lg overflow-hidden flex items-center justify-center transition-all hover:border-neutral-900 shadow-sm shrink-0 h-full" style={{ aspectRatio: imageRatios[idx] ? `${imageRatios[idx]}/1` : '1/1', minWidth: images[idx] ? 'auto' : '60px' }}>
                         {images[idx] ? (
                           <>
                             <img src={`data:image/jpeg;base64,${images[idx]}`} className="w-full h-full object-contain cursor-zoom-in" alt={`产品图 ${idx + 1}`} onClick={() => setPreviewImageUrl(`data:image/jpeg;base64,${images[idx]}`)} />
@@ -468,7 +414,17 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <textarea className="w-full h-14 bg-white border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-neutral-900 text-xs font-bold resize-none shadow-sm transition-all mt-2" placeholder="输入其他具体要求..." value={otherNeeds} onChange={(e) => setOtherNeeds(e.target.value)} />
+                
+                <div className="space-y-2 mt-2">
+                  <textarea className="w-full h-14 bg-white border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-neutral-900 text-xs font-bold resize-none shadow-sm transition-all" placeholder="输入其他具体要求..." value={otherNeeds} onChange={(e) => setOtherNeeds(e.target.value)} />
+                  <div className="flex flex-wrap gap-1.5">
+                    {quickOptions.map(opt => (
+                      <button key={opt} onClick={() => handleQuickOptionClick(opt)} className="px-2 py-1 bg-white border border-neutral-100 rounded text-[9px] font-bold text-neutral-400 hover:border-neutral-900 hover:text-neutral-900 transition-all shadow-sm active:scale-95">
+                        + {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -566,11 +522,11 @@ const App: React.FC = () => {
       {/* --- 登录弹窗 --- */}
       {isLoginOpen && (
         <div className="fixed inset-0 z-[210] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in" onClick={() => setIsLoginOpen(false)}>
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm:w-full max-w-sm overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
             <div className="p-8 space-y-6">
               <div className="space-y-1.5">
                 <h3 className="text-xl font-black uppercase tracking-tight">系统登录</h3>
-                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">请输入您的访问密码以解锁全部策划功能。</p>
+                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">请输入您的访问密码以解锁全部策划功能。后台资源已就绪。</p>
               </div>
               <div className="space-y-2">
                 <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">访问密码</label>
@@ -578,7 +534,7 @@ const App: React.FC = () => {
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setIsLoginOpen(false)} className="flex-1 px-3 py-3 border border-neutral-100 rounded-xl text-[10px] font-black uppercase hover:bg-neutral-50 transition-all">取消</button>
-                <button onClick={handleLogin} className="flex-[1.5] px-3 py-3 bg-neutral-900 text-white rounded-xl text-[10px] font-black uppercase hover:scale-[1.02] shadow-lg transition-all">立即登录</button>
+                <button onClick={handleLogin} className="flex-[1.5] px-3 py-3 bg-neutral-900 text-white rounded-xl text-[10px] font-black uppercase hover:scale-[1.02] shadow-lg transition-all">确认登录</button>
               </div>
             </div>
           </div>
@@ -588,19 +544,27 @@ const App: React.FC = () => {
       {/* --- API 密钥配置弹窗 --- */}
       {isKeyModalOpen && (
         <div className="fixed inset-0 z-[220] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in" onClick={() => setIsKeyModalOpen(false)}>
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
             <div className="p-8 space-y-6">
               <div className="space-y-1.5">
-                <h3 className="text-xl font-black uppercase tracking-tight">配置 API 密钥</h3>
-                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">请输入您的 Gemini API 密钥。如果您的 Cloudflare 环境变量未生效，可在此手动设置。</p>
+                <h3 className="text-xl font-black uppercase tracking-tight">API 密钥配置</h3>
+                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">配置您的 Gemini API 密钥以启用 AI 生成功能。设置将保存在本地浏览器中。</p>
               </div>
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">GEMINI API KEY</label>
-                <input type="text" value={manualApiKey} onChange={(e) => setManualApiKey(e.target.value)} placeholder="输入以 AIza 开头的密钥..." className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:border-neutral-900 outline-none font-mono text-xs shadow-inner transition-all" />
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">GEMINI API KEY</label>
+                  <input type="password" value={manualApiKey} onChange={(e) => setManualApiKey(e.target.value)} placeholder="输入您的 API Key..." className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:border-neutral-900 outline-none font-mono text-xs shadow-inner transition-all" autoFocus />
+                </div>
+                {manualApiKey && (
+                  <div className="px-4 py-2 bg-neutral-50 border border-neutral-100 rounded-lg">
+                    <p className="text-[9px] font-black text-neutral-300 uppercase tracking-tighter mb-0.5">确认密钥 (最后6位明文)</p>
+                    <p className="font-mono text-[11px] font-bold text-neutral-600 tracking-wider break-all leading-tight">{maskedKey}</p>
+                  </div>
+                )}
               </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setIsKeyModalOpen(false)} className="flex-1 px-3 py-3 border border-neutral-100 rounded-xl text-[10px] font-black uppercase hover:bg-neutral-50 transition-all">关闭</button>
-                <button onClick={saveManualKey} className="flex-[1.5] px-3 py-3 bg-neutral-900 text-white rounded-xl text-[10px] font-black uppercase hover:scale-[1.02] shadow-lg transition-all">保存配置</button>
+                <button onClick={() => setIsKeyModalOpen(false)} className="flex-1 px-3 py-3 border border-neutral-100 rounded-xl text-[10px] font-black uppercase hover:bg-neutral-50 transition-all">取消</button>
+                <button onClick={handleSaveApiKey} className="flex-[1.5] px-3 py-3 bg-neutral-900 text-white rounded-xl text-[10px] font-black uppercase hover:scale-[1.02] shadow-lg transition-all">保存配置</button>
               </div>
             </div>
           </div>

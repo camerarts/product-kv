@@ -14,8 +14,10 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 海报必须包含：详细的中英文提示词、排版布局说明。
 所有海报必须保持品牌风格统一，LOGO位置合理且一致。`;
 
-export const extractProductInfo = async (imagesB64: string[], textDescription: string, apiKey: string): Promise<RecognitionReport> => {
-  const ai = new GoogleGenAI({ apiKey: apiKey || process.env.API_KEY });
+export const extractProductInfo = async (imagesB64: string[], textDescription: string, manualKey?: string): Promise<RecognitionReport> => {
+  // 优先级：手动配置的 Key > 环境变量
+  const apiKey = manualKey || process.env.API_KEY;
+  const ai = new GoogleGenAI({ apiKey });
   const parts: any[] = [];
   
   if (imagesB64 && imagesB64.length > 0) {
@@ -77,9 +79,10 @@ export const generatePosterSystem = async (
   visualStyle: VisualStyle,
   typography: TypographyStyle,
   specialNeeds: string,
-  apiKey: string
+  manualKey?: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: apiKey || process.env.API_KEY });
+  const apiKey = manualKey || process.env.API_KEY;
+  const ai = new GoogleGenAI({ apiKey });
   const prompt = `基于以下产品报告生成一套电商全系统海报（共11个模块，含LOGO提示词）。
   
   【产品信息】
