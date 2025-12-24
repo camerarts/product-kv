@@ -7,7 +7,7 @@ import { ConfigModal } from './ConfigModal';
 import { LoginModal } from './LoginModal';
 import { ApiKeyModal } from './ApiKeyModal';
 
-const App: React.FC = () => {
+export const App: React.FC = () => {
   // --- 全局 UI 状态 ---
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -250,13 +250,13 @@ const App: React.FC = () => {
            onClick={() => setIsConfigOpen(true)}
            className="px-4 py-2 bg-white/80 backdrop-blur border border-neutral-200 rounded-lg text-xs font-bold text-neutral-600 hover:bg-white shadow-sm transition-all"
         >
-           {userApiKey ? '🔑 API Key Configured' : '⚙️ Configure Key'}
+           {userApiKey ? '🔑 已配置 Key' : '⚙️ 配置 Key'}
         </button>
         <button
            onClick={() => setIsLoginOpen(true)} 
            className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold hover:bg-neutral-800 shadow-sm transition-all"
         >
-           Admin Login
+           管理员登录
         </button>
       </div>
 
@@ -287,5 +287,3 @@ const App: React.FC = () => {
     </div>
   );
 };
-
-export default App;
