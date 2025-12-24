@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { extractProductInfo, generatePosterSystem, generateImageContent } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 import { Sidebar } from './Sidebar';
@@ -89,6 +89,13 @@ export const App: React.FC = () => {
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
   const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({});
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  
+  // Ref to track generating state for the batch process to avoid stale closures
+  const generatingModulesRef = useRef<Record<number, boolean>>({});
+
+  useEffect(() => {
+    generatingModulesRef.current = generatingModules;
+  }, [generatingModules]);
 
   const ratioIcons: Record<string, string> = {
     "1:1": "1:1",
@@ -190,10 +197,54 @@ export const App: React.FC = () => {
         setGeneratedImages(prev => ({ ...prev, [index]: `data:image/jpeg;base64,${res}` }));
       }
     } catch (err: any) {
-      alert(`生成图片失败: ${err.message}`);
+      console.error(`生成图片失败 (Index ${index}):`, err.message);
+      // alert(`生成图片失败: ${err.message}`); // Suppress alert for batch generation
     } finally {
       setGeneratingModules(prev => ({ ...prev, [index]: false }));
     }
+  };
+
+  // --- 批量生成逻辑 ---
+  const handleGenerateAll = async () => {
+    if (!promptModules.length) return;
+
+    // 1. 找出所有还没生成且当前没有正在生成的任务
+    // 使用 generatedImages 来判断是否已完成
+    // 使用 generatingModulesRef 来判断是否正在进行 (双重保险)
+    const pendingTasks = promptModules.map((m, i) => ({ ...m, index: i }))
+      .filter(item => !generatedImages[item.index]);
+
+    if (pendingTasks.length === 0) {
+      alert("所有图片已生成完毕！");
+      return;
+    }
+
+    // 2. 定义 Worker 池，最大并发 2
+    const CONCURRENCY_LIMIT = 2;
+    const taskQueue = [...pendingTasks]; // 可变队列
+
+    const runWorker = async () => {
+      while (taskQueue.length > 0) {
+        // 取出下一个任务
+        const task = taskQueue.shift();
+        if (!task) break;
+
+        // 再次检查是否正在生成 (防止竞态)
+        if (generatingModulesRef.current[task.index]) continue;
+
+        // 执行生成
+        const isLogo = task.title.includes("LOGO");
+        await generateSingleImage(task.index, task.content, isLogo);
+      }
+    };
+
+    // 3. 启动 Worker
+    const workers = [];
+    for (let i = 0; i < Math.min(pendingTasks.length, CONCURRENCY_LIMIT); i++) {
+      workers.push(runWorker());
+    }
+
+    await Promise.all(workers);
   };
 
   // 检查是否有可用权限 (仅用于 UI 显示判断，实际 logic 在 service 中)
@@ -238,6 +289,7 @@ export const App: React.FC = () => {
         previewImageUrl={previewImageUrl}
         setPreviewImageUrl={setPreviewImageUrl}
         generateSingleImage={generateSingleImage}
+        generateAllImages={handleGenerateAll}
         promptModules={promptModules}
         aspectRatio={aspectRatio}
       />

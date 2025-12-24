@@ -15,6 +15,7 @@ interface MainContentProps {
   previewImageUrl: string | null;
   setPreviewImageUrl: (val: string | null) => void;
   generateSingleImage: (index: number, prompt: string, isLogo: boolean) => void;
+  generateAllImages: () => void;
   promptModules: { title: string; content: string }[];
   aspectRatio: string;
 }
@@ -22,7 +23,7 @@ interface MainContentProps {
 export const MainContent: React.FC<MainContentProps> = ({
   manualBrand, report, selectedStyle, selectedTypography,
   finalPrompts, generatedImages, generatingModules,
-  previewImageUrl, setPreviewImageUrl, generateSingleImage,
+  previewImageUrl, setPreviewImageUrl, generateSingleImage, generateAllImages,
   promptModules, aspectRatio
 }) => {
 
@@ -67,6 +68,8 @@ export const MainContent: React.FC<MainContentProps> = ({
       alert("打包下载失败，请重试");
     }
   };
+
+  const isGeneratingAny = Object.values(generatingModules).some(v => v);
 
   return (
     <main className="flex-1 flex flex-col bg-[#F9FAFB] relative z-10">
@@ -225,15 +228,36 @@ export const MainContent: React.FC<MainContentProps> = ({
                {/* Section Title & Actions */}
                <div className="flex items-center justify-between mb-4 px-2">
                    <h3 className="text-sm font-black text-neutral-800 tracking-wide uppercase">视觉方案详情</h3>
-                   {Object.keys(generatedImages).length > 0 && (
-                      <button 
-                          onClick={handleDownloadAll}
-                          className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg text-xs font-bold hover:bg-neutral-800 transition-all flex items-center gap-2 shadow-sm"
+                   
+                   <div className="flex items-center gap-3">
+                      {/* One Click Generate All Button */}
+                      <button
+                         onClick={generateAllImages}
+                         disabled={isGeneratingAny}
+                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shadow-sm ${
+                           isGeneratingAny 
+                             ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' 
+                             : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:shadow-purple-200 hover:scale-[1.02]'
+                         }`}
                       >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0l-4-4m4 4v12"></path></svg>
-                          一键下载资源包
+                          {isGeneratingAny ? (
+                             <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                          )}
+                          {isGeneratingAny ? '自动生成中...' : '一键出图'}
                       </button>
-                   )}
+
+                      {Object.keys(generatedImages).length > 0 && (
+                          <button 
+                              onClick={handleDownloadAll}
+                              className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg text-xs font-bold hover:bg-neutral-800 transition-all flex items-center gap-2 shadow-sm"
+                          >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0l-4-4m4 4v12"></path></svg>
+                              一键下载资源包
+                          </button>
+                      )}
+                   </div>
                </div>
 
                {/* Grid Layout: 2 Columns on XL screens, 1 Column on smaller */}
