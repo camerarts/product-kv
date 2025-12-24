@@ -63,7 +63,6 @@ export const App: React.FC = () => {
   };
 
   // --- 核心业务状态 ---
-  const [extractionLoading, setExtractionLoading] = useState(false);
   const [generationLoading, setGenerationLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [imageRatios, setImageRatios] = useState<number[]>([]);
@@ -122,24 +121,24 @@ export const App: React.FC = () => {
     [TypographyStyle.MINIMAL_LINE]: '极度克制的线条勾勒，大量留白，展现理性的极简工业之美。'
   };
 
-  const startExtraction = async () => {
-    if (images.length === 0) return alert('请上传产品图片');
-    setExtractionLoading(true);
-    try {
-      // 传入 userApiKey 和 isAdminLoggedIn
-      const res = await extractProductInfo(images, description, userApiKey, isAdminLoggedIn);
-      setReport(res);
-      if (!manualBrand && res.brandName) setManualBrand(res.brandName);
-    } catch (err: any) {
-      alert(`分析失败: ${err.message}`);
-    } finally { setExtractionLoading(false); }
-  };
-
   const startGeneration = async () => {
-    if (!report) return alert('请先解析产品报告');
+    if (images.length === 0) return alert('请上传产品图片');
+    
     setGenerationLoading(true);
     try {
-      // 构建详细的需求描述字符串 - 简化逻辑以避免潜在的语法错误
+      // 步骤 1: 先执行产品解析 (原 startExtraction 逻辑)
+      // 传入 userApiKey 和 isAdminLoggedIn
+      const extractionRes = await extractProductInfo(images, description, userApiKey, isAdminLoggedIn);
+      setReport(extractionRes);
+      
+      let effectiveBrand = manualBrand;
+      // 如果没有手动输入品牌，且解析结果中有品牌，则自动填充
+      if (!effectiveBrand && extractionRes.brandName) {
+        setManualBrand(extractionRes.brandName);
+        effectiveBrand = extractionRes.brandName;
+      }
+
+      // 步骤 2: 接着执行方案生成 (原 startGeneration 逻辑)
       const needsArray = [];
       
       if (needsModel) {
@@ -164,19 +163,21 @@ export const App: React.FC = () => {
 
       const combinedNeeds = needsArray.join('；');
 
-      // 传入 userApiKey 和 isAdminLoggedIn
-      const res = await generatePosterSystem(
-        { ...report, brandName: manualBrand || report.brandName },
+      const promptRes = await generatePosterSystem(
+        { ...extractionRes, brandName: effectiveBrand || extractionRes.brandName },
         selectedStyle,
         selectedTypography,
         combinedNeeds,
         userApiKey,
         isAdminLoggedIn
       );
-      setFinalPrompts(res);
+      setFinalPrompts(promptRes);
+
     } catch (err: any) {
-      alert(`生成失败: ${err.message}`);
-    } finally { setGenerationLoading(false); }
+      alert(`处理失败: ${err.message}`);
+    } finally { 
+      setGenerationLoading(false); 
+    }
   };
 
   const promptModules = useMemo(() => {
@@ -221,7 +222,6 @@ export const App: React.FC = () => {
         setImageRatios={setImageRatios}
         description={description} setDescription={setDescription}
         manualBrand={manualBrand} setManualBrand={setManualBrand}
-        extractionLoading={extractionLoading} startExtraction={startExtraction}
         selectedStyle={selectedStyle} setSelectedStyle={setSelectedStyle}
         selectedTypography={selectedTypography} setSelectedTypography={setSelectedTypography}
         needsModel={needsModel} setNeedsModel={setNeedsModel}

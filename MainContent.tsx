@@ -31,7 +31,6 @@ export const MainContent: React.FC<MainContentProps> = ({
             <div className="w-1.5 h-1.5 rounded-full bg-neutral-300"></div>
             <h2 className="text-sm font-bold text-neutral-800">生成效果方案预览</h2>
           </div>
-          {/* Top right buttons are now managed globally in App.tsx */}
           <div className="flex gap-3">
              {/* Placeholder for future header actions if needed */}
           </div>
@@ -40,124 +39,137 @@ export const MainContent: React.FC<MainContentProps> = ({
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
            {/* Report Card */}
            <div className="mb-10 animate-fade-in">
-              <div className="flex items-center gap-2 mb-4">
-                <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                <h3 className="text-xs font-bold text-neutral-500">【产品报告】</h3>
-              </div>
+              {/* Cards Container */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 
                  {/* Card 1: Brand Core */}
-                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-neutral-100 flex flex-col justify-between h-48">
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wide">
-                      <div className="w-5 h-5 rounded bg-blue-50 text-blue-500 flex items-center justify-center">🏷️</div>
-                      品牌核心
-                    </div>
-                    {report ? (
-                      <div className="animate-fade-in">
-                        <h4 className="text-2xl font-black text-neutral-900 mb-1 truncate" title={manualBrand || report.brandName}>{manualBrand || report.brandName}</h4>
-                        <p className="text-xs text-neutral-400 font-medium italic truncate" title={report.brandName}>{report.brandName}</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 opacity-30">
-                        <div className="h-6 w-32 bg-neutral-200 rounded"></div>
-                        <div className="h-3 w-20 bg-neutral-100 rounded"></div>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-2 border-t border-neutral-50 pt-4">
-                       <div>
-                         <p className="text-[9px] text-neutral-400 mb-0.5">品类定位</p>
-                         <div className={`w-full rounded ${report ? 'text-xs font-bold text-neutral-700 truncate' : 'h-3 bg-neutral-100'}`} title={report?.productType}>
-                            {report?.productType}
-                         </div>
-                       </div>
-                       <div>
-                         <p className="text-[9px] text-neutral-400 mb-0.5">驱动人群</p>
-                         <div className={`w-full rounded ${report ? 'text-xs font-bold text-neutral-700 truncate' : 'h-3 bg-neutral-100'}`} title={report?.targetAudience}>
-                            {report?.targetAudience}
-                         </div>
-                       </div>
-                    </div>
-                 </div>
-
-                 {/* Card 2: Color DNA */}
-                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-neutral-100 flex flex-col h-48">
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wide mb-4">
-                      <div className="w-5 h-5 rounded bg-purple-50 text-purple-500 flex items-center justify-center">🎨</div>
-                      色彩基因
+                 <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-neutral-100 flex flex-col h-auto min-h-[280px]">
+                    <div className="flex items-center gap-2 mb-6">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm">🏷️</div>
+                      <span className="text-xs font-bold text-neutral-400">品牌核心</span>
                     </div>
                     
                     {report ? (
-                      <div className="flex-1 flex flex-col justify-center gap-3 animate-fade-in">
-                        <div>
-                           <div className="flex items-center gap-2 mb-1">
-                             <div className="w-2 h-2 rounded-full bg-neutral-800"></div>
-                             <span className="text-[9px] text-neutral-400 font-bold">主视觉色</span>
+                      <div className="animate-fade-in flex-1 flex flex-col">
+                        <h4 className="text-4xl font-black text-neutral-900 mb-2 tracking-tight">
+                          {manualBrand || report.brandName}
+                        </h4>
+                        <p className="text-2xl font-serif italic text-neutral-300 mb-8 tracking-wide">
+                          {manualBrand || report.brandName}
+                        </p>
+                        
+                        <div className="mt-auto grid grid-cols-2 gap-6 border-t border-neutral-100 pt-6">
+                           <div>
+                             <p className="text-[10px] font-bold text-neutral-400 mb-2">品类定位</p>
+                             <div className="text-sm font-bold text-neutral-800 leading-relaxed">
+                                {report.productType}
+                             </div>
                            </div>
-                           <p className="text-xs font-bold text-neutral-800 leading-snug line-clamp-2" title={report.mainColors}>
-                             {report.mainColors}
-                           </p>
-                        </div>
-                        <div>
-                           <div className="flex items-center gap-2 mb-1">
-                             <div className="w-2 h-2 rounded-full bg-neutral-300"></div>
-                             <span className="text-[9px] text-neutral-400 font-bold">辅助配色</span>
+                           <div>
+                             <p className="text-[10px] font-bold text-neutral-400 mb-2">驱动人群</p>
+                             <div className="text-sm font-bold text-neutral-800 leading-relaxed">
+                                {report.targetAudience}
+                             </div>
                            </div>
-                           <p className="text-xs font-medium text-neutral-600 leading-snug line-clamp-2" title={report.auxColors}>
-                             {report.auxColors}
-                           </p>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex-1 flex justify-between items-center px-2 pb-2 opacity-30">
-                        <div className="flex flex-col items-center gap-3 w-1/3">
-                            <div className="w-12 h-12 rounded-full shadow-sm border border-neutral-100 bg-neutral-100"></div>
+                      <div className="space-y-4 opacity-30 mt-4">
+                        <div className="h-10 w-3/4 bg-neutral-200 rounded-lg"></div>
+                        <div className="h-6 w-1/2 bg-neutral-100 rounded-lg"></div>
+                        <div className="pt-10 grid grid-cols-2 gap-6">
+                           <div className="space-y-2"><div className="h-3 w-10 bg-neutral-100"></div><div className="h-12 w-full bg-neutral-100 rounded"></div></div>
+                           <div className="space-y-2"><div className="h-3 w-10 bg-neutral-100"></div><div className="h-12 w-full bg-neutral-100 rounded"></div></div>
                         </div>
-                        <div className="flex flex-col items-center gap-3 w-1/3">
-                            <div className="w-12 h-12 rounded-full shadow-sm border border-neutral-100 bg-neutral-100"></div>
+                      </div>
+                    )}
+                 </div>
+
+                 {/* Card 2: Color DNA */}
+                 <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-neutral-100 flex flex-col h-auto min-h-[280px]">
+                    <div className="flex items-center gap-2 mb-8">
+                      <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-sm">🎨</div>
+                      <span className="text-xs font-bold text-neutral-400">色彩基因</span>
+                    </div>
+                    
+                    {report ? (
+                      <div className="flex-1 flex items-center justify-between px-2 animate-fade-in">
+                        {/* Main Color */}
+                        <div className="flex flex-col items-center text-center gap-3">
+                           <div className="w-16 h-16 rounded-full bg-[#96C098] shadow-inner mb-2"></div>
+                           <div>
+                             <p className="text-xs font-black text-neutral-900 mb-1 max-w-[80px] truncate" title={report.mainColors}>
+                               {report.mainColors.split(/[,，]/)[0]}
+                             </p>
+                             <p className="text-[10px] font-bold text-neutral-400">主本色</p>
+                           </div>
                         </div>
-                        <div className="flex flex-col items-center gap-3 w-1/3">
-                            <div className="w-12 h-12 rounded-full shadow-sm border border-neutral-100 bg-neutral-100"></div>
+                        
+                        {/* Aux Color */}
+                        <div className="flex flex-col items-center text-center gap-3">
+                           <div className="w-16 h-16 rounded-full bg-[#FEF5E7] shadow-inner mb-2"></div>
+                           <div>
+                             <p className="text-xs font-black text-neutral-900 mb-1 max-w-[80px] truncate" title={report.auxColors}>
+                               {report.auxColors.split(/[,，]/)[0] || '辅助色'}
+                             </p>
+                             <p className="text-[10px] font-bold text-neutral-400">辅助色</p>
+                           </div>
                         </div>
+
+                        {/* Accent/Highlight (Simulated) */}
+                        <div className="flex flex-col items-center text-center gap-3">
+                           <div className="w-16 h-16 rounded-full bg-[#C2C2C2] shadow-inner mb-2"></div>
+                           <div>
+                             <p className="text-xs font-black text-neutral-900 mb-1">高亮</p>
+                             <p className="text-[10px] font-bold text-neutral-400">点缀色</p>
+                           </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex justify-between items-center px-2 opacity-30">
+                        {[1,2,3].map(i => (
+                          <div key={i} className="flex flex-col items-center gap-3">
+                             <div className="w-16 h-16 rounded-full bg-neutral-100"></div>
+                             <div className="h-3 w-12 bg-neutral-100 rounded"></div>
+                          </div>
+                        ))}
                       </div>
                     )}
                  </div>
 
                  {/* Card 3: Style Direction */}
-                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-neutral-100 flex flex-col justify-between h-48">
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wide">
-                      <div className="w-5 h-5 rounded bg-orange-50 text-orange-500 flex items-center justify-center">✨</div>
-                      风格导向
+                 <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-neutral-100 flex flex-col justify-between h-auto min-h-[280px]">
+                    <div className="flex items-center gap-2 mb-6">
+                      <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center text-sm">✨</div>
+                      <span className="text-xs font-bold text-neutral-400">风格导向</span>
                     </div>
+
                     {report ? (
-                      <div className="animate-fade-in flex-1 pt-4">
-                         <h4 className="text-sm font-black text-neutral-900 leading-relaxed mb-2 line-clamp-3" title={report.designStyle}>
+                      <div className="animate-fade-in flex-1 flex flex-col justify-center">
+                         <h4 className="text-xl font-black text-neutral-900 leading-snug mb-3">
                             {report.designStyle}
                          </h4>
+                         <p className="text-xs text-neutral-500 font-medium leading-relaxed mb-6">
+                            {report.packagingHighlights || '3D浮雕文字 + 金属质感 (奢华风)'}
+                         </p>
+                         
+                         <div className="mt-auto">
+                            <div className="inline-flex items-center gap-2 bg-neutral-50 rounded-full pl-3 pr-5 py-2">
+                               <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                               <span className="text-xs font-bold text-neutral-700">{report.brandTone}</span>
+                            </div>
+                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-2 opacity-30 mt-6">
-                        <div className="h-5 w-3/4 bg-neutral-200 rounded"></div>
-                        <div className="h-2 w-full bg-neutral-100 rounded"></div>
-                        <div className="h-2 w-2/3 bg-neutral-100 rounded"></div>
+                      <div className="space-y-4 opacity-30 mt-6">
+                        <div className="h-6 w-full bg-neutral-200 rounded"></div>
+                        <div className="h-6 w-2/3 bg-neutral-200 rounded"></div>
+                        <div className="h-4 w-full bg-neutral-100 rounded mt-4"></div>
+                        <div className="mt-auto pt-6">
+                           <div className="h-8 w-32 bg-neutral-100 rounded-full"></div>
+                        </div>
                       </div>
                     )}
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-neutral-50 mt-auto">
-                       {report?.brandTone && (
-                          <div className="h-6 px-3 rounded-full flex items-center bg-neutral-50 text-[10px] font-bold text-neutral-600 border border-neutral-100">
-                            {report.brandTone.slice(0, 8)}
-                          </div>
-                       )}
-                       {report?.packagingHighlights && (
-                          <div className="h-6 px-3 rounded-full flex items-center bg-neutral-50 text-[10px] font-bold text-neutral-400 border border-neutral-100 truncate max-w-[120px]">
-                            {report.packagingHighlights.slice(0, 10)}...
-                          </div>
-                       )}
-                       {!report && (
-                         <>
-                           <div className="h-6 w-16 bg-neutral-100 rounded-full opacity-30"></div>
-                           <div className="h-6 w-12 bg-neutral-100 rounded-full opacity-30"></div>
-                         </>
-                       )}
-                    </div>
                  </div>
               </div>
            </div>
@@ -200,9 +212,9 @@ export const MainContent: React.FC<MainContentProps> = ({
                })}
              </div>
            ) : (
-             <div className="border-2 border-dashed border-neutral-200 rounded-[2.5rem] h-[500px] flex flex-col items-center justify-center text-neutral-300 animate-fade-in bg-white/50">
+             <div className="border-2 border-dashed border-neutral-200 rounded-[2.5rem] h-[400px] flex flex-col items-center justify-center text-neutral-300 animate-fade-in bg-white/50">
                <span className="text-6xl font-black opacity-10 mb-4 tracking-tighter">PREVIEW</span>
-               <span className="text-sm font-bold text-neutral-400">请在左侧上传图片并解析</span>
+               <span className="text-sm font-bold text-neutral-400">请在左侧上传图片并生成方案</span>
              </div>
            )}
         </div>
