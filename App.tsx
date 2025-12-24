@@ -5,7 +5,7 @@ import { extractProductInfo, generatePosterSystem } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 
 const App: React.FC = () => {
-  // --- API Key Management ---
+  // --- API 密钥管理 ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [customKey, setCustomKey] = useState('');
 
@@ -321,7 +321,7 @@ const App: React.FC = () => {
   return (
     <div className="h-screen flex bg-white text-neutral-900 font-sans selection:bg-neutral-200 overflow-hidden leading-relaxed">
       <div className="flex-1 flex overflow-hidden w-full">
-        {/* Left Panel */}
+        {/* 左侧面板 */}
         <section className="w-[42%] border-r border-neutral-100 overflow-y-auto bg-[#F7F7F7] custom-scrollbar">
           <div className="p-5 space-y-4 pb-10" onPaste={handlePasteToDescription}>
             <header className="pb-4 border-b border-neutral-200">
@@ -332,18 +332,18 @@ const App: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <div className="w-1 h-4 bg-blue-600 rounded-full"></div>
-                    <h2 className="text-base font-black tracking-tight text-neutral-500">核心配置 / SETUP</h2>
+                    <h2 className="text-base font-black tracking-tight text-neutral-500">核心配置</h2>
                   </div>
-                  <div className="text-[9px] font-black text-neutral-300 tracking-[0.1em]">V 3.6.0 PRO</div>
+                  <div className="text-[9px] font-black text-neutral-300 tracking-[0.1em]">版本 3.6.0</div>
                 </div>
               </div>
             </header>
 
-            {/* 01 Analysis */}
+            {/* 01 智能分析 */}
             <div className="space-y-3">
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
-                <h3 className="text-lg font-black uppercase">01 智能分析 / ANALYSIS</h3>
+                <h3 className="text-lg font-black uppercase">01 智能分析</h3>
               </div>
               
               <div className="flex gap-3 items-stretch h-[160px]">
@@ -366,7 +366,7 @@ const App: React.FC = () => {
                             <img 
                               src={`data:image/jpeg;base64,${images[idx]}`} 
                               className="w-full h-full object-contain cursor-zoom-in" 
-                              alt={`Ref ${idx + 1}`} 
+                              alt={`参考图 ${idx + 1}`} 
                               onClick={() => setPreviewImageUrl(`data:image/jpeg;base64,${images[idx]}`)}
                             />
                             <button 
@@ -385,7 +385,7 @@ const App: React.FC = () => {
                   </div>
                   <textarea 
                     className="w-full h-7 px-3 py-1 bg-white border border-neutral-200 rounded-lg outline-none focus:border-neutral-900 text-xs font-bold shadow-sm resize-none overflow-hidden shrink-0" 
-                    placeholder="粘贴描述..." 
+                    placeholder="粘贴产品描述..." 
                     rows={1}
                     value={description} 
                     onChange={(e) => setDescription(e.target.value)} 
@@ -395,7 +395,7 @@ const App: React.FC = () => {
                     disabled={loading || images.length === 0} 
                     className="w-full h-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:from-blue-700 hover:to-indigo-700 disabled:opacity-20 active:scale-95 transition-all shadow-md shrink-0"
                   >
-                    {loading ? '...' : '解析产品报告'}
+                    {loading ? '处理中...' : '解析产品报告'}
                   </button>
                 </div>
 
@@ -405,7 +405,7 @@ const App: React.FC = () => {
                   </div>
                   <textarea 
                     className="flex-1 w-full bg-transparent outline-none text-[11px] font-bold resize-none placeholder:text-neutral-300 custom-scrollbar-thin"
-                    placeholder="识别品牌..."
+                    placeholder="填写品牌..."
                     value={manualBrand}
                     onChange={(e) => setManualBrand(e.target.value)}
                   />
@@ -433,7 +433,7 @@ const App: React.FC = () => {
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center opacity-20 py-2">
                         <div className="text-xl font-black">?</div>
-                        <p className="text-[8px] font-black uppercase tracking-widest">Awaiting</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest">等待分析</p>
                       </div>
                     )}
                   </div>
@@ -441,15 +441,15 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* 02 Definition */}
+            {/* 02 视觉定义 */}
             <div className="space-y-4 pt-3 border-t border-neutral-200">
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
-                <h3 className="text-lg font-black uppercase">02 视觉定义 / DEFINITION</h3>
+                <h3 className="text-lg font-black uppercase">02 视觉定义</h3>
               </div>
               
               <div className="space-y-2">
-                <span className="text-sm font-black text-neutral-400 uppercase">2.1 视觉风格 / VISUAL STYLE</span>
+                <span className="text-sm font-black text-neutral-400 uppercase">2.1 视觉风格</span>
                 <div className="grid grid-cols-4 gap-2">
                   {Object.values(VisualStyle).map(v => (
                     <div key={v} className="group relative">
@@ -466,7 +466,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <span className="text-sm font-black text-neutral-400 uppercase">2.2 排版架构 / TYPOGRAPHY</span>
+                <span className="text-sm font-black text-neutral-400 uppercase">2.2 排版架构</span>
                 <div className="grid grid-cols-3 gap-2">
                   {Object.values(TypographyStyle).map(t => (
                     <div key={t} className="group relative">
@@ -483,7 +483,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-3 bg-white/50 p-4 rounded-2xl border border-neutral-200">
-                <span className="text-xs font-black text-neutral-400 uppercase tracking-widest">2.3 特殊需求 / SPECIALS</span>
+                <span className="text-xs font-black text-neutral-400 uppercase tracking-widest">2.3 特殊需求</span>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between bg-white/40 p-2 rounded-lg border border-neutral-100 shadow-sm">
@@ -518,7 +518,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="space-y-2 border-t border-neutral-50 pt-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter">2.4 其他要求 / OTHERS</label>
+                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter">2.4 其他要求</label>
                   </div>
                   <div className="flex flex-wrap gap-1.5 mb-1.5">
                     {quickOptions.map(opt => (
@@ -533,7 +533,7 @@ const App: React.FC = () => {
                   </div>
                   <textarea 
                     className="w-full h-14 bg-white border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-neutral-900 text-xs font-bold resize-none shadow-sm transition-all" 
-                    placeholder="如：对比图..." 
+                    placeholder="例如：对比图、展示效果..." 
                     value={otherNeeds} 
                     onChange={(e) => setOtherNeeds(e.target.value)} 
                   />
@@ -541,11 +541,11 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* 03 Ratio Section */}
+            {/* 03 比例 */}
             <div className="space-y-4 pt-3 border-t border-neutral-200">
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
-                <h3 className="text-lg font-black uppercase">03 比例 / RATIO</h3>
+                <h3 className="text-lg font-black uppercase">03 比例</h3>
               </div>
               <div className="grid grid-cols-5 gap-3">
                 {Object.keys(ratioIcons).map(r => (
@@ -579,10 +579,10 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* Right Panel */}
+        {/* 右侧面板 */}
         <section className="w-[58%] relative flex flex-col bg-white overflow-hidden">
           <header className="h-20 px-10 border-b border-neutral-50 flex items-center justify-between z-30 bg-white/95 backdrop-blur-md sticky top-0">
-            <h2 className="text-xl font-black tracking-tighter uppercase">产品详情图片</h2>
+            <h2 className="text-xl font-black tracking-tighter uppercase">产品海报方案</h2>
             <div className="flex gap-3">
               <button 
                 onClick={handleOpenSettings}
@@ -594,15 +594,15 @@ const App: React.FC = () => {
                 </svg>
                 设置
               </button>
-              {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-8 h-10 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 shadow-md transition-all">批量渲染全案</button>}
+              {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-8 h-10 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 shadow-md transition-all">批量渲染方案</button>}
             </div>
           </header>
           
           <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
             {!finalPrompts ? (
               <div className="h-full flex flex-col items-center justify-center opacity-5 select-none">
-                <div className="text-[10rem] font-black tracking-tighter leading-none">VISION</div>
-                <p className="text-lg font-black uppercase tracking-[0.4em]">System Core Offline</p>
+                <div className="text-[10rem] font-black tracking-tighter leading-none">视觉方案</div>
+                <p className="text-lg font-black uppercase tracking-[0.4em]">系统离线中</p>
               </div>
             ) : (
               <div className="max-w-6xl mx-auto space-y-20 pb-56">
@@ -632,7 +632,7 @@ const App: React.FC = () => {
                             <img src={generatedImages[idx]} className="w-full h-full object-cover cursor-zoom-in" onClick={() => setPreviewImageUrl(generatedImages[idx])} />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              {isGenerating ? <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin"></div> : <span className="opacity-10 font-black text-5xl">V</span>}
+                              {isGenerating ? <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin"></div> : <span className="opacity-10 font-black text-5xl">无预览</span>}
                             </div>
                           )}
                         </div>
@@ -646,25 +646,25 @@ const App: React.FC = () => {
         </section>
       </div>
 
-      {/* --- Settings Modal --- */}
+      {/* --- 设置弹窗 --- */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in" onClick={() => setIsSettingsOpen(false)}>
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
             <div className="p-8 space-y-6">
               <div className="space-y-1.5">
-                <h3 className="text-xl font-black uppercase tracking-tight">API 配置 / SETTINGS</h3>
+                <h3 className="text-xl font-black uppercase tracking-tight">接口配置</h3>
                 <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">
                   请在此配置您的 Google Gemini API 密钥。如果设置了自定义密钥，系统将优先使用。
                 </p>
               </div>
               
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Gemini API Key</label>
+                <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Gemini 密钥</label>
                 <input 
                   type="password"
                   value={customKey}
                   onChange={(e) => setCustomKey(e.target.value)}
-                  placeholder="在此输入或粘贴您的 API 密钥..."
+                  placeholder="在此输入您的 API 密钥..."
                   className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:border-neutral-900 outline-none font-mono text-xs shadow-inner transition-all"
                 />
                 <div className="flex flex-col gap-0.5">
@@ -674,7 +674,7 @@ const App: React.FC = () => {
                     rel="noopener noreferrer"
                     className="text-[9px] text-blue-600 font-bold hover:underline"
                   >
-                    如何获取 API 密钥与计费说明? →
+                    如何获取密钥? →
                   </a>
                 </div>
               </div>
@@ -698,13 +698,14 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Overlays */}
+      {/* 大图预览 */}
       {previewImageUrl && (
         <div className="fixed inset-0 z-[100] bg-white/98 backdrop-blur-2xl flex items-center justify-center p-8 animate-fade-in" onClick={() => setPreviewImageUrl(null)}>
           <img src={previewImageUrl} className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-2xl" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
 
+      {/* 展开报告 */}
       {isReportExpanded && report && (
         <div className="fixed inset-0 z-[110] bg-white/98 backdrop-blur-2xl flex items-center justify-center p-8 animate-fade-in" onClick={() => setIsReportExpanded(false)}>
           <div className="bg-white rounded-[2.5rem] shadow-2xl border border-neutral-100 w-full max-w-4xl max-h-[85vh] overflow-y-auto p-12" onClick={(e) => e.stopPropagation()}>
