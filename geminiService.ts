@@ -16,8 +16,12 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 
 // Helper to get the effective API Key
 const getEffectiveKey = (userKey?: string) => {
-  // Priority: User Key > Environment Key
-  const key = userKey || process.env.API_KEY;
+  // Priority: 
+  // 1. User Input Key (用户手动输入)
+  // 2. process.env.API_KEY (通过 vite.config.ts 注入的 Cloudflare 变量)
+  // 3. import.meta.env.VITE_API_KEY (Vite 标准环境变量，推荐在 Cloudflare 后台也配置一个 VITE_API_KEY 作为备份)
+  const key = userKey || process.env.API_KEY || import.meta.env.VITE_API_KEY;
+  
   if (!key) {
     throw new Error("未检测到 API Key。请在「配置」中输入您的 Key，或确保系统环境变量已设置。");
   }
