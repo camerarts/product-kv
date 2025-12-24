@@ -87,9 +87,23 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
   });
 
   // Clean the text to remove potential markdown formatting before parsing
-  const text = response.text || '{}';
-  const cleanedText = text.replace(/```json\n|\n```/g, '').replace(/```/g, '');
-  return JSON.parse(cleanedText);
+  let text = response.text || '{}';
+  
+  // 1. Remove markdown code blocks
+  text = text.replace(/```json\n?/g, '').replace(/```/g, '').trim();
+  
+  // 2. Remove trailing commas in arrays/objects which cause JSON.parse to fail
+  // Replace ", }" with "}" and ", ]" with "]"
+  text = text.replace(/,(\s*[}\]])/g, '$1');
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("JSON Parse failed:", e);
+    console.log("Raw text:", response.text);
+    // Fallback: Return empty object or partial data if possible, or throw more descriptive error
+    throw new Error("Failed to parse product report. Please try again.");
+  }
 };
 
 export const generatePosterSystem = async (

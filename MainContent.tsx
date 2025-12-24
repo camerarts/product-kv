@@ -76,7 +76,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                       色彩基因
                     </div>
                     
-                    <div className="flex-1 flex justify-between items-end px-4 pb-2">
+                    <div className="flex-1 flex justify-between items-center px-2 pb-2">
                        {/* Main Color */}
                        <div className="flex flex-col items-center gap-3 w-1/3">
                           <div 

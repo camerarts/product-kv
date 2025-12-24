@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 
@@ -16,10 +15,17 @@ interface SidebarProps {
   setSelectedStyle: (val: VisualStyle) => void;
   selectedTypography: TypographyStyle;
   setSelectedTypography: (val: TypographyStyle) => void;
+  
   needsModel: boolean;
   setNeedsModel: (val: boolean) => void;
+  modelDesc: string;
+  setModelDesc: React.Dispatch<React.SetStateAction<string>>;
+
   needsScene: boolean;
   setNeedsScene: (val: boolean) => void;
+  sceneDesc: string;
+  setSceneDesc: React.Dispatch<React.SetStateAction<string>>;
+
   needsDataVis: boolean;
   setNeedsDataVis: (val: boolean) => void;
   otherNeeds: string;
@@ -41,10 +47,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   extractionLoading, startExtraction,
   selectedStyle, setSelectedStyle,
   selectedTypography, setSelectedTypography,
+  
   needsModel, setNeedsModel,
+  modelDesc, setModelDesc,
   needsScene, setNeedsScene,
+  sceneDesc, setSceneDesc,
   needsDataVis, setNeedsDataVis,
   otherNeeds, setOtherNeeds,
+  
   aspectRatio, setAspectRatio,
   generationLoading, startGeneration,
   report, ratioIcons,
@@ -81,6 +91,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setImages(prev => prev.filter((_, i) => i !== index));
     setImageRatios(prev => prev.filter((_, i) => i !== index));
   };
+
+  const modelTags = ["亚洲女性", "欧美男性", "手部特写", "外籍模特", "儿童模特"];
+  const sceneTags = ["极简纯色", "自然户外", "家居生活", "办公商务", "科技炫光"];
 
   return (
     <aside className="w-[400px] border-r border-neutral-100 bg-white flex flex-col z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
@@ -147,7 +160,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             
             <div className="flex gap-2">
-               <div className="w-1/3 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 flex items-center">
+               {/* Fixed width 200px to match 2 images (96*2) + gap (8) */}
+               <div className="w-[200px] shrink-0 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 flex items-center">
                  <span className="text-[10px] font-bold text-neutral-500 shrink-0 mr-2 bg-neutral-200 px-1.5 py-0.5 rounded">品牌</span>
                  <input className="w-full bg-transparent text-xs font-bold outline-none placeholder:text-neutral-300" placeholder="品牌名" value={manualBrand} onChange={e=>setManualBrand(e.target.value)} />
                </div>
@@ -226,22 +240,94 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* 2.3 Custom */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-blue-600">2.3 个性化需求</label>
+              
+              {/* Compact Toggle Row */}
               <div className="flex gap-2">
-                <button onClick={()=>setNeedsModel(!needsModel)} className={`flex-1 py-2 rounded-lg border text-[10px] font-bold transition-all ${needsModel ? 'bg-white border-neutral-900 text-neutral-900 shadow-sm' : 'bg-neutral-50 border-neutral-100 text-neutral-400'}`}>真人模特</button>
-                <button onClick={()=>setNeedsScene(!needsScene)} className={`flex-1 py-2 rounded-lg border text-[10px] font-bold transition-all ${needsScene ? 'bg-white border-neutral-900 text-neutral-900 shadow-sm' : 'bg-neutral-50 border-neutral-100 text-neutral-400'}`}>定制场景</button>
-                <button onClick={()=>setNeedsDataVis(!needsDataVis)} className={`flex-1 py-2 rounded-lg border text-[10px] font-bold transition-all ${needsDataVis ? 'bg-white border-neutral-900 text-neutral-900 shadow-sm' : 'bg-neutral-50 border-neutral-100 text-neutral-400'}`}>数据可视化</button>
+                <button
+                  onClick={() => setNeedsModel(!needsModel)}
+                  className={`flex-1 h-9 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${
+                    needsModel ? 'bg-neutral-900 text-white border-neutral-900 shadow-md transform -translate-y-0.5' : 'bg-white border-neutral-200 text-neutral-500 hover:bg-neutral-50'
+                  }`}
+                >
+                   {needsModel ? '★' : '☆'} 真人模特
+                </button>
+                <button
+                  onClick={() => setNeedsScene(!needsScene)}
+                  className={`flex-1 h-9 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${
+                    needsScene ? 'bg-neutral-900 text-white border-neutral-900 shadow-md transform -translate-y-0.5' : 'bg-white border-neutral-200 text-neutral-500 hover:bg-neutral-50'
+                  }`}
+                >
+                   {needsScene ? '★' : '☆'} 定制场景
+                </button>
+                <button
+                  onClick={() => setNeedsDataVis(!needsDataVis)}
+                  className={`flex-1 h-9 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${
+                    needsDataVis ? 'bg-neutral-900 text-white border-neutral-900 shadow-md transform -translate-y-0.5' : 'bg-white border-neutral-200 text-neutral-500 hover:bg-neutral-50'
+                  }`}
+                >
+                   {needsDataVis ? '★' : '☆'} 数据图表
+                </button>
               </div>
-              <input 
-                value={otherNeeds} 
-                onChange={e=>setOtherNeeds(e.target.value)} 
-                className="w-full px-4 py-2.5 bg-neutral-50 border border-neutral-100 rounded-lg text-[10px] focus:border-blue-500 outline-none transition-all placeholder:text-neutral-400" 
-                placeholder="其他具体要求..."
-              />
-              <div className="flex flex-wrap gap-2 pt-1">
-                 {['+ 必须包含产品实物', '+ 需要对比图', '+ 需要用户评价'].map(tag => (
-                   <button key={tag} onClick={() => setOtherNeeds(prev => prev ? `${prev}，${tag.slice(2)}` : tag.slice(2))} className="px-2 py-1 bg-white border border-neutral-200 rounded text-[9px] font-bold text-neutral-500 hover:border-neutral-400 transition-colors">{tag}</button>
-                 ))}
-              </div>
+
+              {/* Dynamic Detail Inputs */}
+              {(needsModel || needsScene) && (
+                <div className="bg-neutral-50 rounded-xl border border-neutral-200 p-3 space-y-3 animate-fade-in">
+                  {needsModel && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                         <span className="text-[9px] font-bold text-neutral-500">模特特征</span>
+                      </div>
+                      <input 
+                        value={modelDesc}
+                        onChange={e => setModelDesc(e.target.value)}
+                        placeholder="例: 亚洲年轻女性, 居家服..."
+                        className="w-full px-2 py-1.5 bg-white border border-neutral-200 rounded text-[10px] outline-none focus:border-blue-500"
+                      />
+                      <div className="flex flex-wrap gap-1">
+                         {modelTags.map(tag => (
+                           <button key={tag} onClick={() => setModelDesc(prev => prev ? `${prev} ${tag}` : tag)} className="px-1.5 py-0.5 bg-white border border-neutral-100 rounded text-[9px] text-neutral-400 hover:text-blue-600 hover:border-blue-200 transition-colors">{tag}</button>
+                         ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {needsModel && needsScene && <div className="border-t border-neutral-200 border-dashed"></div>}
+
+                  {needsScene && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                         <span className="text-[9px] font-bold text-neutral-500">场景风格</span>
+                      </div>
+                       <input 
+                        value={sceneDesc}
+                        onChange={e => setSceneDesc(e.target.value)}
+                        placeholder="例: 极简纯色, 阳光户外..."
+                        className="w-full px-2 py-1.5 bg-white border border-neutral-200 rounded text-[10px] outline-none focus:border-blue-500"
+                      />
+                      <div className="flex flex-wrap gap-1">
+                         {sceneTags.map(tag => (
+                           <button key={tag} onClick={() => setSceneDesc(prev => prev ? `${prev} ${tag}` : tag)} className="px-1.5 py-0.5 bg-white border border-neutral-100 rounded text-[9px] text-neutral-400 hover:text-blue-600 hover:border-blue-200 transition-colors">{tag}</button>
+                         ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Other Needs Input */}
+               <div className="relative">
+                 <input 
+                    value={otherNeeds} 
+                    onChange={e=>setOtherNeeds(e.target.value)} 
+                    className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg text-[10px] focus:border-blue-500 outline-none transition-all placeholder:text-neutral-300" 
+                    placeholder="其他补充要求 (如: 需对比图)..."
+                  />
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {['+ 必须包含产品实物', '+ 需要对比图', '+ 需要用户评价'].map(tag => (
+                      <button key={tag} onClick={() => setOtherNeeds(prev => prev ? `${prev}，${tag.slice(2)}` : tag.slice(2))} className="px-2 py-1 bg-white border border-neutral-200 rounded text-[9px] font-bold text-neutral-500 hover:border-neutral-400 hover:text-neutral-700 transition-colors">{tag}</button>
+                    ))}
+                  </div>
+               </div>
             </div>
           </section>
 
