@@ -290,7 +290,11 @@ export const App: React.FC = () => {
           className="fixed inset-0 z-[100] bg-black/90 backdrop-blur flex items-center justify-center p-10 cursor-zoom-out animate-fade-in"
           onClick={() => setPreviewImageUrl(null)}
         >
-           <img src={previewImageUrl} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
+           <img 
+            src={previewImageUrl} 
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default" 
+            onClick={(e) => e.stopPropagation()} // 阻止冒泡，点击图片不关闭
+          />
         </div>
       )}
     </div>
