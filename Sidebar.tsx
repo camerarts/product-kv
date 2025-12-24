@@ -96,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const sceneTags = ["极简纯色", "自然户外", "家居生活", "办公商务", "科技炫光"];
 
   return (
-    <aside className="w-[400px] border-r border-neutral-100 bg-white flex flex-col z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+    <aside className="w-[500px] border-r border-neutral-100 bg-white flex flex-col z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         {/* Header */}
         <div className="px-6 pt-6 pb-2">
           <h1 className="text-xl font-black text-blue-600 tracking-tight mb-1">电商详情图视觉全案系统</h1>
@@ -285,7 +285,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       />
                       <div className="flex flex-wrap gap-1">
                          {modelTags.map(tag => (
-                           <button key={tag} onClick={() => setModelDesc(prev => prev ? `${prev} ${tag}` : tag)} className="px-1.5 py-0.5 bg-white border border-neutral-100 rounded text-[9px] text-neutral-400 hover:text-blue-600 hover:border-blue-200 transition-colors">{tag}</button>
+                           <button key={tag} onClick={() => setModelDesc(tag)} className="px-1.5 py-0.5 bg-white border border-neutral-100 rounded text-[9px] text-neutral-400 hover:text-blue-600 hover:border-blue-200 transition-colors">{tag}</button>
                          ))}
                       </div>
                     </div>
@@ -306,7 +306,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       />
                       <div className="flex flex-wrap gap-1">
                          {sceneTags.map(tag => (
-                           <button key={tag} onClick={() => setSceneDesc(prev => prev ? `${prev} ${tag}` : tag)} className="px-1.5 py-0.5 bg-white border border-neutral-100 rounded text-[9px] text-neutral-400 hover:text-blue-600 hover:border-blue-200 transition-colors">{tag}</button>
+                           <button key={tag} onClick={() => setSceneDesc(tag)} className="px-1.5 py-0.5 bg-white border border-neutral-100 rounded text-[9px] text-neutral-400 hover:text-blue-600 hover:border-blue-200 transition-colors">{tag}</button>
                          ))}
                       </div>
                     </div>
