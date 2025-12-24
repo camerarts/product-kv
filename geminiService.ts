@@ -76,7 +76,7 @@ export const extractProductInfo = async (
   }
   用户提供的描述：${textDescription || '无'}` });
 
-  // Use gemini-3-flash-preview for analysis
+  // Use gemini-3-flash-preview for analysis (Text task)
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: { parts },
@@ -202,6 +202,7 @@ export const generatePosterSystem = async (
     ### 海报10 - 使用流程图
   - 提示词必须强调：严格还原包装形态、品牌颜色和标识位置。`;
 
+  // Use gemini-3-flash-preview for text generation (Visual Scheme Prompts)
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: prompt,
@@ -230,6 +231,7 @@ export const generateImageContent = async (
   const apiKey = getEffectiveKey(userApiKey, isAdmin);
   const ai = new GoogleGenAI({ apiKey });
 
+  // Use gemini-3-pro-image-preview for image generation
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',
     contents: { 
@@ -249,5 +251,7 @@ export const generateImageContent = async (
     }
   });
   
-  return response.candidates?.[0]?.content?.parts.find(p => p.inlineData)?.inlineData?.data;
+  // Find the image part in the response
+  const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+  return imagePart?.inlineData?.data;
 };

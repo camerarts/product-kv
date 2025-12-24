@@ -243,7 +243,25 @@ export const App: React.FC = () => {
       />
 
       {/* Top Right Buttons */}
-      <div className="absolute top-4 right-8 z-50 flex gap-3">
+      <div className="absolute top-4 right-8 z-50 flex items-center gap-3">
+        
+        {/* Model Info Display - Updated to be single line with labels */}
+        <div className="hidden xl:flex flex-row items-center gap-2 mr-2 pointer-events-none select-none">
+           {/* Logic Model */}
+           <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur border border-neutral-200 shadow-sm rounded-full px-3 py-1">
+              <span className="text-[10px] font-bold text-neutral-400">逻辑/文本</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+              <span className="text-[10px] font-semibold text-neutral-600 tracking-tight font-mono">gemini-3-flash-preview</span>
+           </div>
+           
+           {/* Visual Model */}
+           <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur border border-neutral-200 shadow-sm rounded-full px-3 py-1">
+              <span className="text-[10px] font-bold text-neutral-400">视觉/图像</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+              <span className="text-[10px] font-semibold text-neutral-600 tracking-tight font-mono">gemini-3-pro-image-preview</span>
+           </div>
+        </div>
+
         {/* API Key Config Button */}
         <button 
            onClick={() => setIsConfigOpen(true)}
