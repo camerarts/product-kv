@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { extractProductInfo, generatePosterSystem } from './geminiService';
@@ -31,16 +32,13 @@ const App: React.FC = () => {
     } else {
       localStorage.removeItem('GEMINI_API_KEY_OVERRIDE');
       alert('已清除自定义密钥，系统将尝试使用默认配置。');
-      // 注意：清理后可能需要刷新页面以彻底恢复到系统最初注入的 process.env.API_KEY
     }
     setIsSettingsOpen(false);
   };
 
   const ensureApiKey = async () => {
-    // 检查是否有任何可用的 API Key (无论是自定义的还是系统注入的)
     if (process.env.API_KEY) return true;
 
-    // 如果都没有，尝试使用 AI Studio 官方选择器作为最后兜底
     // @ts-ignore
     if (window.aistudio) {
       // @ts-ignore
@@ -52,7 +50,6 @@ const App: React.FC = () => {
       return true;
     }
     
-    // 强制引导用户进行设置
     alert('检测到未配置 API 密钥，请在“设置”中手动输入。');
     setIsSettingsOpen(true);
     return false;
@@ -214,7 +211,6 @@ const App: React.FC = () => {
       const targetRatio = isLogo ? "1:1" : aspectRatio;
       setGeneratingModules(prev => ({ ...prev, [index]: true }));
       
-      // 实例化前确认使用最新的 process.env.API_KEY
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const imageParts = images.map(img => ({
         inlineData: { data: img, mimeType: 'image/jpeg' }
@@ -297,20 +293,20 @@ const App: React.FC = () => {
   };
 
   const renderReportContent = (rep: RecognitionReport, isLarge: boolean = false) => (
-    <div className={`space-y-${isLarge ? '8' : '4'}`}>
-      <div><p className={`${isLarge ? 'text-lg' : 'text-sm'} font-black text-neutral-400 uppercase mb-1`}>品牌</p><p className={`${isLarge ? 'text-4xl' : 'text-2xl'} font-black text-neutral-900`}>{rep.brandName}</p></div>
-      <div><p className={`${isLarge ? 'text-lg' : 'text-sm'} font-black text-neutral-400 uppercase mb-1`}>类型</p><p className={`${isLarge ? 'text-2xl' : 'text-xl'} font-bold text-neutral-800`}>{rep.productType}</p></div>
-      <div><p className={`${isLarge ? 'text-lg' : 'text-sm'} font-black text-neutral-400 uppercase mb-2`}>核心卖点</p><div className="flex flex-wrap gap-2">{rep.coreSellingPoints.map((p, i) => <span key={i} className={`px-4 py-2 bg-neutral-50 text-neutral-600 ${isLarge ? 'text-base' : 'text-sm'} font-bold rounded-lg border border-neutral-100`}>{p}</span>)}</div></div>
-      <div className={`grid ${isLarge ? 'grid-cols-2' : 'grid-cols-1'} gap-6`}>
-        <div><p className={`${isLarge ? 'text-lg' : 'text-sm'} font-black text-neutral-400 uppercase mb-1`}>配色方案</p><p className={`${isLarge ? 'text-xl' : 'text-lg'} font-bold text-neutral-800`}>{rep.mainColors}</p></div>
-        <div><p className={`${isLarge ? 'text-lg' : 'text-sm'} font-black text-neutral-400 uppercase mb-1`}>品牌调性</p><p className={`${isLarge ? 'text-xl' : 'text-lg'} font-bold text-neutral-800`}>{rep.brandTone}</p></div>
+    <div className={`space-y-${isLarge ? '6' : '3'}`}>
+      <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1`}>品牌</p><p className={`${isLarge ? 'text-3xl' : 'text-xl'} font-black text-neutral-900`}>{rep.brandName}</p></div>
+      <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1`}>类型</p><p className={`${isLarge ? 'text-xl' : 'text-lg'} font-bold text-neutral-800`}>{rep.productType}</p></div>
+      <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1.5`}>核心卖点</p><div className="flex flex-wrap gap-1.5">{rep.coreSellingPoints.map((p, i) => <span key={i} className={`px-3 py-1 bg-neutral-50 text-neutral-600 ${isLarge ? 'text-sm' : 'text-[10px]'} font-bold rounded-lg border border-neutral-100`}>{p}</span>)}</div></div>
+      <div className={`grid ${isLarge ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+        <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-0.5`}>配色方案</p><p className={`${isLarge ? 'text-lg' : 'text-base'} font-bold text-neutral-800`}>{rep.mainColors}</p></div>
+        <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-0.5`}>品牌调性</p><p className={`${isLarge ? 'text-lg' : 'text-base'} font-bold text-neutral-800`}>{rep.brandTone}</p></div>
       </div>
       {isLarge && (
         <>
-          <div><p className="text-lg font-black text-neutral-400 uppercase mb-1">设计风格</p><p className="text-xl font-bold text-neutral-800">{rep.designStyle}</p></div>
-          <div><p className="text-lg font-black text-neutral-400 uppercase mb-1">目标受众</p><p className="text-xl font-bold text-neutral-800">{rep.targetAudience}</p></div>
-          <div><p className="text-lg font-black text-neutral-400 uppercase mb-1">包装亮点</p><p className="text-xl font-bold text-neutral-800">{rep.packagingHighlights}</p></div>
-          <div><p className="text-lg font-black text-neutral-400 uppercase mb-1">产品规格</p><p className="text-xl font-bold text-neutral-800">{rep.productSpecs}</p></div>
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">设计风格</p><p className="text-lg font-bold text-neutral-800">{rep.designStyle}</p></div>
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">目标受众</p><p className="text-lg font-bold text-neutral-800">{rep.targetAudience}</p></div>
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">包装亮点</p><p className="text-lg font-bold text-neutral-800">{rep.packagingHighlights}</p></div>
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-0.5">产品规格</p><p className="text-lg font-bold text-neutral-800">{rep.productSpecs}</p></div>
         </>
       )}
     </div>
@@ -320,43 +316,43 @@ const App: React.FC = () => {
     <div className="h-screen flex bg-white text-neutral-900 font-sans selection:bg-neutral-200 overflow-hidden leading-relaxed">
       <div className="flex-1 flex overflow-hidden w-full">
         {/* Left Panel */}
-        <section className="w-[45%] border-r border-neutral-100 overflow-y-auto bg-[#F7F7F7] custom-scrollbar">
-          <div className="p-8 space-y-8 pb-16" onPaste={handlePasteToDescription}>
-            <header className="pb-8 border-b border-neutral-200">
-              <div className="space-y-4">
-                <h1 className="text-[1.6rem] md:text-2xl lg:text-[1.85rem] font-black tracking-tighter text-neutral-900 leading-tight uppercase whitespace-nowrap overflow-hidden text-ellipsis">
+        <section className="w-[42%] border-r border-neutral-100 overflow-y-auto bg-[#F7F7F7] custom-scrollbar">
+          <div className="p-5 space-y-4 pb-10" onPaste={handlePasteToDescription}>
+            <header className="pb-4 border-b border-neutral-200">
+              <div className="space-y-2">
+                <h1 className="text-lg md:text-xl font-black tracking-tighter text-neutral-900 leading-tight uppercase whitespace-nowrap overflow-hidden text-ellipsis">
                   电商全系统产品详情图片专家
                 </h1>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
-                    <h2 className="text-xl font-black tracking-tight text-neutral-500">核心配置 / SETUP</h2>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1 h-4 bg-blue-600 rounded-full"></div>
+                    <h2 className="text-base font-black tracking-tight text-neutral-500">核心配置 / SETUP</h2>
                   </div>
-                  <div className="text-[10px] font-black text-neutral-300 tracking-[0.2em]">V 3.5.0 PRO</div>
+                  <div className="text-[9px] font-black text-neutral-300 tracking-[0.1em]">V 3.6.0 PRO</div>
                 </div>
               </div>
             </header>
 
             {/* 01 Analysis */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-8 bg-neutral-900 rounded-full"></div>
-                <h3 className="text-xl font-black uppercase">01 智能分析 / ANALYSIS</h3>
+            <div className="space-y-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
+                <h3 className="text-lg font-black uppercase">01 智能分析 / ANALYSIS</h3>
               </div>
               
-              <div className="flex gap-5 items-stretch h-[220px]">
-                <div className="w-[42%] flex flex-col gap-2">
-                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest leading-none">
-                    提示：至少上传1张参考图
+              <div className="flex gap-3 items-stretch h-[160px]">
+                <div className="w-[40%] flex flex-col gap-1.5">
+                  <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest leading-none">
+                    提示：粘贴描述或上传图
                   </p>
-                  <div className="flex flex-row gap-2 items-end overflow-x-auto pb-1 flex-1">
+                  <div className="flex flex-row gap-1.5 items-end overflow-x-auto pb-0.5 flex-1">
                     {[0, 1].map((idx) => (
                       <div 
                         key={idx}
-                        className="group relative bg-white border-2 border-neutral-200 rounded-xl overflow-hidden flex items-center justify-center transition-all hover:border-neutral-900 shadow-sm shrink-0 h-full"
+                        className="group relative bg-white border border-neutral-200 rounded-lg overflow-hidden flex items-center justify-center transition-all hover:border-neutral-900 shadow-sm shrink-0 h-full"
                         style={{ 
                           aspectRatio: imageRatios[idx] ? `${imageRatios[idx]}/1` : '1/1',
-                          minWidth: images[idx] ? 'auto' : '80px'
+                          minWidth: images[idx] ? 'auto' : '60px'
                         }}
                       >
                         {images[idx] ? (
@@ -369,12 +365,12 @@ const App: React.FC = () => {
                             />
                             <button 
                               onClick={(e) => { e.stopPropagation(); handleRemoveImage(idx); }}
-                              className="absolute top-1 right-1 w-5 h-5 bg-neutral-900/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-neutral-900 text-[10px] z-10"
+                              className="absolute top-0.5 right-0.5 w-4 h-4 bg-neutral-900/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-neutral-900 text-[8px] z-10"
                             >✕</button>
                           </>
                         ) : (
-                          <div className="relative w-full h-full flex items-center justify-center bg-white border-2 border-dashed border-neutral-100 rounded-xl cursor-pointer hover:bg-neutral-50 transition-colors">
-                            <span className="text-2xl font-light text-neutral-300">+</span>
+                          <div className="relative w-full h-full flex items-center justify-center bg-white border border-dashed border-neutral-100 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
+                            <span className="text-xl font-light text-neutral-300">+</span>
                             <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageChange} />
                           </div>
                         )}
@@ -382,7 +378,7 @@ const App: React.FC = () => {
                     ))}
                   </div>
                   <textarea 
-                    className="w-full h-10 px-4 py-2 bg-white border border-neutral-200 rounded-xl outline-none focus:border-neutral-900 text-sm font-bold shadow-sm resize-none overflow-hidden shrink-0" 
+                    className="w-full h-7 px-3 py-1 bg-white border border-neutral-200 rounded-lg outline-none focus:border-neutral-900 text-xs font-bold shadow-sm resize-none overflow-hidden shrink-0" 
                     placeholder="粘贴描述..." 
                     rows={1}
                     value={description} 
@@ -391,48 +387,47 @@ const App: React.FC = () => {
                   <button 
                     onClick={startExtraction} 
                     disabled={loading || images.length === 0} 
-                    className="w-full h-10 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:from-blue-700 hover:to-indigo-700 disabled:opacity-20 active:scale-95 transition-all shadow-md border border-blue-400/30 shrink-0"
+                    className="w-full h-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:from-blue-700 hover:to-indigo-700 disabled:opacity-20 active:scale-95 transition-all shadow-md shrink-0"
                   >
                     {loading ? '...' : '解析产品报告'}
                   </button>
                 </div>
 
-                <div className="w-[18%] flex flex-col bg-white border border-neutral-200 rounded-2xl p-4 shadow-sm group overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-neutral-50 pb-2 mb-3 shrink-0">
-                    <span className="text-[10px] font-black text-neutral-400 uppercase">品牌 / BRAND</span>
+                <div className="w-[18%] flex flex-col bg-white border border-neutral-200 rounded-xl p-3 shadow-sm group overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-neutral-50 pb-1.5 mb-2 shrink-0">
+                    <span className="text-[9px] font-black text-neutral-400 uppercase">品牌</span>
                   </div>
                   <textarea 
-                    className="flex-1 w-full bg-transparent outline-none text-xs font-bold resize-none placeholder:text-neutral-300 custom-scrollbar-thin"
+                    className="flex-1 w-full bg-transparent outline-none text-[11px] font-bold resize-none placeholder:text-neutral-300 custom-scrollbar-thin"
                     placeholder="识别品牌..."
                     value={manualBrand}
                     onChange={(e) => setManualBrand(e.target.value)}
                   />
                 </div>
 
-                <div className="flex-1 min-w-0 relative bg-white border border-neutral-200 rounded-2xl p-4 shadow-sm group flex flex-col overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-neutral-50 pb-2 mb-3 shrink-0">
-                    <span className="text-[10px] font-black text-neutral-400 uppercase">报告预览 / REPORT PREVIEW</span>
+                <div className="flex-1 min-w-0 relative bg-white border border-neutral-200 rounded-xl p-3 shadow-sm group flex flex-col overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-neutral-50 pb-1.5 mb-2 shrink-0">
+                    <span className="text-[9px] font-black text-neutral-400 uppercase">报告预览</span>
                     {report && (
                       <button 
                         onClick={() => setIsReportExpanded(true)}
-                        className="p-1 hover:bg-neutral-50 rounded-lg transition-colors"
-                        title="全屏查看"
+                        className="p-0.5 hover:bg-neutral-50 rounded transition-colors"
                       >
-                        <svg className="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-2.5 h-2.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                         </svg>
                       </button>
                     )}
                   </div>
-                  <div className="flex-1 overflow-y-auto custom-scrollbar-thin pr-1">
+                  <div className="flex-1 overflow-y-auto custom-scrollbar-thin pr-0.5">
                     {report ? (
-                      <div className="scale-90 origin-top-left -mr-4">
+                      <div className="scale-[0.85] origin-top-left -mr-6">
                         {renderReportContent(report)}
                       </div>
                     ) : (
-                      <div className="h-full flex flex-col items-center justify-center opacity-20 py-4">
-                        <div className="text-3xl font-black">?</div>
-                        <p className="text-[9px] font-black uppercase tracking-widest">Awaiting Analysis</p>
+                      <div className="h-full flex flex-col items-center justify-center opacity-20 py-2">
+                        <div className="text-xl font-black">?</div>
+                        <p className="text-[8px] font-black uppercase tracking-widest">Awaiting</p>
                       </div>
                     )}
                   </div>
@@ -441,104 +436,100 @@ const App: React.FC = () => {
             </div>
 
             {/* 02 Definition */}
-            <div className="space-y-6 pt-6 border-t border-neutral-200">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-8 bg-neutral-900 rounded-full"></div>
-                <h3 className="text-xl font-black uppercase">02 视觉定义 / DEFINITION</h3>
+            <div className="space-y-4 pt-3 border-t border-neutral-200">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
+                <h3 className="text-lg font-black uppercase">02 视觉定义 / DEFINITION</h3>
               </div>
               
-              <div className="space-y-3">
-                <span className="text-base font-black text-neutral-400 uppercase">2.1 视觉风格 / VISUAL STYLE</span>
-                <div className="grid grid-cols-4 gap-3">
+              <div className="space-y-2">
+                <span className="text-sm font-black text-neutral-400 uppercase">2.1 视觉风格 / VISUAL STYLE</span>
+                <div className="grid grid-cols-4 gap-2">
                   {Object.values(VisualStyle).map(v => (
                     <div key={v} className="group relative">
-                      <button onClick={() => setSelectedStyle(v)} className={`w-full px-2 py-4 border-2 rounded-xl text-sm font-black transition-all ${selectedStyle === v ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>{v.replace('风格', '')}</button>
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 p-4 bg-neutral-900 text-white text-xs font-bold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center">{styleDescriptions[v]}<div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-8 border-transparent border-t-neutral-900"></div></div>
+                      <button onClick={() => setSelectedStyle(v)} className={`w-full px-1.5 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedStyle === v ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>{v.split(' ').slice(-1)[0]}</button>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-neutral-900 text-white text-[10px] font-bold rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center">{styleDescriptions[v]}<div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-neutral-900"></div></div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <span className="text-base font-black text-neutral-400 uppercase">2.2 排版架构 / TYPOGRAPHY</span>
-                <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <span className="text-sm font-black text-neutral-400 uppercase">2.2 排版架构 / TYPOGRAPHY</span>
+                <div className="grid grid-cols-3 gap-2">
                   {Object.values(TypographyStyle).map(t => (
                     <div key={t} className="group relative">
-                      <button onClick={() => setSelectedTypography(t)} className={`w-full px-3 py-4 border-2 rounded-xl text-sm font-black transition-all ${selectedTypography === t ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>{t.split('+')[0].trim()}</button>
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 p-4 bg-neutral-900 text-white text-xs font-bold rounded-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center">{typographyDescriptions[t]}<div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-8 border-transparent border-t-neutral-900"></div></div>
+                      <button onClick={() => setSelectedTypography(t)} className={`w-full px-2 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedTypography === t ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>{t.split(' ').slice(1, 2)[0]}</button>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-neutral-900 text-white text-[10px] font-bold rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center">{typographyDescriptions[t]}<div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-neutral-900"></div></div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="space-y-5 bg-white/50 p-6 rounded-[2rem] border border-neutral-200">
-                <span className="text-base font-black text-neutral-400 uppercase tracking-widest">2.3 特殊需求 (可选) / SPECIAL REQUIREMENTS</span>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between bg-white/40 p-3 rounded-xl border border-neutral-100 shadow-sm">
-                      <label className="text-sm font-bold text-neutral-600">模特</label>
-                      <button onClick={()=>setNeedsModel(!needsModel)} className={`w-10 h-5 rounded-full transition-all relative ${needsModel ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
-                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${needsModel ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              <div className="space-y-3 bg-white/50 p-4 rounded-2xl border border-neutral-200">
+                <span className="text-xs font-black text-neutral-400 uppercase tracking-widest">2.3 特殊需求 / SPECIALS</span>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between bg-white/40 p-2 rounded-lg border border-neutral-100 shadow-sm">
+                      <label className="text-xs font-bold text-neutral-600">模特</label>
+                      <button onClick={()=>setNeedsModel(!needsModel)} className={`w-8 h-4 rounded-full transition-all relative ${needsModel ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
+                        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm ${needsModel ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
                     {needsModel && (
-                      <input className="w-full h-10 px-4 bg-white border border-neutral-200 rounded-lg text-xs font-medium focus:border-neutral-900 outline-none transition-all shadow-sm animate-fade-in" placeholder="模特详情" value={modelType} onChange={e=>setModelType(e.target.value)} />
+                      <input className="w-full h-7 px-3 bg-white border border-neutral-200 rounded-lg text-[10px] font-medium focus:border-neutral-900 outline-none transition-all shadow-sm" placeholder="模特详情" value={modelType} onChange={e=>setModelType(e.target.value)} />
                     )}
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between bg-white/40 p-3 rounded-xl border border-neutral-100 shadow-sm">
-                      <label className="text-sm font-bold text-neutral-600">场景</label>
-                      <button onClick={()=>setNeedsScene(!needsScene)} className={`w-10 h-5 rounded-full transition-all relative ${needsScene ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
-                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${needsScene ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between bg-white/40 p-2 rounded-lg border border-neutral-100 shadow-sm">
+                      <label className="text-xs font-bold text-neutral-600">场景</label>
+                      <button onClick={()=>setNeedsScene(!needsScene)} className={`w-8 h-4 rounded-full transition-all relative ${needsScene ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
+                        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm ${needsScene ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
                     {needsScene && (
-                      <input className="w-full h-10 px-4 bg-white border border-neutral-200 rounded-lg text-xs font-medium focus:border-neutral-900 outline-none transition-all shadow-sm animate-fade-in" placeholder="场景详情" value={sceneType} onChange={e=>setSceneType(e.target.value)} />
+                      <input className="w-full h-7 px-3 bg-white border border-neutral-200 rounded-lg text-[10px] font-medium focus:border-neutral-900 outline-none transition-all shadow-sm" placeholder="场景详情" value={sceneType} onChange={e=>setSceneType(e.target.value)} />
                     )}
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between bg-white/40 p-3 rounded-xl border border-neutral-100 shadow-sm">
-                      <label className="text-sm font-bold text-neutral-600">数据</label>
-                      <button onClick={()=>setNeedsDataVis(!needsDataVis)} className={`w-10 h-5 rounded-full transition-all relative ${needsDataVis ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
-                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${needsDataVis ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between bg-white/40 p-2 rounded-lg border border-neutral-100 shadow-sm">
+                      <label className="text-xs font-bold text-neutral-600">数据</label>
+                      <button onClick={()=>setNeedsDataVis(!needsDataVis)} className={`w-8 h-4 rounded-full transition-all relative ${needsDataVis ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
+                        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm ${needsDataVis ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
                   </div>
                 </div>
-                <div className="space-y-3 border-t border-neutral-50 pt-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-black text-neutral-400 uppercase tracking-tighter">2.4 其他要求 / OTHERS</label>
-                  </div>
-                  <div className="relative group/textarea">
-                    <textarea 
-                      className="w-full h-24 bg-white border border-neutral-200 rounded-xl px-5 py-4 outline-none focus:border-neutral-900 text-sm font-bold resize-none shadow-sm transition-all" 
-                      placeholder="如：对比图..." 
-                      value={otherNeeds} 
-                      onChange={(e) => setOtherNeeds(e.target.value)} 
-                    />
-                  </div>
+                <div className="space-y-2 border-t border-neutral-50 pt-3">
+                  <label className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter">2.4 其他要求 / OTHERS</label>
+                  <textarea 
+                    className="w-full h-14 bg-white border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-neutral-900 text-xs font-bold resize-none shadow-sm transition-all" 
+                    placeholder="如：对比图..." 
+                    value={otherNeeds} 
+                    onChange={(e) => setOtherNeeds(e.target.value)} 
+                  />
                 </div>
               </div>
             </div>
 
             {/* 03 Ratio Section */}
-            <div className="space-y-6 pt-6 border-t border-neutral-200">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-8 bg-neutral-900 rounded-full"></div>
-                <h3 className="text-xl font-black uppercase">03 比例 / RATIO</h3>
+            <div className="space-y-4 pt-3 border-t border-neutral-200">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
+                <h3 className="text-lg font-black uppercase">03 比例 / RATIO</h3>
               </div>
-              <div className="grid grid-cols-5 gap-4">
+              <div className="grid grid-cols-5 gap-3">
                 {Object.keys(ratioIcons).map(r => (
-                  <div key={r} className="flex flex-col items-center gap-3">
+                  <div key={r} className="flex flex-col items-center gap-1.5">
                     <div 
                       onClick={() => setAspectRatio(r)}
-                      className={`border-2 rounded flex items-center justify-center transition-all h-14 w-14 cursor-pointer hover:bg-neutral-50 ${aspectRatio === r ? 'border-neutral-900 bg-neutral-100 scale-105' : 'border-neutral-200 bg-white opacity-40 hover:opacity-100'}`}
+                      className={`border border-neutral-200 rounded-lg flex items-center justify-center transition-all h-10 w-10 cursor-pointer hover:bg-neutral-50 ${aspectRatio === r ? 'border-neutral-900 bg-neutral-100 scale-105 shadow-sm' : 'bg-white opacity-40'}`}
                     >
-                      <div className={`bg-neutral-900 rounded-sm shadow-sm transition-all ${ratioIcons[r].w} ${ratioIcons[r].h}`}></div>
+                      <div className={`bg-neutral-900 rounded-[1px] shadow-sm transition-all ${ratioIcons[r].w.replace('w-10', 'w-8').replace('w-9', 'w-7').replace('w-6', 'w-5').replace('w-5', 'w-4')} ${ratioIcons[r].h.replace('h-9', 'h-7').replace('h-8', 'h-6').replace('h-7', 'h-5').replace('h-6', 'h-4')}`}></div>
                     </div>
                     <button 
                       onClick={() => setAspectRatio(r)} 
-                      className={`w-full py-2 border-2 rounded-lg text-center text-[10px] font-black transition-all ${aspectRatio === r ? 'border-neutral-900 bg-neutral-900 text-white shadow-md' : 'border-white bg-white text-neutral-400 shadow-sm'}`}
+                      className={`w-full py-1 border border-neutral-200 rounded-md text-center text-[9px] font-black transition-all ${aspectRatio === r ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm' : 'bg-white text-neutral-400'}`}
                     >
                       {r}
                     </button>
@@ -547,72 +538,72 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-8">
+            <div className="pt-4">
               <button 
                 onClick={startGeneration} 
                 disabled={loading || !report} 
-                className="w-full h-20 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-500 text-white rounded-2xl text-2xl font-black uppercase tracking-[0.2em] shadow-[0_20px_50px_rgba(79,70,229,0.4)] hover:scale-[1.02] hover:shadow-indigo-500/40 disabled:opacity-20 active:scale-95 transition-all flex items-center justify-center gap-5 border border-white/20"
+                className="w-full h-16 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-500 text-white rounded-xl text-lg font-black uppercase tracking-widest shadow-xl hover:scale-[1.01] disabled:opacity-20 transition-all flex items-center justify-center gap-3 border border-white/20"
               >
-                {loading ? <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : '生成视觉系统'}
+                {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : '生成视觉系统'}
               </button>
             </div>
           </div>
         </section>
 
         {/* Right Panel */}
-        <section className="w-[55%] relative flex flex-col bg-white overflow-hidden">
-          <header className="h-24 px-12 border-b border-neutral-50 flex items-center justify-between z-30 bg-white/95 backdrop-blur-md sticky top-0">
-            <h2 className="text-2xl font-black tracking-tighter uppercase">产品详情图片</h2>
-            <div className="flex gap-4">
+        <section className="w-[58%] relative flex flex-col bg-white overflow-hidden">
+          <header className="h-20 px-10 border-b border-neutral-50 flex items-center justify-between z-30 bg-white/95 backdrop-blur-md sticky top-0">
+            <h2 className="text-xl font-black tracking-tighter uppercase">产品详情图片</h2>
+            <div className="flex gap-3">
               <button 
                 onClick={handleOpenSettings}
-                className="px-8 h-12 rounded-full text-xs font-black uppercase border-2 border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all shadow-sm flex items-center gap-2"
+                className="px-6 h-10 rounded-full text-[10px] font-black uppercase border border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all shadow-sm flex items-center gap-1.5"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 设置
               </button>
-              {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-10 h-12 rounded-full text-sm font-black uppercase tracking-widest hover:scale-105 shadow-lg transition-all">批量渲染全案</button>}
+              {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-8 h-10 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 shadow-md transition-all">批量渲染全案</button>}
             </div>
           </header>
           
-          <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
             {!finalPrompts ? (
               <div className="h-full flex flex-col items-center justify-center opacity-5 select-none">
-                <div className="text-[12rem] font-black tracking-tighter leading-none">VISION</div>
-                <p className="text-xl font-black uppercase tracking-[0.5em]">System Core Offline</p>
+                <div className="text-[10rem] font-black tracking-tighter leading-none">VISION</div>
+                <p className="text-lg font-black uppercase tracking-[0.4em]">System Core Offline</p>
               </div>
             ) : (
-              <div className="max-w-6xl mx-auto space-y-24 pb-64">
+              <div className="max-w-6xl mx-auto space-y-20 pb-56">
                 {promptModules.map((m, idx) => {
                   const isLogo = m.title.toUpperCase().includes("LOGO");
                   const aspect = isLogo ? 'aspect-square' : getAspectClass(aspectRatio);
                   const isGenerating = generatingModules[idx];
                   return (
-                    <div key={idx} className="group flex flex-row gap-10 animate-fade-in-up items-start">
-                      <div className="w-[42%] flex flex-col gap-6 sticky top-32">
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-4">
-                            <span className="text-4xl font-black text-neutral-100 tracking-tighter leading-none">{(idx).toString().padStart(2, '0')}</span>
+                    <div key={idx} className="group flex flex-row gap-8 animate-fade-in-up items-start">
+                      <div className="w-[42%] flex flex-col gap-5 sticky top-28">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl font-black text-neutral-100 tracking-tighter leading-none">{(idx).toString().padStart(2, '0')}</span>
                             <span className="text-xs font-black uppercase text-neutral-900">{m.title}</span>
                           </div>
-                          <div className="bg-white border border-neutral-100 rounded-3xl p-6 shadow-sm">
-                            <pre className="text-[11px] text-neutral-600 font-bold whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto custom-scrollbar">{m.content}</pre>
+                          <div className="bg-white border border-neutral-100 rounded-2xl p-5 shadow-sm">
+                            <pre className="text-[10px] text-neutral-600 font-bold whitespace-pre-wrap leading-relaxed max-h-[250px] overflow-y-auto custom-scrollbar">{m.content}</pre>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <button onClick={() => generateSingleImage(idx, m.content, isLogo)} disabled={isGenerating} className="flex-1 py-4 bg-neutral-900 text-white rounded-xl text-[10px] font-black uppercase hover:bg-neutral-800 disabled:opacity-20 transition-all">{isGenerating ? '渲染中...' : '生成渲染图'}</button>
+                          <div className="flex items-center gap-3">
+                            <button onClick={() => generateSingleImage(idx, m.content, isLogo)} disabled={isGenerating} className="flex-1 py-3 bg-neutral-900 text-white rounded-lg text-[9px] font-black uppercase hover:bg-neutral-800 disabled:opacity-20 transition-all">{isGenerating ? '渲染中...' : '生成渲染图'}</button>
                           </div>
                         </div>
                       </div>
                       <div className="flex-1">
-                        <div className={`relative w-full rounded-[2.5rem] overflow-hidden shadow-xl bg-neutral-50 ${aspect}`}>
+                        <div className={`relative w-full rounded-[2rem] overflow-hidden shadow-lg bg-neutral-50 ${aspect}`}>
                           {generatedImages[idx] ? (
                             <img src={generatedImages[idx]} className="w-full h-full object-cover cursor-zoom-in" onClick={() => setPreviewImageUrl(generatedImages[idx])} />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              {isGenerating ? <div className="w-8 h-8 border-3 border-neutral-200 border-t-neutral-900 rounded-full animate-spin"></div> : <span className="opacity-10 font-black text-6xl">V</span>}
+                              {isGenerating ? <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin"></div> : <span className="opacity-10 font-black text-5xl">V</span>}
                             </div>
                           )}
                         </div>
@@ -629,47 +620,46 @@ const App: React.FC = () => {
       {/* --- Settings Modal --- */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in" onClick={() => setIsSettingsOpen(false)}>
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
-            <div className="p-10 space-y-8">
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black uppercase tracking-tight">API 配置 / SETTINGS</h3>
-                <p className="text-xs text-neutral-500 font-medium leading-relaxed">
-                  请在此配置您的 Google Gemini API 密钥。如果设置了自定义密钥，系统将优先使用。密钥仅保存在本地浏览器中。
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
+            <div className="p-8 space-y-6">
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-black uppercase tracking-tight">API 配置 / SETTINGS</h3>
+                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">
+                  请在此配置您的 Google Gemini API 密钥。如果设置了自定义密钥，系统将优先使用。
                 </p>
               </div>
               
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Gemini API Key</label>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Gemini API Key</label>
                 <input 
                   type="password"
                   value={customKey}
                   onChange={(e) => setCustomKey(e.target.value)}
                   placeholder="在此输入或粘贴您的 API 密钥..."
-                  className="w-full px-5 py-4 bg-neutral-50 border border-neutral-200 rounded-2xl focus:border-neutral-900 outline-none font-mono text-sm shadow-inner transition-all"
+                  className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:border-neutral-900 outline-none font-mono text-xs shadow-inner transition-all"
                 />
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-0.5">
                   <a 
                     href="https://ai.google.dev/gemini-api/docs/billing" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-[10px] text-blue-600 font-bold hover:underline"
+                    className="text-[9px] text-blue-600 font-bold hover:underline"
                   >
                     如何获取 API 密钥与计费说明? →
                   </a>
-                  <span className="text-[9px] text-neutral-400 italic">注：留空则尝试使用系统默认密钥。</span>
                 </div>
               </div>
 
-              <div className="flex gap-4 pt-4">
+              <div className="flex gap-3 pt-2">
                 <button 
                   onClick={() => setIsSettingsOpen(false)}
-                  className="flex-1 px-4 py-4 border-2 border-neutral-100 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-neutral-50 transition-all"
+                  className="flex-1 px-3 py-3 border border-neutral-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neutral-50 transition-all"
                 >
                   取消
                 </button>
                 <button 
                   onClick={handleSaveSettings}
-                  className="flex-[1.5] px-4 py-4 bg-neutral-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 shadow-xl transition-all"
+                  className="flex-[1.5] px-3 py-3 bg-neutral-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] shadow-lg transition-all"
                 >
                   保存配置
                 </button>
@@ -682,29 +672,29 @@ const App: React.FC = () => {
       {/* Overlays */}
       {previewImageUrl && (
         <div className="fixed inset-0 z-[100] bg-white/98 backdrop-blur-2xl flex items-center justify-center p-8 animate-fade-in" onClick={() => setPreviewImageUrl(null)}>
-          <img src={previewImageUrl} className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-3xl" onClick={(e) => e.stopPropagation()} />
+          <img src={previewImageUrl} className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-2xl" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
 
       {isReportExpanded && report && (
         <div className="fixed inset-0 z-[110] bg-white/98 backdrop-blur-2xl flex items-center justify-center p-8 animate-fade-in" onClick={() => setIsReportExpanded(false)}>
-          <div className="bg-white rounded-[3rem] shadow-2xl border border-neutral-100 w-full max-w-4xl max-h-[90vh] overflow-y-auto p-16" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-[2.5rem] shadow-2xl border border-neutral-100 w-full max-w-4xl max-h-[85vh] overflow-y-auto p-12" onClick={(e) => e.stopPropagation()}>
             {renderReportContent({ ...report, brandName: manualBrand || report.brandName }, true)}
           </div>
         </div>
       )}
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes scaleUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes scaleUp { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+        .animate-fade-in-up { animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         .animate-scale-up { animation: scaleUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E5E5; border-radius: 20px; }
-        .custom-scrollbar-thin::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #D1D1D1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; height: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E5E5; border-radius: 10px; }
+        .custom-scrollbar-thin::-webkit-scrollbar { width: 2px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #D1D1D1; border-radius: 5px; }
       `}} />
     </div>
   );
