@@ -4,18 +4,19 @@ import { GoogleGenAI } from "@google/genai";
 import { extractProductInfo, generatePosterSystem } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 
-// Fix: Correctly define the global AIStudio interface and apply matching modifiers to Window
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
     openSelectKey: () => Promise<void>;
   }
   interface Window {
-    readonly aistudio: AIStudio;
+    // Fixed: All declarations of 'aistudio' must have identical modifiers.
+    aistudio: AIStudio;
   }
 }
 
 const App: React.FC = () => {
+  // API Key Management - Replaced with official selection flow
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [imageRatios, setImageRatios] = useState<number[]>([]);
@@ -39,6 +40,15 @@ const App: React.FC = () => {
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
   const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({});
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
+  // Helper to ensure API key is selected
+  const ensureApiKey = async () => {
+    const hasKey = await window.aistudio.hasSelectedApiKey();
+    if (!hasKey) {
+      await window.aistudio.openSelectKey();
+    }
+    return true;
+  };
 
   const styleDescriptions: Record<VisualStyle, string> = {
     [VisualStyle.MAGAZINE]: '高级、专业、大片感、粗衬线标题、极简留白',
@@ -128,15 +138,8 @@ const App: React.FC = () => {
     }
   };
 
-  const ensureApiKey = async () => {
-    const hasKey = await window.aistudio.hasSelectedApiKey();
-    if (!hasKey) {
-      await window.aistudio.openSelectKey();
-    }
-    return true;
-  };
-
   const startExtraction = async () => {
+    await ensureApiKey();
     if (images.length === 0) return alert('请至少上传一张产品图片');
     setLoading(true);
     try {
@@ -145,12 +148,17 @@ const App: React.FC = () => {
       if (!manualBrand && res.brandName) {
         setManualBrand(res.brandName);
       }
-    } catch (err) {
-      alert('分析失败，请检查 API 配置');
+    } catch (err: any) {
+      console.error(err);
+      if (err?.message?.includes("Requested entity was not found")) {
+        await window.aistudio.openSelectKey();
+      }
+      alert('分析失败，请检查 API 配置或网络状态');
     } finally { setLoading(false); }
   };
 
   const startGeneration = async () => {
+    await ensureApiKey();
     if (!report) return alert('请先解析产品报告');
     setLoading(true);
     try {
@@ -164,28 +172,29 @@ const App: React.FC = () => {
       const finalReport = { ...report, brandName: manualBrand || report.brandName };
       const res = await generatePosterSystem(finalReport, selectedStyle, selectedTypography, combinedNeeds);
       setFinalPrompts(res);
-    } catch (err) {
+    } catch (err: any) {
+      console.error(err);
+      if (err?.message?.includes("Requested entity was not found")) {
+        await window.aistudio.openSelectKey();
+      }
       alert('系统方案生成失败');
     } finally { setLoading(false); }
   };
 
   const generateSingleImage = async (index: number, prompt: string, isLogo: boolean = false) => {
-    if (images.length === 0) return alert("请上传产品参考图");
-    
-    // Check for API key selection
     await ensureApiKey();
+    if (images.length === 0) return alert("请上传产品参考图");
     
     const targetRatio = isLogo ? "1:1" : aspectRatio;
     setGeneratingModules(prev => ({ ...prev, [index]: true }));
     
     try {
-      // Fix: Create a new GoogleGenAI instance right before the call to ensure the latest API key is used
+      // Re-initialize Gemini client to use up-to-date process.env.API_KEY
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const imageParts = images.map(img => ({
         inlineData: { data: img, mimeType: 'image/jpeg' }
       }));
 
-      // High-quality image tasks must use gemini-3-pro-image-preview
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-image-preview',
         contents: {
@@ -203,7 +212,6 @@ const App: React.FC = () => {
       });
 
       let imageUrl = "";
-      // Fix: Iterate through all parts to find the inlineData (image) part
       const candidates = response.candidates?.[0]?.content?.parts || [];
       for (const part of candidates) {
         if (part.inlineData) {
@@ -219,13 +227,10 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      // Fix: Handle 404/expired key selection by resetting key selection state
       if (err?.message?.includes("Requested entity was not found")) {
-        alert("API Key 已过期或无效，请重新选择。");
         await window.aistudio.openSelectKey();
-      } else {
-        alert(`渲染失败: ${err?.message || '未知错误'}`);
       }
+      alert(`渲染失败: ${err?.message || '请检查 API Key 权限'}`);
     } finally { 
       setGeneratingModules(prev => ({ ...prev, [index]: false })); 
     }
@@ -249,8 +254,8 @@ const App: React.FC = () => {
   }, [finalPrompts]);
 
   const generateAllImages = async () => {
-    if (!finalPrompts) return;
     await ensureApiKey();
+    if (!finalPrompts) return;
     for (let i = 0; i < promptModules.length; i++) {
       const isLogo = promptModules[i].title.toUpperCase().includes("LOGO");
       await generateSingleImage(i, promptModules[i].content, isLogo);
@@ -564,16 +569,16 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* Right Panel -产品详情图片 */}
+        {/* Right Panel - 产品详情图片 */}
         <section className="w-[55%] relative flex flex-col bg-white overflow-hidden">
           <header className="h-24 px-12 border-b border-neutral-50 flex items-center justify-between z-30 bg-white/95 backdrop-blur-md sticky top-0">
             <h2 className="text-2xl font-black tracking-tighter uppercase">产品详情图片</h2>
             <div className="flex gap-4">
               <button 
                 onClick={() => window.aistudio.openSelectKey()}
-                className="px-6 h-12 rounded-full text-xs font-black uppercase border-2 border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all"
+                className="px-6 h-12 rounded-full text-xs font-black uppercase border-2 border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all shadow-sm"
               >
-                API 设置
+                设置 API Key
               </button>
               {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-10 h-12 rounded-full text-sm font-black uppercase tracking-widest hover:scale-105 shadow-lg transition-all">批量渲染全案</button>}
             </div>

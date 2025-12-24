@@ -14,8 +14,9 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 海报必须包含：中文提示词、英文Prompt、负面词、详细的中英文排版布局说明。
 所有海报必须保持风格统一，LOGO位置统一。`;
 
-export const extractProductInfo = async (imagesB64?: string[], textDescription?: string): Promise<RecognitionReport> => {
-  // Create a new GoogleGenAI instance right before the call to use the latest API key
+// Removed apiKey parameter to use process.env.API_KEY exclusively
+export const extractProductInfo = async (imagesB64: string[], textDescription: string): Promise<RecognitionReport> => {
+  // Always create a new GoogleGenAI instance right before the call
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const parts: any[] = [];
   
@@ -52,7 +53,6 @@ export const extractProductInfo = async (imagesB64?: string[], textDescription?:
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       responseMimeType: "application/json",
-      // Use responseSchema for robust and structured output
       responseSchema: {
         type: Type.OBJECT,
         properties: {
@@ -74,13 +74,14 @@ export const extractProductInfo = async (imagesB64?: string[], textDescription?:
   return JSON.parse(response.text || '{}');
 };
 
+// Removed apiKey parameter to use process.env.API_KEY exclusively
 export const generatePosterSystem = async (
   report: RecognitionReport,
   visualStyle: VisualStyle,
   typography: TypographyStyle,
   specialNeeds: string
 ): Promise<string> => {
-  // Create a new GoogleGenAI instance right before the call to use the latest API key
+  // Always create a new GoogleGenAI instance right before the call
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `基于以下识别报告生成【十张海报全案系统】（共11个模块，包含LOGO生成提示词）。
   
@@ -115,7 +116,6 @@ export const generatePosterSystem = async (
   - 提供极其详细的排版布局（中英双语如何排、位置坐标、字体风格、色值）。`;
 
   const response = await ai.models.generateContent({
-    // Use gemini-3-pro-preview for complex reasoning and creative generation tasks
     model: 'gemini-3-pro-preview',
     contents: prompt,
     config: {
