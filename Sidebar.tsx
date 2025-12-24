@@ -111,10 +111,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <h2 className="text-sm font-black text-neutral-800 uppercase tracking-wide">01 产品智能分析</h2>
             </div>
             
-            {/* New Layout: 3 Columns (Image 1, Image 2, Description) - Equal Height */}
+            {/* 4 Columns (Image 1, Image 2, Description, Brand) - Equal Width & Height */}
             <div className="flex gap-2 h-28">
               {/* Image 1 */}
-              <div className="w-24 shrink-0 bg-neutral-50 border border-neutral-200 border-dashed rounded-xl flex flex-col items-center justify-center relative hover:border-blue-500 transition-colors cursor-pointer group overflow-hidden">
+              <div className="flex-1 w-0 bg-neutral-50 border border-neutral-200 border-dashed rounded-xl flex flex-col items-center justify-center relative hover:border-blue-500 transition-colors cursor-pointer group overflow-hidden">
                  {images[0] ? (
                    <>
                      <img src={`data:image/jpeg;base64,${images[0]}`} className="w-full h-full object-cover rounded-xl" />
@@ -130,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               {/* Image 2 */}
-              <div className="w-24 shrink-0 bg-neutral-50 border border-neutral-200 border-dashed rounded-xl flex flex-col items-center justify-center relative hover:border-blue-500 transition-colors cursor-pointer group overflow-hidden">
+              <div className="flex-1 w-0 bg-neutral-50 border border-neutral-200 border-dashed rounded-xl flex flex-col items-center justify-center relative hover:border-blue-500 transition-colors cursor-pointer group overflow-hidden">
                  {images[1] ? (
                     <>
                      <img src={`data:image/jpeg;base64,${images[1]}`} className="w-full h-full object-cover rounded-xl" />
@@ -146,19 +146,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               {/* Description Input */}
-              <div className="flex-1 h-full">
+              <div className="flex-1 w-0 h-full">
                 <textarea
                   value={description} 
                   onChange={e=>setDescription(e.target.value)} 
-                  className="w-full h-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-[10px] focus:border-blue-500 outline-none transition-all placeholder:text-neutral-300 resize-none leading-relaxed" 
-                  placeholder="在此输入产品说明或补充细节..."
+                  className="w-full h-full px-2 py-2 bg-white border border-neutral-200 rounded-xl text-[10px] focus:border-blue-500 outline-none transition-all placeholder:text-neutral-300 resize-none leading-relaxed" 
+                  placeholder="产品卖点/说明..."
                 />
               </div>
-            </div>
-            
-            <div className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 flex items-center">
-              <span className="text-[10px] font-bold text-neutral-500 shrink-0 mr-2 bg-neutral-200 px-1.5 py-0.5 rounded">品牌</span>
-              <input className="w-full bg-transparent text-xs font-bold outline-none placeholder:text-neutral-300" placeholder="品牌名 (自动识别或手动输入)" value={manualBrand} onChange={e=>setManualBrand(e.target.value)} />
+
+              {/* Brand Input */}
+              <div className="flex-1 w-0 h-full">
+                 <div className="w-full h-full px-2 py-2 bg-white border border-neutral-200 rounded-xl flex flex-col focus-within:border-blue-500 transition-all">
+                    <span className="text-[9px] font-bold text-neutral-400 mb-1">品牌</span>
+                    <textarea 
+                      className="w-full flex-1 bg-transparent text-[10px] font-bold outline-none placeholder:text-neutral-300 resize-none leading-relaxed"
+                      placeholder="品牌名" 
+                      value={manualBrand} 
+                      onChange={e=>setManualBrand(e.target.value)} 
+                    />
+                 </div>
+              </div>
             </div>
           </section>
 

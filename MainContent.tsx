@@ -146,17 +146,19 @@ export const MainContent: React.FC<MainContentProps> = ({
 
                     {report ? (
                       <div className="animate-fade-in flex-1 flex flex-col justify-center">
-                         <h4 className="text-base font-black text-neutral-900 leading-snug mb-1 line-clamp-2">
+                         {/* Removed line-clamp to show full text, changed text-base to text-sm for better fit */}
+                         <h4 className="text-sm font-black text-neutral-900 leading-snug mb-2">
                             {report.designStyle}
                          </h4>
-                         <p className="text-[10px] text-neutral-500 font-medium leading-relaxed mb-3 line-clamp-2">
+                         {/* Removed line-clamp to show full text */}
+                         <p className="text-[10px] text-neutral-500 font-medium leading-relaxed mb-3">
                             {report.packagingHighlights || '3D浮雕文字 + 金属质感 (奢华风)'}
                          </p>
                          
                          <div className="mt-auto">
                             <div className="inline-flex items-center gap-1.5 bg-neutral-50 rounded-full pl-2 pr-3 py-1">
                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                               <span className="text-[10px] font-bold text-neutral-700 truncate max-w-[140px]">{report.brandTone}</span>
+                               <span className="text-[10px] font-bold text-neutral-700">{report.brandTone}</span>
                             </div>
                          </div>
                       </div>
