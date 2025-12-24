@@ -1,0 +1,7 @@
+{
+  "name": "电商全系统图片提示词专家",
+  "description": "基于AI的产品卖点提取、视觉风格定义及10张电商海报全系统提示词生成工具。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
