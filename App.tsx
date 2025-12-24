@@ -5,7 +5,65 @@ import { extractProductInfo, generatePosterSystem } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 
 const App: React.FC = () => {
-  // --- 应用逻辑 ---
+  // --- 登录与鉴权状态 ---
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // 初始化：检查登录状态
+  useEffect(() => {
+    const loginStatus = sessionStorage.getItem('APP_IS_LOGGED_IN') === 'true';
+    setIsLoggedIn(loginStatus);
+  }, []);
+
+  const handleLogin = () => {
+    if (loginPassword === '123') {
+      setIsLoggedIn(true);
+      sessionStorage.setItem('APP_IS_LOGGED_IN', 'true');
+      setIsLoginOpen(false);
+      setLoginPassword('');
+    } else {
+      alert('访问密码错误');
+    }
+  };
+
+  const handleLogout = () => {
+    if (confirm('确认退出登录？')) {
+      setIsLoggedIn(false);
+      sessionStorage.removeItem('APP_IS_LOGGED_IN');
+    }
+  };
+
+  // --- API 密钥管理 (AI Studio 标准) ---
+  const handleOpenKeySelection = async () => {
+    // @ts-ignore
+    if (window.aistudio && window.aistudio.openSelectKey) {
+      // @ts-ignore
+      await window.aistudio.openSelectKey();
+    } else {
+      alert("请在 AI Studio 环境中操作。");
+    }
+  };
+
+  const checkAuthAndKey = async () => {
+    if (!isLoggedIn) {
+      setIsLoginOpen(true);
+      return false;
+    }
+
+    // @ts-ignore
+    if (window.aistudio) {
+      // @ts-ignore
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      if (!hasKey) {
+        // @ts-ignore
+        await window.aistudio.openSelectKey();
+      }
+    }
+    return true;
+  };
+
+  // --- 核心业务逻辑 ---
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [imageRatios, setImageRatios] = useState<number[]>([]);
@@ -29,41 +87,6 @@ const App: React.FC = () => {
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
   const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({});
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-
-  // Fix for line 617: The logic for custom key management and login is removed to comply with safety and coding guidelines.
-  // Instead, we use the standard AI Studio key selection process.
-  const handleOpenKeySelection = async () => {
-    // @ts-ignore
-    if (window.aistudio && window.aistudio.openSelectKey) {
-      // @ts-ignore
-      await window.aistudio.openSelectKey();
-    } else {
-      alert("请在 AI Studio 环境中使用此功能，或确保 API_KEY 已正确配置。");
-    }
-  };
-
-  const ensureApiKey = async () => {
-    // Check if key is already available in process.env
-    if (process.env.API_KEY && process.env.API_KEY !== "undefined" && process.env.API_KEY.length > 5) {
-      return true;
-    }
-
-    // Check AI Studio environment
-    // @ts-ignore
-    if (window.aistudio) {
-      // @ts-ignore
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-        // Assuming selection was successful per guidelines to avoid race condition
-        return true;
-      }
-      return true;
-    }
-    
-    return true; // Proceed and let the API call handle its own errors
-  };
 
   const styleDescriptions: Record<VisualStyle, string> = {
     [VisualStyle.MAGAZINE]: '高级、专业、大片感、粗衬线标题、极简留白',
@@ -146,7 +169,8 @@ const App: React.FC = () => {
 
   const startExtraction = async () => {
     try {
-      await ensureApiKey();
+      const ok = await checkAuthAndKey();
+      if (!ok) return;
       if (images.length === 0) return alert('请至少上传一张产品图片');
       setLoading(true);
       const res = await extractProductInfo(images, description);
@@ -156,13 +180,14 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      alert('分析失败，请检查 API 配置或网络状态');
+      alert('分析失败，请检查 API 配置或登录状态');
     } finally { setLoading(false); }
   };
 
   const startGeneration = async () => {
     try {
-      await ensureApiKey();
+      const ok = await checkAuthAndKey();
+      if (!ok) return;
       if (!report) return alert('请先解析产品报告');
       setLoading(true);
       const combinedNeeds = [
@@ -177,19 +202,19 @@ const App: React.FC = () => {
       setFinalPrompts(res);
     } catch (err: any) {
       console.error(err);
-      alert('系统方案生成失败');
+      alert('方案生成失败');
     } finally { setLoading(false); }
   };
 
   const generateSingleImage = async (index: number, prompt: string, isLogo: boolean = false) => {
     try {
-      await ensureApiKey();
+      const ok = await checkAuthAndKey();
+      if (!ok) return;
       if (images.length === 0) return alert("请上传产品参考图");
       
       const targetRatio = isLogo ? "1:1" : aspectRatio;
       setGeneratingModules(prev => ({ ...prev, [index]: true }));
       
-      // Always create a new GoogleGenAI instance right before the API call as per guidelines
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const imageParts = images.map(img => ({
         inlineData: { data: img, mimeType: 'image/jpeg' }
@@ -200,19 +225,16 @@ const App: React.FC = () => {
         contents: {
           parts: [
             ...imageParts,
-            { text: `高端电商商业摄影。产品：准确还原参考图中的包装、品牌标识和颜色。风格：${prompt}。画面比例：${targetRatio}。专业影棚光，8k分辨率，真实质感。` },
+            { text: `高端电商摄影。还原参考图产品。风格：${prompt}。比例：${targetRatio}。8k分辨率。` },
           ],
         },
         config: { 
-          imageConfig: { 
-            aspectRatio: targetRatio as any
-          } 
+          imageConfig: { aspectRatio: targetRatio as any } 
         }
       });
 
       let imageUrl = "";
       const candidates = response.candidates?.[0]?.content?.parts || [];
-      // Iterating parts to find the image part as per guidelines
       for (const part of candidates) {
         if (part.inlineData) {
           imageUrl = `data:image/png;base64,${part.inlineData.data}`;
@@ -223,16 +245,11 @@ const App: React.FC = () => {
       if (imageUrl) {
         setGeneratedImages(prev => ({ ...prev, [index]: imageUrl }));
       } else {
-        throw new Error("渲染未返回图像");
+        throw new Error("渲染失败");
       }
     } catch (err: any) {
       console.error(err);
-      if (err?.message?.includes("Requested entity was not found")) {
-        // Reset and re-prompt user for key if not found per guidelines
-        handleOpenKeySelection();
-      } else {
-        alert(`渲染失败: ${err?.message || '请检查密钥配置'}`);
-      }
+      alert(`渲染失败: ${err?.message}`);
     } finally { 
       setGeneratingModules(prev => ({ ...prev, [index]: false })); 
     }
@@ -257,7 +274,8 @@ const App: React.FC = () => {
 
   const generateAllImages = async () => {
     try {
-      await ensureApiKey();
+      const ok = await checkAuthAndKey();
+      if (!ok) return;
       if (!finalPrompts) return;
       for (let i = 0; i < promptModules.length; i++) {
         const isLogo = promptModules[i].title.toUpperCase().includes("LOGO");
@@ -318,7 +336,6 @@ const App: React.FC = () => {
                 <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
                 <h3 className="text-lg font-black uppercase">01 产品智能分析</h3>
               </div>
-              
               <div className="flex gap-3 items-stretch h-[160px]">
                 <div className="w-[40%] flex flex-col gap-1.5">
                   <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest leading-none">
@@ -388,27 +405,13 @@ const App: React.FC = () => {
                   <div className="flex items-center justify-between border-b border-neutral-50 pb-1.5 mb-2 shrink-0">
                     <span className="text-[9px] font-black text-neutral-400 uppercase">分析摘要</span>
                     {report && (
-                      <button 
-                        onClick={() => setIsReportExpanded(true)}
-                        className="p-0.5 hover:bg-neutral-50 rounded transition-colors"
-                      >
-                        <svg className="w-2.5 h-2.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                        </svg>
+                      <button onClick={() => setIsReportExpanded(true)} className="p-0.5 hover:bg-neutral-50 rounded transition-colors">
+                        <svg className="w-2.5 h-2.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
                       </button>
                     )}
                   </div>
                   <div className="flex-1 overflow-y-auto custom-scrollbar-thin pr-0.5">
-                    {report ? (
-                      <div className="scale-[0.85] origin-top-left -mr-6">
-                        {renderReportContent(report)}
-                      </div>
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center opacity-20 py-2">
-                        <div className="text-xl font-black">?</div>
-                        <p className="text-[8px] font-black uppercase tracking-widest">待分析</p>
-                      </div>
-                    )}
+                    {report ? <div className="scale-[0.85] origin-top-left -mr-6">{renderReportContent(report)}</div> : <div className="h-full flex flex-col items-center justify-center opacity-20 py-2"><div className="text-xl font-black">?</div><p className="text-[8px] font-black uppercase tracking-widest">待分析</p></div>}
                   </div>
                 </div>
               </div>
@@ -420,43 +423,33 @@ const App: React.FC = () => {
                 <div className="w-1.5 h-6 bg-neutral-900 rounded-full"></div>
                 <h3 className="text-lg font-black uppercase">02 视觉风格定义</h3>
               </div>
-              
               <div className="space-y-2">
                 <span className="text-sm font-black text-neutral-400 uppercase">2.1 基础视觉风格</span>
                 <div className="grid grid-cols-4 gap-2">
                   {Object.values(VisualStyle).map(v => (
                     <div key={v} className="group relative">
                       <button onClick={() => setSelectedStyle(v)} className={`w-full px-1 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedStyle === v ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
-                        <span className="flex items-center justify-center gap-1">
-                          <span>{v.split(' ')[0]}</span>
-                          <span className="truncate">{v.split(' ').slice(-1)[0].replace('风格', '')}</span>
-                        </span>
+                        <span className="truncate">{v.replace('风格', '')}</span>
                       </button>
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-neutral-900 text-white text-[10px] font-bold rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center">{styleDescriptions[v]}<div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-neutral-900"></div></div>
                     </div>
                   ))}
                 </div>
               </div>
-
               <div className="space-y-2">
                 <span className="text-sm font-black text-neutral-400 uppercase">2.2 页面排版逻辑</span>
                 <div className="grid grid-cols-3 gap-2">
                   {Object.values(TypographyStyle).map(t => (
                     <div key={t} className="group relative">
                       <button onClick={() => setSelectedTypography(t)} className={`w-full px-1.5 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedTypography === t ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
-                        <span className="flex items-center justify-center gap-1">
-                          <span>{t.split(' ')[0]}</span>
-                          <span className="truncate">{t.split(' ').slice(1, 2)[0]}</span>
-                        </span>
+                        <span className="truncate">{t.split(' ')[0]} {t.split(' ')[1]}</span>
                       </button>
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-neutral-900 text-white text-[10px] font-bold rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 text-center">{typographyDescriptions[t]}<div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-neutral-900"></div></div>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-3 bg-white/50 p-4 rounded-2xl border border-neutral-200">
-                <span className="text-xs font-black text-neutral-400 uppercase tracking-widest">2.3 个性化业务需求</span>
+                <span className="text-xs font-black text-neutral-400 uppercase tracking-widest">2.3 个性化需求</span>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between bg-white/40 p-2 rounded-lg border border-neutral-100 shadow-sm">
@@ -465,9 +458,7 @@ const App: React.FC = () => {
                         <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm ${needsModel ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
-                    {needsModel && (
-                      <input className="w-full h-7 px-3 bg-white border border-neutral-200 rounded-lg text-[10px] font-medium focus:border-neutral-900 outline-none transition-all shadow-sm" placeholder="如：亚洲女性" value={modelType} onChange={e=>setModelType(e.target.value)} />
-                    )}
+                    {needsModel && <input className="w-full h-7 px-3 bg-white border border-neutral-200 rounded-lg text-[10px] focus:border-neutral-900 outline-none transition-all shadow-sm" placeholder="如：亚洲女性" value={modelType} onChange={e=>setModelType(e.target.value)} />}
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between bg-white/40 p-2 rounded-lg border border-neutral-100 shadow-sm">
@@ -476,9 +467,7 @@ const App: React.FC = () => {
                         <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm ${needsScene ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
-                    {needsScene && (
-                      <input className="w-full h-7 px-3 bg-white border border-neutral-200 rounded-lg text-[10px] font-medium focus:border-neutral-900 outline-none transition-all shadow-sm" placeholder="如：厨房桌面" value={sceneType} onChange={e=>setSceneType(e.target.value)} />
-                    )}
+                    {needsScene && <input className="w-full h-7 px-3 bg-white border border-neutral-200 rounded-lg text-[10px] focus:border-neutral-900 outline-none transition-all shadow-sm" placeholder="如：厨房桌面" value={sceneType} onChange={e=>setSceneType(e.target.value)} />}
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between bg-white/40 p-2 rounded-lg border border-neutral-100 shadow-sm">
@@ -489,28 +478,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2 border-t border-neutral-50 pt-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter">2.4 补充需求备选项</label>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mb-1.5">
-                    {quickOptions.map(opt => (
-                      <button 
-                        key={opt}
-                        onClick={() => handleQuickOptionClick(opt)}
-                        className="px-2 py-0.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-500 hover:text-neutral-900 rounded-md text-[9px] font-bold transition-all border border-neutral-200"
-                      >
-                        + {opt}
-                      </button>
-                    ))}
-                  </div>
-                  <textarea 
-                    className="w-full h-14 bg-white border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-neutral-900 text-xs font-bold resize-none shadow-sm transition-all" 
-                    placeholder="输入其他具体要求..." 
-                    value={otherNeeds} 
-                    onChange={(e) => setOtherNeeds(e.target.value)} 
-                  />
-                </div>
+                <textarea className="w-full h-14 bg-white border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-neutral-900 text-xs font-bold resize-none shadow-sm transition-all mt-2" placeholder="输入其他具体要求..." value={otherNeeds} onChange={(e) => setOtherNeeds(e.target.value)} />
               </div>
             </div>
 
@@ -523,29 +491,17 @@ const App: React.FC = () => {
               <div className="grid grid-cols-5 gap-3">
                 {Object.keys(ratioIcons).map(r => (
                   <div key={r} className="flex flex-col items-center gap-1.5">
-                    <div 
-                      onClick={() => setAspectRatio(r)}
-                      className={`border border-neutral-200 rounded-lg flex items-center justify-center transition-all h-10 w-10 cursor-pointer hover:bg-neutral-50 ${aspectRatio === r ? 'border-neutral-900 bg-neutral-100 scale-105 shadow-sm' : 'bg-white opacity-40'}`}
-                    >
+                    <div onClick={() => setAspectRatio(r)} className={`border border-neutral-200 rounded-lg flex items-center justify-center transition-all h-10 w-10 cursor-pointer hover:bg-neutral-50 ${aspectRatio === r ? 'border-neutral-900 bg-neutral-100 scale-105 shadow-sm' : 'bg-white opacity-40'}`}>
                       <div className={`bg-neutral-900 rounded-[1px] shadow-sm transition-all ${ratioIcons[r].w.replace('w-10', 'w-8').replace('w-9', 'w-7').replace('w-6', 'w-5').replace('w-5', 'w-4')} ${ratioIcons[r].h.replace('h-9', 'h-7').replace('h-8', 'h-6').replace('h-7', 'h-5').replace('h-6', 'h-4')}`}></div>
                     </div>
-                    <button 
-                      onClick={() => setAspectRatio(r)} 
-                      className={`w-full py-1 border border-neutral-200 rounded-md text-center text-[9px] font-black transition-all ${aspectRatio === r ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm' : 'bg-white text-neutral-400'}`}
-                    >
-                      {r}
-                    </button>
+                    <button onClick={() => setAspectRatio(r)} className={`w-full py-1 border border-neutral-200 rounded-md text-center text-[9px] font-black transition-all ${aspectRatio === r ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm' : 'bg-white text-neutral-400'}`}>{r}</button>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className="pt-4">
-              <button 
-                onClick={startGeneration} 
-                disabled={loading || !report} 
-                className="w-full h-16 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-500 text-white rounded-xl text-lg font-black uppercase tracking-widest shadow-xl hover:scale-[1.01] disabled:opacity-20 transition-all flex items-center justify-center gap-3 border border-white/20"
-              >
+              <button onClick={startGeneration} disabled={loading || !report} className="w-full h-16 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-500 text-white rounded-xl text-lg font-black uppercase tracking-widest shadow-xl hover:scale-[1.01] disabled:opacity-20 transition-all flex items-center justify-center gap-3 border border-white/20">
                 {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : '生成视觉方案提示词'}
               </button>
             </div>
@@ -557,16 +513,23 @@ const App: React.FC = () => {
           <header className="h-20 px-10 border-b border-neutral-50 flex items-center justify-between z-30 bg-white/95 backdrop-blur-md sticky top-0">
             <h2 className="text-xl font-black tracking-tighter uppercase">生成效果方案预览</h2>
             <div className="flex gap-3">
-              {/* Fix for line 617 error: Replacedrestricted settings/login buttons with standard compliant API key selection button. */}
+              {/* 分离的两个按钮 */}
               <button 
                 onClick={handleOpenKeySelection}
-                className="px-6 h-10 rounded-full text-[10px] font-black uppercase border border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all shadow-sm flex items-center gap-1.5"
+                className="px-6 h-10 rounded-full text-[10px] font-black uppercase border border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all shadow-sm flex items-center gap-2"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                </svg>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
                 配置 API 密钥
               </button>
+              
+              <button 
+                onClick={isLoggedIn ? handleLogout : () => setIsLoginOpen(true)}
+                className={`px-8 h-10 rounded-full text-[10px] font-black uppercase border transition-all shadow-sm flex items-center gap-2 ${isLoggedIn ? 'bg-emerald-50 border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white' : 'border-neutral-900 hover:bg-neutral-900 hover:text-white'}`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+                {isLoggedIn ? '已登录' : '登录'}
+              </button>
+
               {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-8 h-10 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 shadow-md transition-all">全案批量渲染</button>}
             </div>
           </header>
@@ -618,6 +581,28 @@ const App: React.FC = () => {
           </div>
         </section>
       </div>
+
+      {/* --- 登录弹窗 --- */}
+      {isLoginOpen && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in" onClick={() => setIsLoginOpen(false)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
+            <div className="p-8 space-y-6">
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-black uppercase tracking-tight">系统登录</h3>
+                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">请输入访问密码以解锁功能。密码为 123。</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">访问密码</label>
+                <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} placeholder="输入密码..." className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:border-neutral-900 outline-none font-mono text-xs shadow-inner transition-all" autoFocus />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setIsLoginOpen(false)} className="flex-1 px-3 py-3 border border-neutral-100 rounded-xl text-[10px] font-black uppercase hover:bg-neutral-50 transition-all">取消</button>
+                <button onClick={handleLogin} className="flex-[1.5] px-3 py-3 bg-neutral-900 text-white rounded-xl text-[10px] font-black uppercase hover:scale-[1.02] shadow-lg transition-all">立即登录</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 大图预览 */}
       {previewImageUrl && (
