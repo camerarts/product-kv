@@ -54,7 +54,6 @@ export const App: React.FC = () => {
 
   const handleAdminLogin = () => {
     setIsAdminLoggedIn(true);
-    alert("管理员登录成功！您现在可以使用系统内置 Key。");
   };
 
   const handleAdminLogout = () => {
@@ -71,7 +70,7 @@ export const App: React.FC = () => {
   const [report, setReport] = useState<RecognitionReport | null>(null);
   
   const [selectedStyle, setSelectedStyle] = useState<VisualStyle>(VisualStyle.NORDIC);
-  const [selectedTypography, setSelectedTypography] = useState<TypographyStyle>(TypographyStyle.MINIMAL_LINE);
+  const [selectedTypography, setSelectedTypography] = useState<TypographyStyle>(TypographyStyle.GLASS_MODERN);
   
   const [finalPrompts, setFinalPrompts] = useState<string>('');
   
