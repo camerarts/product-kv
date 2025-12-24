@@ -13,34 +13,8 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 海报必须包含：详细的中英文提示词、排版布局说明。
 所有海报必须保持品牌风格统一，LOGO位置合理且一致。`;
 
-// Helper to get the effective API Key
-const getEffectiveKey = (userKey?: string, isAdmin: boolean = false) => {
-  // Priority: 
-  // 1. User Input Key (用户手动输入) - Always allowed
-  // 2. process.env.API_KEY / VITE_API_KEY - Only allowed if isAdmin is true
-
-  if (userKey && userKey.trim().length > 0) {
-    return userKey;
-  }
-
-  if (isAdmin) {
-    // In Vite, process.env.API_KEY is replaced by define, but we should also check import.meta.env
-    // The previous implementation had checks. 
-    // We trust that the key is available via process.env.API_KEY (injected by Vite define)
-    const systemKey = process.env.API_KEY; 
-    if (systemKey && systemKey.length > 0) {
-        return systemKey;
-    }
-  }
-  
-  throw new Error(isAdmin 
-    ? "管理员模式下未检测到系统环境变量 API Key。" 
-    : "未检测到 API Key。请在「配置」中输入您的 Key，或者登录管理员账号以使用系统内置 Key。");
-};
-
-export const extractProductInfo = async (imagesB64: string[], textDescription: string, userApiKey?: string, isAdmin: boolean = false): Promise<RecognitionReport> => {
-  const apiKey = getEffectiveKey(userApiKey, isAdmin);
-  const ai = new GoogleGenAI({ apiKey });
+export const extractProductInfo = async (imagesB64: string[], textDescription: string): Promise<RecognitionReport> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const parts: any[] = [];
   
@@ -168,12 +142,9 @@ export const generatePosterSystem = async (
   report: RecognitionReport,
   visualStyle: VisualStyle,
   typography: TypographyStyle,
-  specialNeeds: string,
-  userApiKey?: string,
-  isAdmin: boolean = false
+  specialNeeds: string
 ): Promise<string> => {
-  const apiKey = getEffectiveKey(userApiKey, isAdmin);
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Robust check for array
   const sellingPointsStr = (report.coreSellingPoints && Array.isArray(report.coreSellingPoints))
@@ -231,12 +202,9 @@ export const generatePosterSystem = async (
 export const generateImageContent = async (
   imagesB64: string[],
   prompt: string,
-  aspectRatio: string,
-  userApiKey?: string,
-  isAdmin: boolean = false
+  aspectRatio: string
 ): Promise<string | undefined> => {
-  const apiKey = getEffectiveKey(userApiKey, isAdmin);
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',

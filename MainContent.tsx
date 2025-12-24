@@ -146,11 +146,9 @@ export const MainContent: React.FC<MainContentProps> = ({
 
                     {report ? (
                       <div className="animate-fade-in flex-1 flex flex-col justify-center">
-                         {/* Removed line-clamp to show full text, changed text-base to text-sm for better fit */}
                          <h4 className="text-sm font-black text-neutral-900 leading-snug mb-2">
                             {report.designStyle}
                          </h4>
-                         {/* Removed line-clamp to show full text */}
                          <p className="text-[10px] text-neutral-500 font-medium leading-relaxed mb-3">
                             {report.packagingHighlights || '3D浮雕文字 + 金属质感 (奢华风)'}
                          </p>
@@ -178,40 +176,69 @@ export const MainContent: React.FC<MainContentProps> = ({
 
            {/* Preview Area / Results */}
            {finalPrompts ? (
-             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 animate-fade-in-up pb-20">
-               {promptModules.map((m, idx) => {
-                 const isLogo = m.title.includes("LOGO");
-                 return (
-                   <div key={idx} className="bg-white p-6 rounded-[2rem] shadow-sm border border-neutral-100 flex flex-col gap-4">
-                      <div className="flex items-center justify-between">
-                         <h3 className="text-xs font-black text-neutral-800 uppercase tracking-wider bg-neutral-100 px-2 py-1 rounded">{m.title}</h3>
-                         <span className="text-[10px] font-bold text-neutral-300">{(idx + 1).toString().padStart(2,'0')}</span>
-                      </div>
-                      <div className={`w-full bg-neutral-50 rounded-2xl overflow-hidden relative group ${isLogo ? 'aspect-square' : 'aspect-[16/10]'}`}>
-                         {generatedImages[idx] ? (
-                           <>
-                             <img src={generatedImages[idx]} className="w-full h-full object-cover" onClick={()=>setPreviewImageUrl(generatedImages[idx])} />
-                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center cursor-zoom-in"></div>
-                           </>
-                         ) : (
-                           <div className="w-full h-full flex flex-col items-center justify-center text-neutral-300">
-                             {generatingModules[idx] ? <div className="w-8 h-8 border-2 border-neutral-300 border-t-neutral-800 rounded-full animate-spin"></div> : <span className="text-4xl font-black opacity-20">IMAGE</span>}
+             <div className="bg-white rounded-[2rem] shadow-sm border border-neutral-100 overflow-hidden animate-fade-in-up mb-20">
+               <table className="w-full text-left border-collapse table-fixed">
+                 <thead>
+                   <tr className="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-500 uppercase tracking-wider">
+                     <th className="px-6 py-4 font-black w-24 text-center">序号</th>
+                     <th className="px-6 py-4 font-black">提示词详情</th>
+                     <th className="px-6 py-4 font-black w-[320px]">视觉生成</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-neutral-100">
+                   {promptModules.map((m, idx) => {
+                     const isLogo = m.title.includes("LOGO");
+                     return (
+                       <tr key={idx} className="group hover:bg-neutral-50/50 transition-colors">
+                         {/* Column 1: Index */}
+                         <td className="px-6 py-6 text-center align-top">
+                           <span className="text-xs font-bold text-neutral-300">{(idx + 1).toString().padStart(2,'0')}</span>
+                         </td>
+
+                         {/* Column 2: Prompt Content */}
+                         <td className="px-6 py-6 align-top">
+                           <div className="flex flex-col gap-2">
+                              <div className="flex items-center">
+                                <span className="px-2 py-1 bg-neutral-100 rounded text-[10px] font-black text-neutral-700 uppercase tracking-wide">{m.title}</span>
+                              </div>
+                              <div className="bg-neutral-50 rounded-xl p-3 max-h-48 overflow-y-auto custom-scrollbar-thin border border-neutral-100 text-[10px] text-neutral-500 font-medium leading-relaxed whitespace-pre-wrap">
+                                {m.content}
+                              </div>
                            </div>
-                         )}
-                      </div>
-                      <div className="bg-neutral-50 rounded-xl p-3 h-24 overflow-y-auto custom-scrollbar-thin">
-                         <p className="text-[10px] text-neutral-500 font-medium leading-relaxed whitespace-pre-wrap">{m.content}</p>
-                      </div>
-                      <button 
-                        onClick={() => generateSingleImage(idx, m.content, isLogo)} 
-                        disabled={generatingModules[idx]}
-                        className="w-full py-3 bg-neutral-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors disabled:opacity-50"
-                      >
-                        {generatingModules[idx] ? '正在渲染...' : '渲染此画面'}
-                      </button>
-                   </div>
-                 );
-               })}
+                         </td>
+
+                         {/* Column 3: Preview Image & Action */}
+                         <td className="px-6 py-6 align-top">
+                            <div className="flex flex-col gap-3">
+                              {/* Image Container */}
+                              <div className={`w-full bg-neutral-100 rounded-xl overflow-hidden relative border border-neutral-200 group-hover:border-blue-100 transition-colors ${isLogo ? 'aspect-square' : 'aspect-[16/10]'}`}>
+                                 {generatedImages[idx] ? (
+                                   <>
+                                     <img src={generatedImages[idx]} className="w-full h-full object-cover" onClick={()=>setPreviewImageUrl(generatedImages[idx])} />
+                                     <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center cursor-zoom-in"></div>
+                                   </>
+                                 ) : (
+                                   <div className="w-full h-full flex flex-col items-center justify-center text-neutral-300">
+                                     {generatingModules[idx] ? <div className="w-6 h-6 border-2 border-neutral-300 border-t-neutral-800 rounded-full animate-spin"></div> : <span className="text-xs font-black opacity-30 tracking-widest">PREVIEW</span>}
+                                   </div>
+                                 )}
+                              </div>
+
+                              {/* Action Button */}
+                              <button 
+                                onClick={() => generateSingleImage(idx, m.content, isLogo)} 
+                                disabled={generatingModules[idx]}
+                                className="w-full py-2.5 bg-neutral-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                              >
+                                {generatingModules[idx] ? '正在渲染...' : '渲染此画面'}
+                              </button>
+                            </div>
+                         </td>
+                       </tr>
+                     );
+                   })}
+                 </tbody>
+               </table>
              </div>
            ) : (
              <div className="border-2 border-dashed border-neutral-200 rounded-[2.5rem] h-[400px] flex flex-col items-center justify-center text-neutral-300 animate-fade-in bg-white/50">

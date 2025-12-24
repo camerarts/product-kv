@@ -1,10 +1,9 @@
-
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   // 1. 加载 Vite 默认的环境变量
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, '.', '');
   
   // 2. 优先从 process.env 获取 (Cloudflare 构建环境通常在这里)，其次从 env 获取
   const apiKey = process.env.API_KEY || env.API_KEY || '';
