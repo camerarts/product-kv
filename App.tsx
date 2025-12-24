@@ -4,27 +4,18 @@ import { GoogleGenAI } from "@google/genai";
 import { extractProductInfo, generatePosterSystem } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 
-// Fix: All declarations of 'aistudio' must have identical modifiers. 
-// Removed readonly and streamlined interface augmentation.
-declare global {
-  interface Window {
-    aistudio: {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    };
-  }
-}
+// Removed manual Window interface extension as it conflicts with pre-existing environment types
 
 const App: React.FC = () => {
-  // --- API Key Management (Refactored to follow @google/genai guidelines) ---
+  // --- API Key Management (Simplified to comply with guidelines) ---
   
-  // Prohibited custom key management removed. 
-  // We exclusively use window.aistudio as per requirements for gemini-3-pro-image-preview.
-
   const handleOpenApiKeySettings = async () => {
-    // Relying on pre-configured window.aistudio
+    // If window.aistudio is available, use it to open the key selection dialog.
+    // Assume window.aistudio is pre-configured and accessible.
+    // @ts-ignore
     if (window.aistudio) {
       try {
+        // @ts-ignore
         await window.aistudio.openSelectKey();
       } catch (err) {
         console.error('AI Studio openSelectKey failed:', err);
@@ -33,18 +24,17 @@ const App: React.FC = () => {
   };
 
   const ensureApiKey = async () => {
-    // If process.env.API_KEY is available (injected), use it.
-    if (process.env.API_KEY) return true;
-
+    // Check whether an API key has been selected using aistudio interface.
+    // @ts-ignore
     if (window.aistudio) {
+      // @ts-ignore
       const hasKey = await window.aistudio.hasSelectedApiKey();
       if (!hasKey) {
+        // @ts-ignore
         await window.aistudio.openSelectKey();
-        // As per guidelines, assume success after triggering openSelectKey and proceed.
       }
-      return true;
     }
-    
+    // Proceed to the app after triggering openSelectKey (mitigating race conditions)
     return true;
   };
   // --------------------------
@@ -146,10 +136,6 @@ const App: React.FC = () => {
     }
   };
 
-  const appendOtherNeed = (text: string) => {
-    setOtherNeeds(prev => prev ? `${prev}；${text}` : text);
-  };
-
   const startExtraction = async () => {
     try {
       await ensureApiKey();
@@ -163,7 +149,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       if (err?.message?.includes("Requested entity was not found")) {
-        alert("API 密钥无效或已过期，请重新设置。");
+        // If the request fails with "Requested entity was not found", prompt for key selection again
         handleOpenApiKeySettings();
       } else {
         alert('分析失败，请检查 API 配置或网络状态');
@@ -189,7 +175,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       if (err?.message?.includes("Requested entity was not found")) {
-        alert("API 密钥无效或已过期，请重新设置。");
+        // Prompt for key selection on failure
         handleOpenApiKeySettings();
       } else {
         alert('系统方案生成失败');
@@ -205,7 +191,7 @@ const App: React.FC = () => {
       const targetRatio = isLogo ? "1:1" : aspectRatio;
       setGeneratingModules(prev => ({ ...prev, [index]: true }));
       
-      // Re-initialize GoogleGenAI to ensure latest API key
+      // Instantiate GoogleGenAI right before the call to ensure up-to-date API key from selection
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const imageParts = images.map(img => ({
         inlineData: { data: img, mimeType: 'image/jpeg' }
@@ -244,7 +230,6 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       if (err?.message?.includes("Requested entity was not found")) {
-        alert("API 密钥无效或已过期，请重新设置。");
         handleOpenApiKeySettings();
       } else {
         alert(`渲染失败: ${err?.message || '请检查 API Key 权限'}`);
@@ -323,7 +308,7 @@ const App: React.FC = () => {
                     <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
                     <h2 className="text-xl font-black tracking-tight text-neutral-500">核心配置 / SETUP</h2>
                   </div>
-                  <div className="text-[10px] font-black text-neutral-300 tracking-[0.2em]">V 3.3.0 PRO</div>
+                  <div className="text-[10px] font-black text-neutral-300 tracking-[0.2em]">V 3.4.0 PRO</div>
                 </div>
               </div>
             </header>
@@ -480,7 +465,7 @@ const App: React.FC = () => {
                     <div className="flex items-center justify-between bg-white/40 p-3 rounded-xl border border-neutral-100 shadow-sm">
                       <label className="text-sm font-bold text-neutral-600">场景</label>
                       <button onClick={()=>setNeedsScene(!needsScene)} className={`w-10 h-5 rounded-full transition-all relative ${needsScene ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
-                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${needsScene ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${needsModel ? 'translate-x-5' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
                     {needsScene && (
@@ -631,10 +616,10 @@ const App: React.FC = () => {
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes scaleUp { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes scaleUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         .animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
-        .animate-scale-up { animation: scaleUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .animate-scale-up { animation: scaleUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E5E5; border-radius: 20px; }
         .custom-scrollbar-thin::-webkit-scrollbar { width: 3px; }

@@ -16,7 +16,7 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 
 // Removed apiKey parameter to use process.env.API_KEY exclusively
 export const extractProductInfo = async (imagesB64: string[], textDescription: string): Promise<RecognitionReport> => {
-  // Always create a new GoogleGenAI instance right before the call
+  // Always create a new GoogleGenAI instance right before the call to ensure it uses the latest key
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const parts: any[] = [];
   
@@ -81,7 +81,7 @@ export const generatePosterSystem = async (
   typography: TypographyStyle,
   specialNeeds: string
 ): Promise<string> => {
-  // Always create a new GoogleGenAI instance right before the call
+  // Always create a new GoogleGenAI instance right before the call to ensure it uses the latest key
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `基于以下识别报告生成【十张海报全案系统】（共11个模块，包含LOGO生成提示词）。
   
@@ -120,6 +120,8 @@ export const generatePosterSystem = async (
     contents: prompt,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
+      // Use thinkingBudget for complex planning tasks with gemini-3-pro-preview
+      thinkingConfig: { thinkingBudget: 4096 }
     }
   });
 
