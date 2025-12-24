@@ -14,10 +14,9 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 海报必须包含：详细的中英文提示词、排版布局说明。
 所有海报必须保持品牌风格统一，LOGO位置合理且一致。`;
 
-export const extractProductInfo = async (imagesB64: string[], textDescription: string, manualKey?: string): Promise<RecognitionReport> => {
-  // 优先级：手动配置的 Key > 环境变量
-  const apiKey = manualKey || process.env.API_KEY;
-  const ai = new GoogleGenAI({ apiKey });
+// Obtain API key exclusively from environment variable as per guidelines
+export const extractProductInfo = async (imagesB64: string[], textDescription: string): Promise<RecognitionReport> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const parts: any[] = [];
   
   if (imagesB64 && imagesB64.length > 0) {
@@ -47,6 +46,7 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
   }
   用户提供的描述：${textDescription || '无'}` });
 
+  // Use ai.models.generateContent with model and contents in one call
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: { parts },
@@ -71,6 +71,7 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
     }
   });
 
+  // response.text is a property, not a method
   return JSON.parse(response.text || '{}');
 };
 
@@ -78,11 +79,9 @@ export const generatePosterSystem = async (
   report: RecognitionReport,
   visualStyle: VisualStyle,
   typography: TypographyStyle,
-  specialNeeds: string,
-  manualKey?: string
+  specialNeeds: string
 ): Promise<string> => {
-  const apiKey = manualKey || process.env.API_KEY;
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `基于以下产品报告生成一套电商全系统海报（共11个模块，含LOGO提示词）。
   
   【产品信息】
@@ -122,5 +121,6 @@ export const generatePosterSystem = async (
     }
   });
 
+  // response.text is a property, not a method
   return response.text || '';
 };
