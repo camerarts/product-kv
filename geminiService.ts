@@ -14,9 +14,7 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 海报必须包含：中文提示词、英文Prompt、负面词、详细的中英文排版布局说明。
 所有海报必须保持风格统一，LOGO位置统一。`;
 
-// Removed apiKey parameter to use process.env.API_KEY exclusively
 export const extractProductInfo = async (imagesB64: string[], textDescription: string): Promise<RecognitionReport> => {
-  // Always create a new GoogleGenAI instance right before the call to ensure it uses the latest key
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const parts: any[] = [];
   
@@ -48,7 +46,7 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
   描述内容：${textDescription || '无额外描述'}` });
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-2.5-flash-preview-09-2025',
     contents: { parts },
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
@@ -74,14 +72,12 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
   return JSON.parse(response.text || '{}');
 };
 
-// Removed apiKey parameter to use process.env.API_KEY exclusively
 export const generatePosterSystem = async (
   report: RecognitionReport,
   visualStyle: VisualStyle,
   typography: TypographyStyle,
   specialNeeds: string
 ): Promise<string> => {
-  // Always create a new GoogleGenAI instance right before the call to ensure it uses the latest key
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `基于以下识别报告生成【十张海报全案系统】（共11个模块，包含LOGO生成提示词）。
   
@@ -116,12 +112,11 @@ export const generatePosterSystem = async (
   - 提供极其详细的排版布局（中英双语如何排、位置坐标、字体风格、色值）。`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-2.5-flash-preview-09-2025',
     contents: prompt,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
-      // Use thinkingBudget for complex planning tasks with gemini-3-pro-preview
-      thinkingConfig: { thinkingBudget: 4096 }
+      thinkingConfig: { thinkingBudget: 24576 }
     }
   });
 

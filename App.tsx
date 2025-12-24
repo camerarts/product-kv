@@ -4,18 +4,24 @@ import { GoogleGenAI } from "@google/genai";
 import { extractProductInfo, generatePosterSystem } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 
+// 保存初始的后台配置密钥，防止被前端覆盖后丢失
+const BACKEND_API_KEY = process.env.API_KEY;
+
 const App: React.FC = () => {
   // --- API 密钥管理 ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [customKey, setCustomKey] = useState('');
 
-  // 初始化：从 localStorage 加载用户自定义密钥并尝试注入
+  // 初始化：从 localStorage 加载用户自定义密钥
   useEffect(() => {
     const savedKey = localStorage.getItem('GEMINI_API_KEY_OVERRIDE');
     if (savedKey) {
       setCustomKey(savedKey);
       // 动态注入到 process.env 以供 SDK 使用，实现优先级覆盖
       (process.env as any).API_KEY = savedKey;
+    } else if (BACKEND_API_KEY) {
+      // 确保没有自定义密钥时，使用后台默认密钥
+      (process.env as any).API_KEY = BACKEND_API_KEY;
     }
   }, []);
 
@@ -31,14 +37,18 @@ const App: React.FC = () => {
       alert('设置已保存：系统将优先使用您输入的手工密钥。');
     } else {
       localStorage.removeItem('GEMINI_API_KEY_OVERRIDE');
-      alert('已清除自定义密钥，系统将尝试使用默认配置。');
+      // 恢复使用后台配置的默认密钥
+      (process.env as any).API_KEY = BACKEND_API_KEY;
+      alert('已清除自定义密钥，系统将使用默认配置。');
     }
     setIsSettingsOpen(false);
   };
 
   const ensureApiKey = async () => {
+    // 检查当前环境下是否有可用密钥（包括自定义或后台注入的）
     if (process.env.API_KEY) return true;
 
+    // 检查 AI Studio 环境
     // @ts-ignore
     if (window.aistudio) {
       // @ts-ignore
@@ -50,6 +60,7 @@ const App: React.FC = () => {
       return true;
     }
     
+    // 只有在彻底没有密钥的情况下才提示
     alert('检测到未配置 API 密钥，请在“设置”中手动输入。');
     setIsSettingsOpen(true);
     return false;
@@ -569,8 +580,8 @@ const App: React.FC = () => {
 
             <div className="pt-4">
               <button 
-                onClick={startGeneration} 
-                disabled={loading || !report} 
+                onClick={startExtraction} 
+                disabled={loading || images.length === 0} 
                 className="w-full h-16 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-500 text-white rounded-xl text-lg font-black uppercase tracking-widest shadow-xl hover:scale-[1.01] disabled:opacity-20 transition-all flex items-center justify-center gap-3 border border-white/20"
               >
                 {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : '生成视觉系统'}
