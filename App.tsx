@@ -23,25 +23,30 @@ const App: React.FC = () => {
       setIsLoginOpen(false);
       setLoginPassword('');
     } else {
-      alert('访问密码错误');
+      alert('访问密码错误，请检查。');
     }
   };
 
   const handleLogout = () => {
-    if (confirm('确认退出登录？')) {
+    if (confirm('确认退出当前登录状态？')) {
       setIsLoggedIn(false);
       sessionStorage.removeItem('APP_IS_LOGGED_IN');
     }
   };
 
-  // --- API 密钥管理 (AI Studio 标准) ---
+  // --- API 密钥管理 ---
   const handleOpenKeySelection = async () => {
     // @ts-ignore
     if (window.aistudio && window.aistudio.openSelectKey) {
       // @ts-ignore
       await window.aistudio.openSelectKey();
     } else {
-      alert("请在 AI Studio 环境中操作。");
+      // 检查环境变量是否已配置
+      if (process.env.API_KEY && process.env.API_KEY !== "undefined") {
+        alert("系统检测到后台已配置 API 密钥，您可以直接登录使用。");
+      } else {
+        alert("当前环境不支持手动输入密钥，且未检测到后台变量，请检查 Cloudflare 配置。");
+      }
     }
   };
 
@@ -51,6 +56,11 @@ const App: React.FC = () => {
       return false;
     }
 
+    // 只要有环境变量 key 或者是 aistudio 环境已选 key，就放行
+    if (process.env.API_KEY && process.env.API_KEY !== "undefined") {
+      return true;
+    }
+
     // @ts-ignore
     if (window.aistudio) {
       // @ts-ignore
@@ -58,9 +68,14 @@ const App: React.FC = () => {
       if (!hasKey) {
         // @ts-ignore
         await window.aistudio.openSelectKey();
+        return true; // 触发后假设可用
       }
+      return true;
     }
-    return true;
+
+    // 如果都没有，给出具体提示
+    alert("未检测到有效的 API 密钥配置，请联系管理员或检查配置。");
+    return false;
   };
 
   // --- 核心业务逻辑 ---
@@ -179,8 +194,8 @@ const App: React.FC = () => {
         setManualBrand(res.brandName);
       }
     } catch (err: any) {
-      console.error(err);
-      alert('分析失败，请检查 API 配置或登录状态');
+      console.error('Extraction Error:', err);
+      alert(`分析失败: ${err.message || '请确认后台 API_KEY 已发布且可用'}`);
     } finally { setLoading(false); }
   };
 
@@ -201,8 +216,8 @@ const App: React.FC = () => {
       const res = await generatePosterSystem(finalReport, selectedStyle, selectedTypography, combinedNeeds);
       setFinalPrompts(res);
     } catch (err: any) {
-      console.error(err);
-      alert('方案生成失败');
+      console.error('Generation Error:', err);
+      alert(`方案生成失败: ${err.message}`);
     } finally { setLoading(false); }
   };
 
@@ -245,10 +260,10 @@ const App: React.FC = () => {
       if (imageUrl) {
         setGeneratedImages(prev => ({ ...prev, [index]: imageUrl }));
       } else {
-        throw new Error("渲染失败");
+        throw new Error("渲染响应为空");
       }
     } catch (err: any) {
-      console.error(err);
+      console.error('Rendering Error:', err);
       alert(`渲染失败: ${err?.message}`);
     } finally { 
       setGeneratingModules(prev => ({ ...prev, [index]: false })); 
@@ -338,31 +353,18 @@ const App: React.FC = () => {
               </div>
               <div className="flex gap-3 items-stretch h-[160px]">
                 <div className="w-[40%] flex flex-col gap-1.5">
-                  <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest leading-none">
-                    上传参考图或粘贴描述
-                  </p>
+                  <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest leading-none">上传参考图或粘贴描述</p>
                   <div className="flex flex-row gap-1.5 items-end overflow-x-auto pb-0.5 flex-1">
                     {[0, 1].map((idx) => (
                       <div 
                         key={idx}
                         className="group relative bg-white border border-neutral-200 rounded-lg overflow-hidden flex items-center justify-center transition-all hover:border-neutral-900 shadow-sm shrink-0 h-full"
-                        style={{ 
-                          aspectRatio: imageRatios[idx] ? `${imageRatios[idx]}/1` : '1/1',
-                          minWidth: images[idx] ? 'auto' : '60px'
-                        }}
+                        style={{ aspectRatio: imageRatios[idx] ? `${imageRatios[idx]}/1` : '1/1', minWidth: images[idx] ? 'auto' : '60px' }}
                       >
                         {images[idx] ? (
                           <>
-                            <img 
-                              src={`data:image/jpeg;base64,${images[idx]}`} 
-                              className="w-full h-full object-contain cursor-zoom-in" 
-                              alt={`产品图 ${idx + 1}`} 
-                              onClick={() => setPreviewImageUrl(`data:image/jpeg;base64,${images[idx]}`)}
-                            />
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handleRemoveImage(idx); }}
-                              className="absolute top-0.5 right-0.5 w-4 h-4 bg-neutral-900/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-neutral-900 text-[8px] z-10"
-                            >✕</button>
+                            <img src={`data:image/jpeg;base64,${images[idx]}`} className="w-full h-full object-contain cursor-zoom-in" alt={`产品图 ${idx + 1}`} onClick={() => setPreviewImageUrl(`data:image/jpeg;base64,${images[idx]}`)} />
+                            <button onClick={(e) => { e.stopPropagation(); handleRemoveImage(idx); }} className="absolute top-0.5 right-0.5 w-4 h-4 bg-neutral-900/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-neutral-900 text-[8px] z-10">✕</button>
                           </>
                         ) : (
                           <div className="relative w-full h-full flex items-center justify-center bg-white border border-dashed border-neutral-100 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
@@ -373,34 +375,17 @@ const App: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                  <textarea 
-                    className="w-full h-7 px-3 py-1 bg-white border border-neutral-200 rounded-lg outline-none focus:border-neutral-900 text-xs font-bold shadow-sm resize-none overflow-hidden shrink-0" 
-                    placeholder="粘贴或输入产品说明..." 
-                    rows={1}
-                    value={description} 
-                    onChange={(e) => setDescription(e.target.value)} 
-                  />
-                  <button 
-                    onClick={startExtraction} 
-                    disabled={loading || images.length === 0} 
-                    className="w-full h-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:from-blue-700 hover:to-indigo-700 disabled:opacity-20 active:scale-95 transition-all shadow-md shrink-0"
-                  >
+                  <textarea className="w-full h-7 px-3 py-1 bg-white border border-neutral-200 rounded-lg outline-none focus:border-neutral-900 text-xs font-bold shadow-sm resize-none overflow-hidden shrink-0" placeholder="粘贴或输入产品说明..." rows={1} value={description} onChange={(e) => setDescription(e.target.value)} />
+                  <button onClick={startExtraction} disabled={loading || images.length === 0} className="w-full h-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:from-blue-700 hover:to-indigo-700 disabled:opacity-20 active:scale-95 transition-all shadow-md shrink-0">
                     {loading ? '分析中...' : '解析产品报告'}
                   </button>
                 </div>
-
                 <div className="w-[18%] flex flex-col bg-white border border-neutral-200 rounded-xl p-3 shadow-sm group overflow-hidden">
                   <div className="flex items-center justify-between border-b border-neutral-50 pb-1.5 mb-2 shrink-0">
                     <span className="text-[9px] font-black text-neutral-400 uppercase">品牌</span>
                   </div>
-                  <textarea 
-                    className="flex-1 w-full bg-transparent outline-none text-[11px] font-bold resize-none placeholder:text-neutral-300 custom-scrollbar-thin"
-                    placeholder="识别中..."
-                    value={manualBrand}
-                    onChange={(e) => setManualBrand(e.target.value)}
-                  />
+                  <textarea className="flex-1 w-full bg-transparent outline-none text-[11px] font-bold resize-none placeholder:text-neutral-300 custom-scrollbar-thin" placeholder="识别中..." value={manualBrand} onChange={(e) => setManualBrand(e.target.value)} />
                 </div>
-
                 <div className="flex-1 min-w-0 relative bg-white border border-neutral-200 rounded-xl p-3 shadow-sm group flex flex-col overflow-hidden">
                   <div className="flex items-center justify-between border-b border-neutral-50 pb-1.5 mb-2 shrink-0">
                     <span className="text-[9px] font-black text-neutral-400 uppercase">分析摘要</span>
@@ -427,11 +412,9 @@ const App: React.FC = () => {
                 <span className="text-sm font-black text-neutral-400 uppercase">2.1 基础视觉风格</span>
                 <div className="grid grid-cols-4 gap-2">
                   {Object.values(VisualStyle).map(v => (
-                    <div key={v} className="group relative">
-                      <button onClick={() => setSelectedStyle(v)} className={`w-full px-1 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedStyle === v ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
-                        <span className="truncate">{v.replace('风格', '')}</span>
-                      </button>
-                    </div>
+                    <button key={v} onClick={() => setSelectedStyle(v)} className={`w-full px-1 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedStyle === v ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
+                      <span className="truncate">{v.replace('风格', '')}</span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -439,15 +422,12 @@ const App: React.FC = () => {
                 <span className="text-sm font-black text-neutral-400 uppercase">2.2 页面排版逻辑</span>
                 <div className="grid grid-cols-3 gap-2">
                   {Object.values(TypographyStyle).map(t => (
-                    <div key={t} className="group relative">
-                      <button onClick={() => setSelectedTypography(t)} className={`w-full px-1.5 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedTypography === t ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
-                        <span className="truncate">{t.split(' ')[0]} {t.split(' ')[1]}</span>
-                      </button>
-                    </div>
+                    <button key={t} onClick={() => setSelectedTypography(t)} className={`w-full px-1.5 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedTypography === t ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
+                      <span className="truncate">{t.split(' ')[0]} {t.split(' ')[1]}</span>
+                    </button>
                   ))}
                 </div>
               </div>
-
               <div className="space-y-3 bg-white/50 p-4 rounded-2xl border border-neutral-200">
                 <span className="text-xs font-black text-neutral-400 uppercase tracking-widest">2.3 个性化需求</span>
                 <div className="grid grid-cols-3 gap-3">
@@ -513,23 +493,14 @@ const App: React.FC = () => {
           <header className="h-20 px-10 border-b border-neutral-50 flex items-center justify-between z-30 bg-white/95 backdrop-blur-md sticky top-0">
             <h2 className="text-xl font-black tracking-tighter uppercase">生成效果方案预览</h2>
             <div className="flex gap-3">
-              {/* 分离的两个按钮 */}
-              <button 
-                onClick={handleOpenKeySelection}
-                className="px-6 h-10 rounded-full text-[10px] font-black uppercase border border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all shadow-sm flex items-center gap-2"
-              >
+              <button onClick={handleOpenKeySelection} className="px-6 h-10 rounded-full text-[10px] font-black uppercase border border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all shadow-sm flex items-center gap-2">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
                 配置 API 密钥
               </button>
-              
-              <button 
-                onClick={isLoggedIn ? handleLogout : () => setIsLoginOpen(true)}
-                className={`px-8 h-10 rounded-full text-[10px] font-black uppercase border transition-all shadow-sm flex items-center gap-2 ${isLoggedIn ? 'bg-emerald-50 border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white' : 'border-neutral-900 hover:bg-neutral-900 hover:text-white'}`}
-              >
+              <button onClick={isLoggedIn ? handleLogout : () => setIsLoginOpen(true)} className={`px-8 h-10 rounded-full text-[10px] font-black uppercase border transition-all shadow-sm flex items-center gap-2 ${isLoggedIn ? 'bg-emerald-50 border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white' : 'border-neutral-900 hover:bg-neutral-900 hover:text-white'}`}>
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
                 {isLoggedIn ? '已登录' : '登录'}
               </button>
-
               {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-8 h-10 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 shadow-md transition-all">全案批量渲染</button>}
             </div>
           </header>
@@ -589,7 +560,7 @@ const App: React.FC = () => {
             <div className="p-8 space-y-6">
               <div className="space-y-1.5">
                 <h3 className="text-xl font-black uppercase tracking-tight">系统登录</h3>
-                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">请输入访问密码以解锁功能。密码为 123。</p>
+                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">请输入访问密码以解锁功能，资源已由后台自动匹配。</p>
               </div>
               <div className="space-y-2">
                 <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">访问密码</label>
@@ -604,21 +575,9 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* 大图预览 */}
-      {previewImageUrl && (
-        <div className="fixed inset-0 z-[100] bg-white/98 backdrop-blur-2xl flex items-center justify-center p-8 animate-fade-in" onClick={() => setPreviewImageUrl(null)}>
-          <img src={previewImageUrl} className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-2xl" onClick={(e) => e.stopPropagation()} />
-        </div>
-      )}
-
-      {/* 展开报告 */}
-      {isReportExpanded && report && (
-        <div className="fixed inset-0 z-[110] bg-white/98 backdrop-blur-2xl flex items-center justify-center p-8 animate-fade-in" onClick={() => setIsReportExpanded(false)}>
-          <div className="bg-white rounded-[2.5rem] shadow-2xl border border-neutral-100 w-full max-w-4xl max-h-[85vh] overflow-y-auto p-12" onClick={(e) => e.stopPropagation()}>
-            {renderReportContent({ ...report, brandName: manualBrand || report.brandName }, true)}
-          </div>
-        </div>
-      )}
+      {/* 大图预览与报告 */}
+      {previewImageUrl && <div className="fixed inset-0 z-[100] bg-white/98 backdrop-blur-2xl flex items-center justify-center p-8 animate-fade-in" onClick={() => setPreviewImageUrl(null)}><img src={previewImageUrl} className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-2xl" onClick={(e) => e.stopPropagation()} /></div>}
+      {isReportExpanded && report && <div className="fixed inset-0 z-[110] bg-white/98 backdrop-blur-2xl flex items-center justify-center p-8 animate-fade-in" onClick={() => setIsReportExpanded(false)}><div className="bg-white rounded-[2.5rem] shadow-2xl border border-neutral-100 w-full max-w-4xl max-h-[85vh] overflow-y-auto p-12" onClick={(e) => e.stopPropagation()}>{renderReportContent({ ...report, brandName: manualBrand || report.brandName }, true)}</div></div>}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }

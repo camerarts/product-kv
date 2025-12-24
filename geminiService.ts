@@ -6,7 +6,7 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 你的任务是协助用户完成产品识别、卖点提取，并生成一套完整的（10张）电商海报提示词系统。
 
 核心目标：
-1. 识别产品细节（通过提供的1-2张参考图）。如果提供多张图片，请综合分析。
+1. 识别产品细节（通过提供的1-2张参考图）。
 2. 根据产品调性推荐或接受用户的视觉风格与排版选择。
 3. 生成中英文双语、极其详尽、且具备高度落地性的渲染提示词。
 
@@ -46,7 +46,7 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
   用户提供的描述：${textDescription || '无'}` });
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-preview-09-2025',
+    model: 'gemini-3-flash-preview',
     contents: { parts },
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
@@ -110,7 +110,7 @@ export const generatePosterSystem = async (
   - 提示词必须强调：严格还原包装形态、品牌颜色和标识位置。`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-preview-09-2025',
+    model: 'gemini-3-pro-preview',
     contents: prompt,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
