@@ -4,12 +4,26 @@ import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 import { Sidebar } from './Sidebar';
 import { MainContent } from './MainContent';
 import { ApiKeyModal } from './ApiKeyModal';
+import { ConfigModal } from './ConfigModal';
+import { LoginModal } from './LoginModal';
 
 export const App: React.FC = () => {
+  // --- 全局 UI 状态 ---
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+
   // --- API Key 状态 ---
+  const [userApiKey, setUserApiKey] = useState<string>('');
   const [hasApiKey, setHasApiKey] = useState(true);
 
   useEffect(() => {
+    // 恢复本地存储的 Key
+    const storedKey = localStorage.getItem('USER_GEMINI_API_KEY');
+    if (storedKey) {
+      setUserApiKey(storedKey);
+    }
+    
     if (window.aistudio) {
       window.aistudio.hasSelectedApiKey().then((has) => {
         setHasApiKey(has);
@@ -23,6 +37,29 @@ export const App: React.FC = () => {
       const has = await window.aistudio.hasSelectedApiKey();
       setHasApiKey(has);
     }
+  };
+
+  const handleSaveKey = (key: string) => {
+    if (!key.trim()) return;
+    setUserApiKey(key.trim());
+    localStorage.setItem('USER_GEMINI_API_KEY', key.trim());
+    alert("API Key 已保存，将优先使用您的 Key。");
+  };
+
+  const handleClearKey = () => {
+    setUserApiKey('');
+    localStorage.removeItem('USER_GEMINI_API_KEY');
+    alert("已清除自定义 Key。");
+  };
+
+  const handleAdminLogin = () => {
+    setIsAdminLoggedIn(true);
+    alert("管理员登录成功！您现在可以使用系统内置 Key。");
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdminLoggedIn(false);
+    alert("已退出管理员登录。");
   };
 
   // --- 核心业务状态 ---
@@ -89,39 +126,30 @@ export const App: React.FC = () => {
     
     setGenerationLoading(true);
     try {
-      // 步骤 1: 先执行产品解析 (原 startExtraction 逻辑)
-      const extractionRes = await extractProductInfo(images, description);
+      // 步骤 1: 执行产品解析 (传入 userApiKey 和 isAdminLoggedIn)
+      const extractionRes = await extractProductInfo(images, description, userApiKey, isAdminLoggedIn);
       setReport(extractionRes);
       
       let effectiveBrand = manualBrand;
-      // 如果没有手动输入品牌，且解析结果中有品牌，则自动填充
       if (!effectiveBrand && extractionRes.brandName) {
         setManualBrand(extractionRes.brandName);
         effectiveBrand = extractionRes.brandName;
       }
 
-      // 步骤 2: 接着执行方案生成 (原 startGeneration 逻辑)
+      // 步骤 2: 执行方案生成
       const needsArray = [];
-      
       if (needsModel) {
         let desc = "需要真人模特";
         if (modelDesc) desc += `（特征：${modelDesc}）`;
         needsArray.push(desc);
       }
-      
       if (needsScene) {
         let desc = "需要定制场景";
         if (sceneDesc) desc += `（风格：${sceneDesc}）`;
         needsArray.push(desc);
       }
-      
-      if (needsDataVis) {
-        needsArray.push("需要数据可视化图表");
-      }
-      
-      if (otherNeeds) {
-        needsArray.push(otherNeeds);
-      }
+      if (needsDataVis) needsArray.push("需要数据可视化图表");
+      if (otherNeeds) needsArray.push(otherNeeds);
 
       const combinedNeeds = needsArray.join('；');
 
@@ -129,7 +157,9 @@ export const App: React.FC = () => {
         { ...extractionRes, brandName: effectiveBrand || extractionRes.brandName },
         selectedStyle,
         selectedTypography,
-        combinedNeeds
+        combinedNeeds,
+        userApiKey,
+        isAdminLoggedIn
       );
       setFinalPrompts(promptRes);
 
@@ -142,7 +172,6 @@ export const App: React.FC = () => {
 
   const promptModules = useMemo(() => {
     if (!finalPrompts) return [];
-    // Parse the markdown response
     const sections = finalPrompts.split(/###\s*/).filter(s => s.trim());
     return sections.map(section => {
       const firstLineEnd = section.indexOf('\n');
@@ -157,7 +186,7 @@ export const App: React.FC = () => {
     setGeneratingModules(prev => ({ ...prev, [index]: true }));
     try {
       const actualRatio = isLogo ? "1:1" : aspectRatio;
-      const res = await generateImageContent(images, prompt, actualRatio);
+      const res = await generateImageContent(images, prompt, actualRatio, userApiKey, isAdminLoggedIn);
       if (res) {
         setGeneratedImages(prev => ({ ...prev, [index]: `data:image/jpeg;base64,${res}` }));
       }
@@ -166,6 +195,12 @@ export const App: React.FC = () => {
     } finally {
       setGeneratingModules(prev => ({ ...prev, [index]: false }));
     }
+  };
+
+  // 检查是否有可用权限 (仅用于 UI 显示判断，实际 logic 在 service 中)
+  const checkAuth = () => {
+    const hasSystemKey = !!(process.env.API_KEY);
+    return !!(userApiKey || (isAdminLoggedIn && hasSystemKey));
   };
 
   return (
@@ -192,7 +227,7 @@ export const App: React.FC = () => {
       />
       
       <MainContent
-        checkAuth={() => true}
+        checkAuth={checkAuth}
         hasApiKey={hasApiKey}
         manualBrand={manualBrand}
         report={report}
@@ -205,6 +240,47 @@ export const App: React.FC = () => {
         setPreviewImageUrl={setPreviewImageUrl}
         generateSingleImage={generateSingleImage}
         promptModules={promptModules}
+      />
+
+      {/* Top Right Buttons */}
+      <div className="absolute top-4 right-8 z-50 flex gap-3">
+        {/* API Key Config Button */}
+        <button 
+           onClick={() => setIsConfigOpen(true)}
+           className={`px-4 py-2 border rounded-lg text-xs font-bold shadow-sm transition-all ${
+             userApiKey 
+               ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' 
+               : 'bg-white/80 backdrop-blur border-neutral-200 text-neutral-600 hover:bg-white'
+           }`}
+        >
+           {userApiKey ? '🔑 已配置个人 Key' : '⚙️ 配置 Key'}
+        </button>
+
+        {/* Login / Logout Button */}
+        <button
+          onClick={isAdminLoggedIn ? handleAdminLogout : () => setIsLoginOpen(true)}
+          className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
+            isAdminLoggedIn
+              ? 'bg-neutral-100 text-neutral-600 hover:bg-red-50 hover:text-red-600'
+              : 'bg-neutral-900 text-white hover:bg-neutral-800'
+          }`}
+        >
+          {isAdminLoggedIn ? '退出管理员' : '管理员登录'}
+        </button>
+      </div>
+
+      <ConfigModal
+        isOpen={isConfigOpen}
+        onClose={() => setIsConfigOpen(false)}
+        onSave={handleSaveKey}
+        onClear={handleClearKey}
+        currentKey={userApiKey}
+      />
+      
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onLoginSuccess={handleAdminLogin}
       />
 
       <ApiKeyModal hasApiKey={hasApiKey} onSelectKey={handleSelectKey} />
