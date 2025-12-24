@@ -14,6 +14,26 @@ const App: React.FC = () => {
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [manualApiKey, setManualApiKey] = useState(() => localStorage.getItem('VISION_MANUAL_API_KEY') || '');
 
+  // 风格描述映射
+  const visualStyleDescriptions: Record<VisualStyle, string> = {
+    [VisualStyle.MAGAZINE]: '高端时尚杂志排版，强调大图视觉张力、精致留白与现代感。',
+    [VisualStyle.WATERCOLOR]: '艺术感水彩笔触，营造温润、通透且具有手工质感的视觉体验。',
+    [VisualStyle.TECH]: '硬核工业设计与数字化线条，冷色调展现产品的高科技与领先力。',
+    [VisualStyle.RETRO]: '经典胶片颗粒感与复古影调，赋予产品时间沉淀的厚重感。',
+    [VisualStyle.NORDIC]: '极简主义北欧风，高冷色调配合纯净构图，透出天然的高级感。',
+    [VisualStyle.NEON]: '强烈的霓虹发光色调，赛博朋克视觉风格，极具潮流冲击力。',
+    [VisualStyle.NATURAL]: '通透的自然光影，强调产品的真实性、有机感与生活气息。'
+  };
+
+  const typographyDescriptions: Record<TypographyStyle, string> = {
+    [TypographyStyle.SERIF_GRID]: '经典报刊网格系统，粗衬线标题极具权威感，排版严谨专业。',
+    [TypographyStyle.GLASS_MODERN]: '现代毛玻璃拟态效果，半透明卡片与大圆角，视觉轻盈通透。',
+    [TypographyStyle.LUXURY_3D]: '沉稳大气的立体浮雕文字，配合细腻金属质感，彰显卓越品质。',
+    [TypographyStyle.WATERCOLOR_ART]: '灵动的手写标注与不规则排版，充满人文气息与艺术温度。',
+    [TypographyStyle.NEON_CYBER]: '电子发光字效果，强对比色彩，适合前卫、数码类产品。',
+    [TypographyStyle.MINIMAL_LINE]: '极度克制的线条勾勒，大量留白，展现理性的极简工业之美。'
+  };
+
   // 密钥掩码逻辑：除最后6位外全部隐藏
   const maskedKey = useMemo(() => {
     if (!manualApiKey) return '';
@@ -58,6 +78,10 @@ const App: React.FC = () => {
   };
 
   const checkAuth = () => {
+    // 逻辑变更：如果有手动配置的 Key，直接视为有权限，无需登录
+    if (manualApiKey && manualApiKey.trim().length > 10) {
+      return true;
+    }
     if (!isLoggedIn) {
       setIsLoginOpen(true);
       return false;
@@ -65,8 +89,10 @@ const App: React.FC = () => {
     return true;
   };
 
-  // --- 核心业务逻辑 ---
-  const [loading, setLoading] = useState(false);
+  // --- 核心业务逻辑状态 ---
+  const [extractionLoading, setExtractionLoading] = useState(false); 
+  const [generationLoading, setGenerationLoading] = useState(false); 
+  
   const [images, setImages] = useState<string[]>([]);
   const [imageRatios, setImageRatios] = useState<number[]>([]);
   const [description, setDescription] = useState('');
@@ -85,7 +111,6 @@ const App: React.FC = () => {
   const [needsDataVis, setNeedsDataVis] = useState(false);
   const [otherNeeds, setOtherNeeds] = useState('');
 
-  // 备选项配置
   const quickOptions = ["对比图", "爆炸图", "使用步骤", "成分分析", "多口味展示", "礼盒包装", "核心工艺", "真人实拍", "光影氛围"];
 
   const handleQuickOptionClick = (opt: string) => {
@@ -159,7 +184,7 @@ const App: React.FC = () => {
     if (!checkAuth()) return;
     if (images.length === 0) return alert('请至少上传一张产品图片');
     
-    setLoading(true);
+    setExtractionLoading(true); 
     try {
       const res = await extractProductInfo(images, description, manualApiKey);
       setReport(res);
@@ -169,14 +194,14 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error('Extraction Error:', err);
       alert(`分析失败: ${err.message || 'API 访问异常，请检查密钥配置或后台限制'}`);
-    } finally { setLoading(false); }
+    } finally { setExtractionLoading(false); }
   };
 
   const startGeneration = async () => {
     if (!checkAuth()) return;
     if (!report) return alert('请先解析产品报告');
     
-    setLoading(true);
+    setGenerationLoading(true); 
     try {
       const combinedNeeds = [
         needsModel ? `需要模特: ${modelType || '默认合适模特'}` : '不需要模特',
@@ -191,7 +216,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error('Generation Error:', err);
       alert(`方案生成失败: ${err.message}`);
-    } finally { setLoading(false); }
+    } finally { setGenerationLoading(false); }
   };
 
   const generateSingleImage = async (index: number, prompt: string, isLogo: boolean = false) => {
@@ -278,11 +303,27 @@ const App: React.FC = () => {
     <div className={`space-y-${isLarge ? '6' : '3'}`}>
       <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1`}>品牌名称</p><p className={`${isLarge ? 'text-3xl' : 'text-xl'} font-black text-neutral-900`}>{rep.brandName}</p></div>
       <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1`}>产品类型</p><p className={`${isLarge ? 'text-xl' : 'text-lg'} font-bold text-neutral-800`}>{rep.productType}</p></div>
-      <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1.5`}>核心卖点</p><div className="flex flex-wrap gap-1.5">{rep.coreSellingPoints.map((p, i) => <span key={i} className={`px-3 py-1 bg-neutral-50 text-neutral-600 ${isLarge ? 'text-sm' : 'text-[10px]'} font-bold rounded-lg border border-neutral-100`}>{p}</span>)}</div></div>
+      <div>
+        <p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-1.5`}>核心卖点</p>
+        <div className="flex flex-wrap gap-1.5">
+          {rep.coreSellingPoints.map((p, i) => (
+            <span key={i} className={`px-3 py-1 bg-neutral-50 text-neutral-600 ${isLarge ? 'text-sm' : 'text-[10px]'} font-bold rounded-lg border border-neutral-100`}>
+              {p}
+            </span>
+          ))}
+        </div>
+      </div>
       <div className={`grid ${isLarge ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
         <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-0.5`}>主视觉配色</p><p className={`${isLarge ? 'text-lg' : 'text-base'} font-bold text-neutral-800`}>{rep.mainColors}</p></div>
         <div><p className={`${isLarge ? 'text-base' : 'text-[10px]'} font-black text-neutral-400 uppercase mb-0.5`}>品牌风格调性</p><p className={`${isLarge ? 'text-lg' : 'text-base'} font-bold text-neutral-800`}>{rep.brandTone}</p></div>
       </div>
+      {isLarge && (
+        <div className="pt-4 border-t border-neutral-100 space-y-4">
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-1">规格参数</p><p className="text-lg text-neutral-800">{rep.productSpecs}</p></div>
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-1">目标受众</p><p className="text-lg text-neutral-800">{rep.targetAudience}</p></div>
+          <div><p className="text-base font-black text-neutral-400 uppercase mb-1">包装亮点</p><p className="text-lg text-neutral-800">{rep.packagingHighlights}</p></div>
+        </div>
+      )}
     </div>
   );
 
@@ -332,8 +373,8 @@ const App: React.FC = () => {
                     ))}
                   </div>
                   <textarea className="w-full h-7 px-3 py-1 bg-white border border-neutral-200 rounded-lg outline-none focus:border-neutral-900 text-xs font-bold shadow-sm resize-none overflow-hidden shrink-0" placeholder="粘贴或输入产品说明..." rows={1} value={description} onChange={(e) => setDescription(e.target.value)} />
-                  <button onClick={startExtraction} disabled={loading || images.length === 0} className="w-full h-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:from-blue-700 hover:to-indigo-700 disabled:opacity-20 active:scale-95 transition-all shadow-md shrink-0">
-                    {loading ? '分析中...' : '解析产品报告'}
+                  <button onClick={startExtraction} disabled={extractionLoading || images.length === 0} className="w-full h-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:from-blue-700 hover:to-indigo-700 disabled:opacity-20 active:scale-95 transition-all shadow-md shrink-0">
+                    {extractionLoading ? '分析中...' : '解析产品报告'}
                   </button>
                 </div>
                 <div className="w-[18%] flex flex-col bg-white border border-neutral-200 rounded-xl p-3 shadow-sm group overflow-hidden">
@@ -368,7 +409,11 @@ const App: React.FC = () => {
                 <span className="text-sm font-black text-neutral-400 uppercase">2.1 基础视觉风格</span>
                 <div className="grid grid-cols-4 gap-2">
                   {Object.values(VisualStyle).map(v => (
-                    <button key={v} onClick={() => setSelectedStyle(v)} className={`w-full px-1 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedStyle === v ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
+                    <button 
+                      key={v} 
+                      onClick={() => setSelectedStyle(v)} 
+                      title={visualStyleDescriptions[v]}
+                      className={`w-full px-1 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedStyle === v ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
                       <span className="truncate">{v.replace('风格', '')}</span>
                     </button>
                   ))}
@@ -378,7 +423,11 @@ const App: React.FC = () => {
                 <span className="text-sm font-black text-neutral-400 uppercase">2.2 页面排版逻辑</span>
                 <div className="grid grid-cols-3 gap-2">
                   {Object.values(TypographyStyle).map(t => (
-                    <button key={t} onClick={() => setSelectedTypography(t)} className={`w-full px-1.5 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedTypography === t ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
+                    <button 
+                      key={t} 
+                      onClick={() => setSelectedTypography(t)} 
+                      title={typographyDescriptions[t]}
+                      className={`w-full px-1.5 py-2.5 border border-neutral-200 rounded-lg text-xs font-black transition-all ${selectedTypography === t ? 'border-neutral-900 bg-neutral-900 text-white shadow-inner' : 'border-white bg-white text-neutral-600 shadow-sm'}`}>
                       <span className="truncate">{t.split(' ')[0]} {t.split(' ')[1]}</span>
                     </button>
                   ))}
@@ -447,8 +496,8 @@ const App: React.FC = () => {
             </div>
 
             <div className="pt-4">
-              <button onClick={startGeneration} disabled={loading || !report} className="w-full h-16 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-500 text-white rounded-xl text-lg font-black uppercase tracking-widest shadow-xl hover:scale-[1.01] disabled:opacity-20 transition-all flex items-center justify-center gap-3 border border-white/20">
-                {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : '生成视觉方案提示词'}
+              <button onClick={startGeneration} disabled={generationLoading || !report} className="w-full h-16 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-500 text-white rounded-xl text-lg font-black uppercase tracking-widest shadow-xl hover:scale-[1.01] disabled:opacity-20 transition-all flex items-center justify-center gap-3 border border-white/20">
+                {generationLoading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : '生成视觉方案提示词'}
               </button>
             </div>
           </div>
@@ -522,7 +571,7 @@ const App: React.FC = () => {
       {/* --- 登录弹窗 --- */}
       {isLoginOpen && (
         <div className="fixed inset-0 z-[210] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in" onClick={() => setIsLoginOpen(false)}>
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm:w-full max-w-sm overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
             <div className="p-8 space-y-6">
               <div className="space-y-1.5">
                 <h3 className="text-xl font-black uppercase tracking-tight">系统登录</h3>
