@@ -239,6 +239,7 @@ export const App: React.FC = () => {
         setPreviewImageUrl={setPreviewImageUrl}
         generateSingleImage={generateSingleImage}
         promptModules={promptModules}
+        aspectRatio={aspectRatio}
       />
 
       {/* Top Right Buttons */}

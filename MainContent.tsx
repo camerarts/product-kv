@@ -15,13 +15,14 @@ interface MainContentProps {
   setPreviewImageUrl: (val: string | null) => void;
   generateSingleImage: (index: number, prompt: string, isLogo: boolean) => void;
   promptModules: { title: string; content: string }[];
+  aspectRatio: string;
 }
 
 export const MainContent: React.FC<MainContentProps> = ({
   manualBrand, report, selectedStyle, selectedTypography,
   finalPrompts, generatedImages, generatingModules,
   previewImageUrl, setPreviewImageUrl, generateSingleImage,
-  promptModules
+  promptModules, aspectRatio
 }) => {
   return (
     <main className="flex-1 flex flex-col bg-[#F9FAFB] relative z-10">
@@ -211,7 +212,10 @@ export const MainContent: React.FC<MainContentProps> = ({
                          <td className="px-6 py-6 align-top">
                             <div className="flex flex-col gap-3">
                               {/* Image Container */}
-                              <div className={`w-full bg-neutral-100 rounded-xl overflow-hidden relative border border-neutral-200 group-hover:border-blue-100 transition-colors ${isLogo ? 'aspect-square' : 'aspect-[16/10]'}`}>
+                              <div 
+                                className="w-full bg-neutral-100 rounded-xl overflow-hidden relative border border-neutral-200 group-hover:border-blue-100 transition-colors"
+                                style={{ aspectRatio: isLogo ? '1/1' : aspectRatio.replace(':', '/') }}
+                              >
                                  {generatedImages[idx] ? (
                                    <>
                                      <img src={generatedImages[idx]} className="w-full h-full object-cover" onClick={()=>setPreviewImageUrl(generatedImages[idx])} />
