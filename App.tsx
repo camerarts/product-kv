@@ -4,70 +4,8 @@ import { GoogleGenAI } from "@google/genai";
 import { extractProductInfo, generatePosterSystem } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 
-// 获取初始的后台配置密钥
-const BACKEND_API_KEY = process.env.API_KEY;
-
 const App: React.FC = () => {
-  // --- API 密钥管理 ---
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [customKey, setCustomKey] = useState('');
-
-  // 初始化：从 localStorage 加载用户自定义密钥
-  useEffect(() => {
-    const savedKey = localStorage.getItem('GEMINI_API_KEY_OVERRIDE');
-    if (savedKey && savedKey !== "undefined") {
-      setCustomKey(savedKey);
-      (process.env as any).API_KEY = savedKey;
-    } else if (BACKEND_API_KEY && BACKEND_API_KEY !== "undefined") {
-      (process.env as any).API_KEY = BACKEND_API_KEY;
-    }
-  }, []);
-
-  const handleOpenSettings = () => {
-    setIsSettingsOpen(true);
-  };
-
-  const handleSaveSettings = () => {
-    const trimmedKey = customKey.trim();
-    if (trimmedKey) {
-      localStorage.setItem('GEMINI_API_KEY_OVERRIDE', trimmedKey);
-      (process.env as any).API_KEY = trimmedKey;
-      alert('设置已保存：系统将优先使用您输入的手工密钥。');
-    } else {
-      localStorage.removeItem('GEMINI_API_KEY_OVERRIDE');
-      (process.env as any).API_KEY = BACKEND_API_KEY;
-      alert('已清除自定义密钥，系统将使用后台默认配置。');
-    }
-    setIsSettingsOpen(false);
-  };
-
-  const ensureApiKey = async () => {
-    // 核心逻辑：如果 process.env.API_KEY 有效，直接返回 true，不弹窗
-    const currentKey = process.env.API_KEY;
-    if (currentKey && currentKey !== "undefined" && currentKey.length > 5) {
-      return true;
-    }
-
-    // 检查 AI Studio 环境
-    // @ts-ignore
-    if (window.aistudio) {
-      // @ts-ignore
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-        return true; // 触发选择后默认尝试继续
-      }
-      return true;
-    }
-    
-    // 只有在彻底没有密钥的情况下才提示
-    alert('检测到未配置有效 API 密钥，请在“设置”中输入。');
-    setIsSettingsOpen(true);
-    return false;
-  };
-  // --------------------------
-
+  // --- 应用逻辑 ---
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [imageRatios, setImageRatios] = useState<number[]>([]);
@@ -91,6 +29,41 @@ const App: React.FC = () => {
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
   const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({});
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
+  // Fix for line 617: The logic for custom key management and login is removed to comply with safety and coding guidelines.
+  // Instead, we use the standard AI Studio key selection process.
+  const handleOpenKeySelection = async () => {
+    // @ts-ignore
+    if (window.aistudio && window.aistudio.openSelectKey) {
+      // @ts-ignore
+      await window.aistudio.openSelectKey();
+    } else {
+      alert("请在 AI Studio 环境中使用此功能，或确保 API_KEY 已正确配置。");
+    }
+  };
+
+  const ensureApiKey = async () => {
+    // Check if key is already available in process.env
+    if (process.env.API_KEY && process.env.API_KEY !== "undefined" && process.env.API_KEY.length > 5) {
+      return true;
+    }
+
+    // Check AI Studio environment
+    // @ts-ignore
+    if (window.aistudio) {
+      // @ts-ignore
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      if (!hasKey) {
+        // @ts-ignore
+        await window.aistudio.openSelectKey();
+        // Assuming selection was successful per guidelines to avoid race condition
+        return true;
+      }
+      return true;
+    }
+    
+    return true; // Proceed and let the API call handle its own errors
+  };
 
   const styleDescriptions: Record<VisualStyle, string> = {
     [VisualStyle.MAGAZINE]: '高级、专业、大片感、粗衬线标题、极简留白',
@@ -173,8 +146,7 @@ const App: React.FC = () => {
 
   const startExtraction = async () => {
     try {
-      const hasKey = await ensureApiKey();
-      if (!hasKey) return;
+      await ensureApiKey();
       if (images.length === 0) return alert('请至少上传一张产品图片');
       setLoading(true);
       const res = await extractProductInfo(images, description);
@@ -184,19 +156,13 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      if (err?.message?.includes("Requested entity was not found")) {
-        alert("API 密钥无效或无权限，请检查设置。");
-        setIsSettingsOpen(true);
-      } else {
-        alert('分析失败，请检查 API 配置或网络状态');
-      }
+      alert('分析失败，请检查 API 配置或网络状态');
     } finally { setLoading(false); }
   };
 
   const startGeneration = async () => {
     try {
-      const hasKey = await ensureApiKey();
-      if (!hasKey) return;
+      await ensureApiKey();
       if (!report) return alert('请先解析产品报告');
       setLoading(true);
       const combinedNeeds = [
@@ -217,14 +183,13 @@ const App: React.FC = () => {
 
   const generateSingleImage = async (index: number, prompt: string, isLogo: boolean = false) => {
     try {
-      const hasKey = await ensureApiKey();
-      if (!hasKey) return;
+      await ensureApiKey();
       if (images.length === 0) return alert("请上传产品参考图");
       
       const targetRatio = isLogo ? "1:1" : aspectRatio;
       setGeneratingModules(prev => ({ ...prev, [index]: true }));
       
-      // 使用 gemini-2.5-flash-image 以便更好地配合后台 API 密钥
+      // Always create a new GoogleGenAI instance right before the API call as per guidelines
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const imageParts = images.map(img => ({
         inlineData: { data: img, mimeType: 'image/jpeg' }
@@ -247,6 +212,7 @@ const App: React.FC = () => {
 
       let imageUrl = "";
       const candidates = response.candidates?.[0]?.content?.parts || [];
+      // Iterating parts to find the image part as per guidelines
       for (const part of candidates) {
         if (part.inlineData) {
           imageUrl = `data:image/png;base64,${part.inlineData.data}`;
@@ -261,7 +227,12 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      alert(`渲染失败: ${err?.message || '请检查密钥配置'}`);
+      if (err?.message?.includes("Requested entity was not found")) {
+        // Reset and re-prompt user for key if not found per guidelines
+        handleOpenKeySelection();
+      } else {
+        alert(`渲染失败: ${err?.message || '请检查密钥配置'}`);
+      }
     } finally { 
       setGeneratingModules(prev => ({ ...prev, [index]: false })); 
     }
@@ -286,8 +257,7 @@ const App: React.FC = () => {
 
   const generateAllImages = async () => {
     try {
-      const hasKey = await ensureApiKey();
-      if (!hasKey) return;
+      await ensureApiKey();
       if (!finalPrompts) return;
       for (let i = 0; i < promptModules.length; i++) {
         const isLogo = promptModules[i].title.toUpperCase().includes("LOGO");
@@ -587,15 +557,15 @@ const App: React.FC = () => {
           <header className="h-20 px-10 border-b border-neutral-50 flex items-center justify-between z-30 bg-white/95 backdrop-blur-md sticky top-0">
             <h2 className="text-xl font-black tracking-tighter uppercase">生成效果方案预览</h2>
             <div className="flex gap-3">
+              {/* Fix for line 617 error: Replacedrestricted settings/login buttons with standard compliant API key selection button. */}
               <button 
-                onClick={handleOpenSettings}
+                onClick={handleOpenKeySelection}
                 className="px-6 h-10 rounded-full text-[10px] font-black uppercase border border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all shadow-sm flex items-center gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                 </svg>
-                配置中心
+                配置 API 密钥
               </button>
               {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-8 h-10 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 shadow-md transition-all">全案批量渲染</button>}
             </div>
@@ -648,48 +618,6 @@ const App: React.FC = () => {
           </div>
         </section>
       </div>
-
-      {/* --- 设置弹窗 --- */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in" onClick={() => setIsSettingsOpen(false)}>
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
-            <div className="p-8 space-y-6">
-              <div className="space-y-1.5">
-                <h3 className="text-xl font-black uppercase tracking-tight">接口密钥配置</h3>
-                <p className="text-[10px] text-neutral-500 font-medium leading-relaxed">
-                  后台已默认配置可用密钥。如需使用自己的 Key，请在下方输入，它将保存在本地并优先使用。
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Gemini API 密钥</label>
-                <input 
-                  type="password"
-                  value={customKey}
-                  onChange={(e) => setCustomKey(e.target.value)}
-                  placeholder="在此输入您的 API 密钥..."
-                  className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:border-neutral-900 outline-none font-mono text-xs shadow-inner transition-all"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button 
-                  onClick={() => setIsSettingsOpen(false)}
-                  className="flex-1 px-3 py-3 border border-neutral-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neutral-50 transition-all"
-                >
-                  返回
-                </button>
-                <button 
-                  onClick={handleSaveSettings}
-                  className="flex-[1.5] px-3 py-3 bg-neutral-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] shadow-lg transition-all"
-                >
-                  保存并应用
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 大图预览 */}
       {previewImageUrl && (
