@@ -1,30 +1,46 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { extractProductInfo, generatePosterSystem } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 
-// Removed manual Window interface extension as it conflicts with pre-existing environment types
-
 const App: React.FC = () => {
-  // --- API Key Management (Simplified to comply with guidelines) ---
-  
-  const handleOpenApiKeySettings = async () => {
-    // If window.aistudio is available, use it to open the key selection dialog.
-    // Assume window.aistudio is pre-configured and accessible.
-    // @ts-ignore
-    if (window.aistudio) {
-      try {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-      } catch (err) {
-        console.error('AI Studio openSelectKey failed:', err);
-      }
+  // --- API Key Management ---
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [customKey, setCustomKey] = useState('');
+
+  // 初始化：从 localStorage 加载用户自定义密钥并尝试注入
+  useEffect(() => {
+    const savedKey = localStorage.getItem('GEMINI_API_KEY_OVERRIDE');
+    if (savedKey) {
+      setCustomKey(savedKey);
+      // 动态注入到 process.env 以供 SDK 使用，实现优先级覆盖
+      (process.env as any).API_KEY = savedKey;
     }
+  }, []);
+
+  const handleOpenSettings = () => {
+    setIsSettingsOpen(true);
+  };
+
+  const handleSaveSettings = () => {
+    const trimmedKey = customKey.trim();
+    if (trimmedKey) {
+      localStorage.setItem('GEMINI_API_KEY_OVERRIDE', trimmedKey);
+      (process.env as any).API_KEY = trimmedKey;
+      alert('设置已保存：系统将优先使用您输入的手工密钥。');
+    } else {
+      localStorage.removeItem('GEMINI_API_KEY_OVERRIDE');
+      alert('已清除自定义密钥，系统将尝试使用默认配置。');
+      // 注意：清理后可能需要刷新页面以彻底恢复到系统最初注入的 process.env.API_KEY
+    }
+    setIsSettingsOpen(false);
   };
 
   const ensureApiKey = async () => {
-    // Check whether an API key has been selected using aistudio interface.
+    // 检查是否有任何可用的 API Key (无论是自定义的还是系统注入的)
+    if (process.env.API_KEY) return true;
+
+    // 如果都没有，尝试使用 AI Studio 官方选择器作为最后兜底
     // @ts-ignore
     if (window.aistudio) {
       // @ts-ignore
@@ -33,9 +49,13 @@ const App: React.FC = () => {
         // @ts-ignore
         await window.aistudio.openSelectKey();
       }
+      return true;
     }
-    // Proceed to the app after triggering openSelectKey (mitigating race conditions)
-    return true;
+    
+    // 强制引导用户进行设置
+    alert('检测到未配置 API 密钥，请在“设置”中手动输入。');
+    setIsSettingsOpen(true);
+    return false;
   };
   // --------------------------
 
@@ -138,7 +158,8 @@ const App: React.FC = () => {
 
   const startExtraction = async () => {
     try {
-      await ensureApiKey();
+      const hasKey = await ensureApiKey();
+      if (!hasKey) return;
       if (images.length === 0) return alert('请至少上传一张产品图片');
       setLoading(true);
       const res = await extractProductInfo(images, description);
@@ -149,8 +170,8 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       if (err?.message?.includes("Requested entity was not found")) {
-        // If the request fails with "Requested entity was not found", prompt for key selection again
-        handleOpenApiKeySettings();
+        alert("API 密钥无效，请点击右上角‘设置’进行检查。");
+        setIsSettingsOpen(true);
       } else {
         alert('分析失败，请检查 API 配置或网络状态');
       }
@@ -159,7 +180,8 @@ const App: React.FC = () => {
 
   const startGeneration = async () => {
     try {
-      await ensureApiKey();
+      const hasKey = await ensureApiKey();
+      if (!hasKey) return;
       if (!report) return alert('请先解析产品报告');
       setLoading(true);
       const combinedNeeds = [
@@ -175,8 +197,8 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       if (err?.message?.includes("Requested entity was not found")) {
-        // Prompt for key selection on failure
-        handleOpenApiKeySettings();
+        alert("API 密钥无效，请检查设置。");
+        setIsSettingsOpen(true);
       } else {
         alert('系统方案生成失败');
       }
@@ -185,13 +207,14 @@ const App: React.FC = () => {
 
   const generateSingleImage = async (index: number, prompt: string, isLogo: boolean = false) => {
     try {
-      await ensureApiKey();
+      const hasKey = await ensureApiKey();
+      if (!hasKey) return;
       if (images.length === 0) return alert("请上传产品参考图");
       
       const targetRatio = isLogo ? "1:1" : aspectRatio;
       setGeneratingModules(prev => ({ ...prev, [index]: true }));
       
-      // Instantiate GoogleGenAI right before the call to ensure up-to-date API key from selection
+      // 实例化前确认使用最新的 process.env.API_KEY
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const imageParts = images.map(img => ({
         inlineData: { data: img, mimeType: 'image/jpeg' }
@@ -230,7 +253,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       if (err?.message?.includes("Requested entity was not found")) {
-        handleOpenApiKeySettings();
+        setIsSettingsOpen(true);
       } else {
         alert(`渲染失败: ${err?.message || '请检查 API Key 权限'}`);
       }
@@ -258,7 +281,8 @@ const App: React.FC = () => {
 
   const generateAllImages = async () => {
     try {
-      await ensureApiKey();
+      const hasKey = await ensureApiKey();
+      if (!hasKey) return;
       if (!finalPrompts) return;
       for (let i = 0; i < promptModules.length; i++) {
         const isLogo = promptModules[i].title.toUpperCase().includes("LOGO");
@@ -308,7 +332,7 @@ const App: React.FC = () => {
                     <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
                     <h2 className="text-xl font-black tracking-tight text-neutral-500">核心配置 / SETUP</h2>
                   </div>
-                  <div className="text-[10px] font-black text-neutral-300 tracking-[0.2em]">V 3.4.0 PRO</div>
+                  <div className="text-[10px] font-black text-neutral-300 tracking-[0.2em]">V 3.5.0 PRO</div>
                 </div>
               </div>
             </header>
@@ -465,7 +489,7 @@ const App: React.FC = () => {
                     <div className="flex items-center justify-between bg-white/40 p-3 rounded-xl border border-neutral-100 shadow-sm">
                       <label className="text-sm font-bold text-neutral-600">场景</label>
                       <button onClick={()=>setNeedsScene(!needsScene)} className={`w-10 h-5 rounded-full transition-all relative ${needsScene ? 'bg-neutral-900' : 'bg-neutral-300'}`}>
-                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${needsModel ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${needsScene ? 'translate-x-5' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
                     {needsScene && (
@@ -541,10 +565,14 @@ const App: React.FC = () => {
             <h2 className="text-2xl font-black tracking-tighter uppercase">产品详情图片</h2>
             <div className="flex gap-4">
               <button 
-                onClick={handleOpenApiKeySettings}
-                className="px-6 h-12 rounded-full text-xs font-black uppercase border-2 border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all shadow-sm"
+                onClick={handleOpenSettings}
+                className="px-8 h-12 rounded-full text-xs font-black uppercase border-2 border-neutral-900 hover:bg-neutral-900 hover:text-white transition-all shadow-sm flex items-center gap-2"
               >
-                设置 API Key
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                设置
               </button>
               {finalPrompts && <button onClick={generateAllImages} className="bg-neutral-900 text-white px-10 h-12 rounded-full text-sm font-black uppercase tracking-widest hover:scale-105 shadow-lg transition-all">批量渲染全案</button>}
             </div>
@@ -597,6 +625,59 @@ const App: React.FC = () => {
           </div>
         </section>
       </div>
+
+      {/* --- Settings Modal --- */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in" onClick={() => setIsSettingsOpen(false)}>
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-scale-up" onClick={(e) => e.stopPropagation()}>
+            <div className="p-10 space-y-8">
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black uppercase tracking-tight">API 配置 / SETTINGS</h3>
+                <p className="text-xs text-neutral-500 font-medium leading-relaxed">
+                  请在此配置您的 Google Gemini API 密钥。如果设置了自定义密钥，系统将优先使用。密钥仅保存在本地浏览器中。
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Gemini API Key</label>
+                <input 
+                  type="password"
+                  value={customKey}
+                  onChange={(e) => setCustomKey(e.target.value)}
+                  placeholder="在此输入或粘贴您的 API 密钥..."
+                  className="w-full px-5 py-4 bg-neutral-50 border border-neutral-200 rounded-2xl focus:border-neutral-900 outline-none font-mono text-sm shadow-inner transition-all"
+                />
+                <div className="flex flex-col gap-1">
+                  <a 
+                    href="https://ai.google.dev/gemini-api/docs/billing" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-blue-600 font-bold hover:underline"
+                  >
+                    如何获取 API 密钥与计费说明? →
+                  </a>
+                  <span className="text-[9px] text-neutral-400 italic">注：留空则尝试使用系统默认密钥。</span>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button 
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="flex-1 px-4 py-4 border-2 border-neutral-100 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-neutral-50 transition-all"
+                >
+                  取消
+                </button>
+                <button 
+                  onClick={handleSaveSettings}
+                  className="flex-[1.5] px-4 py-4 bg-neutral-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 shadow-xl transition-all"
+                >
+                  保存配置
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Overlays */}
       {previewImageUrl && (
