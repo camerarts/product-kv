@@ -187,65 +187,66 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <h2 className="text-sm font-black text-neutral-800 uppercase tracking-wide">02 视觉风格定义</h2>
             </div>
 
-            {/* 2.1 Style */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-blue-600">2.1 基础视觉风格</label>
-              <div className="relative group">
-                <select 
-                  value={selectedStyle} 
-                  onChange={e => setSelectedStyle(e.target.value as VisualStyle)}
-                  className="w-full appearance-none bg-white border border-neutral-200 rounded-lg px-4 py-3 text-xs font-bold text-neutral-700 outline-none focus:border-blue-500 transition-all cursor-pointer hover:border-blue-300"
-                >
-                  {Object.values(VisualStyle).map(v => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-3.5 pointer-events-none text-neutral-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+            {/* Combined Row for Style & Typography */}
+            <div className="flex gap-4">
+                {/* 2.1 Style */}
+                <div className="space-y-2 flex-1 w-0">
+                  <label className="text-xs font-bold text-blue-600">2.1 基础视觉风格</label>
+                  <div className="relative group">
+                    <select 
+                      value={selectedStyle} 
+                      onChange={e => setSelectedStyle(e.target.value as VisualStyle)}
+                      className="w-full appearance-none bg-white border border-neutral-200 rounded-lg px-3 py-3 text-xs font-bold text-neutral-700 outline-none focus:border-blue-500 transition-all cursor-pointer hover:border-blue-300"
+                    >
+                      {Object.values(VisualStyle).map(v => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-3.5 pointer-events-none text-neutral-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                  </div>
+                  <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-50 h-16 overflow-y-auto custom-scrollbar-thin">
+                    <p className="text-[9px] text-blue-800 font-medium leading-relaxed">
+                      {visualStyleDescriptions[selectedStyle]}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-50">
-                <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
-                  <span className="font-bold text-blue-600 mr-1">风格特征:</span>
-                  {visualStyleDescriptions[selectedStyle]}
-                </p>
-              </div>
-            </div>
 
-            {/* 2.2 Typography */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-blue-600">2.2 页面排版逻辑</label>
-              <div className="relative group">
-                <select 
-                  value={selectedTypography} 
-                  onChange={e => setSelectedTypography(e.target.value as TypographyStyle)}
-                  className="w-full appearance-none bg-white border border-neutral-200 rounded-lg px-4 py-3 text-xs font-bold text-neutral-700 outline-none focus:border-blue-500 transition-all cursor-pointer hover:border-blue-300"
-                >
-                  {Object.values(TypographyStyle).map(v => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-3.5 pointer-events-none text-neutral-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                {/* 2.2 Typography */}
+                <div className="space-y-2 flex-1 w-0">
+                  <label className="text-xs font-bold text-blue-600">2.2 页面排版逻辑</label>
+                  <div className="relative group">
+                    <select 
+                      value={selectedTypography} 
+                      onChange={e => setSelectedTypography(e.target.value as TypographyStyle)}
+                      className="w-full appearance-none bg-white border border-neutral-200 rounded-lg px-3 py-3 text-xs font-bold text-neutral-700 outline-none focus:border-blue-500 transition-all cursor-pointer hover:border-blue-300"
+                    >
+                      {Object.values(TypographyStyle).map(v => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-3.5 pointer-events-none text-neutral-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                  </div>
+                  <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-50 h-16 overflow-y-auto custom-scrollbar-thin">
+                    <p className="text-[9px] text-blue-800 font-medium leading-relaxed">
+                      {typographyDescriptions[selectedTypography]}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-50">
-                <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
-                  <span className="font-bold text-blue-600 mr-1">排版特征:</span>
-                  {typographyDescriptions[selectedTypography]}
-                </p>
-              </div>
             </div>
 
             {/* 2.3 Custom */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-blue-600">2.3 个性化需求</label>
               
-              {/* Compact Toggle Row */}
+              {/* Row with 4 items: 3 buttons + 1 input - Equal width */}
               <div className="flex gap-2">
                 <button
                   onClick={() => setNeedsModel(!needsModel)}
-                  className={`flex-1 h-9 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${
+                  className={`flex-1 w-0 h-9 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${
                     needsModel ? 'bg-neutral-900 text-white border-neutral-900 shadow-md transform -translate-y-0.5' : 'bg-white border-neutral-200 text-neutral-500 hover:bg-neutral-50'
                   }`}
                 >
@@ -253,7 +254,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
                 <button
                   onClick={() => setNeedsScene(!needsScene)}
-                  className={`flex-1 h-9 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${
+                  className={`flex-1 w-0 h-9 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${
                     needsScene ? 'bg-neutral-900 text-white border-neutral-900 shadow-md transform -translate-y-0.5' : 'bg-white border-neutral-200 text-neutral-500 hover:bg-neutral-50'
                   }`}
                 >
@@ -261,12 +262,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
                 <button
                   onClick={() => setNeedsDataVis(!needsDataVis)}
-                  className={`flex-1 h-9 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${
+                  className={`flex-1 w-0 h-9 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${
                     needsDataVis ? 'bg-neutral-900 text-white border-neutral-900 shadow-md transform -translate-y-0.5' : 'bg-white border-neutral-200 text-neutral-500 hover:bg-neutral-50'
                   }`}
                 >
                    {needsDataVis ? '★' : '☆'} 数据图表
                 </button>
+                
+                <input 
+                    value={otherNeeds} 
+                    onChange={e=>setOtherNeeds(e.target.value)} 
+                    className="flex-1 w-0 h-9 px-2 bg-white border border-neutral-200 rounded-lg text-[10px] focus:border-blue-500 outline-none transition-all placeholder:text-neutral-400" 
+                    placeholder="补充要求..."
+                  />
+              </div>
+
+              {/* Tags for Other Needs - placed below the row */}
+              <div className="flex flex-wrap gap-2">
+                  {['+ 包含产品', '+ 对比图', '+ 用户评价'].map(tag => (
+                      <button key={tag} onClick={() => setOtherNeeds(prev => prev ? `${prev}，${tag.slice(2)}` : tag.slice(2))} className="px-2 py-1 bg-white border border-neutral-200 rounded text-[9px] font-bold text-neutral-500 hover:border-neutral-400 hover:text-neutral-700 transition-colors">{tag}</button>
+                  ))}
               </div>
 
               {/* Dynamic Detail Inputs */}
@@ -313,21 +328,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
                 </div>
               )}
-
-              {/* Other Needs Input */}
-               <div className="relative">
-                 <input 
-                    value={otherNeeds} 
-                    onChange={e=>setOtherNeeds(e.target.value)} 
-                    className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg text-[10px] focus:border-blue-500 outline-none transition-all placeholder:text-neutral-300" 
-                    placeholder="其他补充要求 (如: 需对比图)..."
-                  />
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {['+ 必须包含产品实物', '+ 需要对比图', '+ 需要用户评价'].map(tag => (
-                      <button key={tag} onClick={() => setOtherNeeds(prev => prev ? `${prev}，${tag.slice(2)}` : tag.slice(2))} className="px-2 py-1 bg-white border border-neutral-200 rounded text-[9px] font-bold text-neutral-500 hover:border-neutral-400 hover:text-neutral-700 transition-colors">{tag}</button>
-                    ))}
-                  </div>
-               </div>
             </div>
           </section>
 
@@ -337,18 +337,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="w-1 h-4 bg-blue-600 rounded-full"></div>
               <h2 className="text-sm font-black text-neutral-800 uppercase tracking-wide">03 方案画面比例</h2>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-7 gap-1">
               {Object.keys(ratioIcons).map(r => (
                 <button 
                   key={r} 
                   onClick={() => setAspectRatio(r)}
                   className={`
-                    px-3 py-2 rounded-lg border text-[10px] font-bold 
+                    flex items-center justify-center py-2 rounded-lg border text-[10px] font-bold 
                     transition-all duration-300 ease-out 
                     active:scale-95
                     ${aspectRatio === r 
-                      ? 'bg-neutral-900 text-white border-neutral-900 shadow-lg scale-110 -translate-y-0.5 z-10' 
-                      : 'bg-white border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:border-neutral-300 hover:scale-105'
+                      ? 'bg-neutral-900 text-white border-neutral-900 shadow-lg scale-105 z-10' 
+                      : 'bg-white border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:border-neutral-300'
                     }
                   `}
                 >
