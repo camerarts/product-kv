@@ -14,9 +14,20 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 海报必须包含：详细的中英文提示词、排版布局说明。
 所有海报必须保持品牌风格统一，LOGO位置合理且一致。`;
 
-// Obtain API key exclusively from environment variable as per guidelines
-export const extractProductInfo = async (imagesB64: string[], textDescription: string): Promise<RecognitionReport> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get the effective API Key
+const getEffectiveKey = (userKey?: string) => {
+  // Priority: User Key > Environment Key
+  const key = userKey || process.env.API_KEY;
+  if (!key) {
+    throw new Error("未检测到 API Key。请在「配置」中输入您的 Key，或确保系统环境变量已设置。");
+  }
+  return key;
+};
+
+export const extractProductInfo = async (imagesB64: string[], textDescription: string, userApiKey?: string): Promise<RecognitionReport> => {
+  const apiKey = getEffectiveKey(userApiKey);
+  const ai = new GoogleGenAI({ apiKey });
+  
   const parts: any[] = [];
   
   if (imagesB64 && imagesB64.length > 0) {
@@ -71,17 +82,22 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
     }
   });
 
-  // response.text is a property, not a method
-  return JSON.parse(response.text || '{}');
+  // Clean the text to remove potential markdown formatting before parsing
+  const text = response.text || '{}';
+  const cleanedText = text.replace(/```json\n|\n```/g, '').replace(/```/g, '');
+  return JSON.parse(cleanedText);
 };
 
 export const generatePosterSystem = async (
   report: RecognitionReport,
   visualStyle: VisualStyle,
   typography: TypographyStyle,
-  specialNeeds: string
+  specialNeeds: string,
+  userApiKey?: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getEffectiveKey(userApiKey);
+  const ai = new GoogleGenAI({ apiKey });
+  
   const prompt = `基于以下产品报告生成一套电商全系统海报（共11个模块，含LOGO提示词）。
   
   【产品信息】
@@ -121,6 +137,28 @@ export const generatePosterSystem = async (
     }
   });
 
-  // response.text is a property, not a method
   return response.text || '';
+};
+
+export const generateImageContent = async (
+  imagesB64: string[],
+  prompt: string,
+  aspectRatio: string,
+  userApiKey?: string
+): Promise<string | undefined> => {
+  const apiKey = getEffectiveKey(userApiKey);
+  const ai = new GoogleGenAI({ apiKey });
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
+    contents: { 
+      parts: [
+        ...imagesB64.map(img => ({ inlineData: { data: img, mimeType: 'image/jpeg' } })), 
+        { text: `高端电商摄影风格。还原参考图产品。场景描述：${prompt}。比例：${aspectRatio}。电影级光影。` }
+      ] 
+    },
+    config: { imageConfig: { aspectRatio: aspectRatio as any } }
+  });
+  
+  return response.candidates?.[0]?.content?.parts.find(p => p.inlineData)?.inlineData?.data;
 };
