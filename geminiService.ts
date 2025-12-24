@@ -14,21 +14,29 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 所有海报必须保持品牌风格统一，LOGO位置合理且一致。`;
 
 // Helper to get the effective API Key
-const getEffectiveKey = (userKey?: string) => {
+const getEffectiveKey = (userKey?: string, isAdmin: boolean = false) => {
   // Priority: 
-  // 1. User Input Key (用户手动输入)
-  // 2. process.env.API_KEY (通过 vite.config.ts 注入的 Cloudflare 变量)
-  // 3. import.meta.env.VITE_API_KEY (Vite 标准环境变量，推荐在 Cloudflare 后台也配置一个 VITE_API_KEY 作为备份)
-  const key = userKey || process.env.API_KEY || import.meta.env.VITE_API_KEY;
-  
-  if (!key) {
-    throw new Error("未检测到 API Key。请在「配置」中输入您的 Key，或确保系统环境变量已设置。");
+  // 1. User Input Key (用户手动输入) - Always allowed
+  // 2. process.env.API_KEY / VITE_API_KEY - Only allowed if isAdmin is true
+
+  if (userKey && userKey.trim().length > 0) {
+    return userKey;
   }
-  return key;
+
+  if (isAdmin) {
+    const systemKey = process.env.API_KEY || import.meta.env.VITE_API_KEY;
+    if (systemKey) {
+      return systemKey;
+    }
+  }
+  
+  throw new Error(isAdmin 
+    ? "管理员模式下未检测到系统环境变量 API Key。" 
+    : "未检测到 API Key。请在「配置」中输入您的 Key，或者登录管理员账号以使用系统内置 Key。");
 };
 
-export const extractProductInfo = async (imagesB64: string[], textDescription: string, userApiKey?: string): Promise<RecognitionReport> => {
-  const apiKey = getEffectiveKey(userApiKey);
+export const extractProductInfo = async (imagesB64: string[], textDescription: string, userApiKey?: string, isAdmin: boolean = false): Promise<RecognitionReport> => {
+  const apiKey = getEffectiveKey(userApiKey, isAdmin);
   const ai = new GoogleGenAI({ apiKey });
   
   const parts: any[] = [];
@@ -125,9 +133,10 @@ export const generatePosterSystem = async (
   visualStyle: VisualStyle,
   typography: TypographyStyle,
   specialNeeds: string,
-  userApiKey?: string
+  userApiKey?: string,
+  isAdmin: boolean = false
 ): Promise<string> => {
-  const apiKey = getEffectiveKey(userApiKey);
+  const apiKey = getEffectiveKey(userApiKey, isAdmin);
   const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `基于以下产品报告生成一套电商全系统海报（共11个模块，含LOGO提示词）。
@@ -176,9 +185,10 @@ export const generateImageContent = async (
   imagesB64: string[],
   prompt: string,
   aspectRatio: string,
-  userApiKey?: string
+  userApiKey?: string,
+  isAdmin: boolean = false
 ): Promise<string | undefined> => {
-  const apiKey = getEffectiveKey(userApiKey);
+  const apiKey = getEffectiveKey(userApiKey, isAdmin);
   const ai = new GoogleGenAI({ apiKey });
 
   const response = await ai.models.generateContent({

@@ -48,13 +48,13 @@ export const App: React.FC = () => {
   const handleClearKey = () => {
     setUserApiKey('');
     localStorage.removeItem('USER_GEMINI_API_KEY');
-    alert("已清除自定义 Key，将使用系统默认配置。");
+    alert("已清除自定义 Key，如未登录管理员，需重新配置 Key 才可使用。");
   };
 
   const handleAdminLogin = () => {
     setIsAdminLoggedIn(true);
     // 这里可以添加路由跳转到 /admin，或者仅仅是切换视图状态
-    alert("管理员登录成功！(此处模拟进入后台)");
+    alert("管理员登录成功！您现在可以使用系统内置 Key。");
   };
 
   // --- 核心业务状态 ---
@@ -121,8 +121,8 @@ export const App: React.FC = () => {
     if (images.length === 0) return alert('请上传产品图片');
     setExtractionLoading(true);
     try {
-      // 传入 userApiKey
-      const res = await extractProductInfo(images, description, userApiKey);
+      // 传入 userApiKey 和 isAdminLoggedIn
+      const res = await extractProductInfo(images, description, userApiKey, isAdminLoggedIn);
       setReport(res);
       if (!manualBrand && res.brandName) setManualBrand(res.brandName);
     } catch (err: any) {
@@ -159,13 +159,14 @@ export const App: React.FC = () => {
 
       const combinedNeeds = needsArray.join('；');
 
-      // 传入 userApiKey
+      // 传入 userApiKey 和 isAdminLoggedIn
       const res = await generatePosterSystem(
         { ...report, brandName: manualBrand || report.brandName },
         selectedStyle,
         selectedTypography,
         combinedNeeds,
-        userApiKey
+        userApiKey,
+        isAdminLoggedIn
       );
       setFinalPrompts(res);
     } catch (err: any) {
@@ -190,7 +191,8 @@ export const App: React.FC = () => {
     setGeneratingModules(prev => ({ ...prev, [index]: true }));
     try {
       const actualRatio = isLogo ? "1:1" : aspectRatio;
-      const res = await generateImageContent(images, prompt, actualRatio, userApiKey);
+      // 传入 userApiKey 和 isAdminLoggedIn
+      const res = await generateImageContent(images, prompt, actualRatio, userApiKey, isAdminLoggedIn);
       if (res) {
         setGeneratedImages(prev => ({ ...prev, [index]: `data:image/jpeg;base64,${res}` }));
       }
@@ -202,7 +204,9 @@ export const App: React.FC = () => {
   };
 
   const checkAuth = () => {
-    return !!(userApiKey || process.env.API_KEY || import.meta.env.VITE_API_KEY);
+    // 只有在用户输入了 Key，或者 (是管理员 且 有系统Key) 时，才算已授权
+    const hasSystemKey = !!(process.env.API_KEY || import.meta.env.VITE_API_KEY);
+    return !!(userApiKey || (isAdminLoggedIn && hasSystemKey));
   };
 
   return (
@@ -250,14 +254,21 @@ export const App: React.FC = () => {
            onClick={() => setIsConfigOpen(true)}
            className="px-4 py-2 bg-white/80 backdrop-blur border border-neutral-200 rounded-lg text-xs font-bold text-neutral-600 hover:bg-white shadow-sm transition-all"
         >
-           {userApiKey ? '🔑 已配置 Key' : '⚙️ 配置 Key'}
+           {userApiKey ? '🔑 已配置个人 Key' : (isAdminLoggedIn ? '🔑 系统权限已激活' : '⚙️ 配置 Key')}
         </button>
-        <button
-           onClick={() => setIsLoginOpen(true)} 
-           className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold hover:bg-neutral-800 shadow-sm transition-all"
-        >
-           管理员登录
-        </button>
+        {!isAdminLoggedIn && (
+          <button
+            onClick={() => setIsLoginOpen(true)} 
+            className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold hover:bg-neutral-800 shadow-sm transition-all"
+          >
+            管理员登录
+          </button>
+        )}
+        {isAdminLoggedIn && (
+           <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-xs font-bold shadow-sm">
+             已管理员登录
+           </span>
+        )}
       </div>
 
       <ConfigModal
