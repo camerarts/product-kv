@@ -57,6 +57,11 @@ export const App: React.FC = () => {
     alert("管理员登录成功！您现在可以使用系统内置 Key。");
   };
 
+  const handleAdminLogout = () => {
+    setIsAdminLoggedIn(false);
+    alert("已退出管理员登录，系统 Key 权限已回收。");
+  };
+
   // --- 核心业务状态 ---
   const [extractionLoading, setExtractionLoading] = useState(false);
   const [generationLoading, setGenerationLoading] = useState(false);
@@ -256,18 +261,25 @@ export const App: React.FC = () => {
         >
            {userApiKey ? '🔑 已配置个人 Key' : (isAdminLoggedIn ? '🔑 系统权限已激活' : '⚙️ 配置 Key')}
         </button>
-        {!isAdminLoggedIn && (
+        {!isAdminLoggedIn ? (
           <button
             onClick={() => setIsLoginOpen(true)} 
             className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold hover:bg-neutral-800 shadow-sm transition-all"
           >
             管理员登录
           </button>
-        )}
-        {isAdminLoggedIn && (
-           <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-xs font-bold shadow-sm">
-             已管理员登录
-           </span>
+        ) : (
+           <div className="flex gap-2">
+             <span className="px-3 py-2 bg-green-100 text-green-700 rounded-lg text-xs font-bold shadow-sm flex items-center">
+               已管理员登录
+             </span>
+             <button
+               onClick={handleAdminLogout}
+               className="px-3 py-2 bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-red-600 rounded-lg text-xs font-bold shadow-sm transition-all"
+             >
+               退出
+             </button>
+           </div>
         )}
       </div>
 

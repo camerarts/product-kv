@@ -45,7 +45,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                 <h3 className="text-xs font-bold text-neutral-500">【产品报告】</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 {/* Card 1 */}
+                 {/* Card 1: Brand Core */}
                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-neutral-100 flex flex-col justify-between h-48">
                     <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wide">
                       <div className="w-5 h-5 rounded bg-blue-50 text-blue-500 flex items-center justify-center">🏷️</div>
@@ -78,64 +78,85 @@ export const MainContent: React.FC<MainContentProps> = ({
                     </div>
                  </div>
 
-                 {/* Card 2 */}
+                 {/* Card 2: Color DNA */}
                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-neutral-100 flex flex-col h-48">
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wide mb-6">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wide mb-4">
                       <div className="w-5 h-5 rounded bg-purple-50 text-purple-500 flex items-center justify-center">🎨</div>
                       色彩基因
                     </div>
                     
-                    <div className="flex-1 flex justify-between items-center px-2 pb-2">
-                       {/* Main Color */}
-                       <div className="flex flex-col items-center gap-3 w-1/3">
-                          <div 
-                            className={`w-12 h-12 rounded-full shadow-sm border border-neutral-100 transition-opacity duration-500 ${report ? 'opacity-100' : 'opacity-30'}`}
-                            style={{backgroundColor: report ? '#E5E7EB' : '#F3F4F6'}}
-                          ></div>
-                          <span className="text-[9px] text-neutral-400 font-bold">主本色</span>
-                       </div>
-
-                       {/* Aux Color */}
-                       <div className="flex flex-col items-center gap-3 w-1/3">
-                          <div 
-                            className={`w-12 h-12 rounded-full shadow-sm border border-neutral-100 transition-opacity duration-500 ${report ? 'opacity-100' : 'opacity-30'}`}
-                            style={{backgroundColor: report ? '#F3F4F6' : '#F3F4F6'}}
-                          ></div>
-                          <span className="text-[9px] text-neutral-400 font-bold">辅助色</span>
-                       </div>
-
-                       {/* Accent Color */}
-                       <div className="flex flex-col items-center gap-3 w-1/3">
-                          <div 
-                            className={`w-12 h-12 rounded-full shadow-sm border border-neutral-100 transition-opacity duration-500 ${report ? 'opacity-100' : 'opacity-30'}`}
-                            style={{backgroundColor: report ? '#D1D5DB' : '#F3F4F6'}}
-                          ></div>
-                          <span className="text-[9px] text-neutral-400 font-bold">点缀色</span>
-                       </div>
-                    </div>
+                    {report ? (
+                      <div className="flex-1 flex flex-col justify-center gap-3 animate-fade-in">
+                        <div>
+                           <div className="flex items-center gap-2 mb-1">
+                             <div className="w-2 h-2 rounded-full bg-neutral-800"></div>
+                             <span className="text-[9px] text-neutral-400 font-bold">主视觉色</span>
+                           </div>
+                           <p className="text-xs font-bold text-neutral-800 leading-snug line-clamp-2" title={report.mainColors}>
+                             {report.mainColors}
+                           </p>
+                        </div>
+                        <div>
+                           <div className="flex items-center gap-2 mb-1">
+                             <div className="w-2 h-2 rounded-full bg-neutral-300"></div>
+                             <span className="text-[9px] text-neutral-400 font-bold">辅助配色</span>
+                           </div>
+                           <p className="text-xs font-medium text-neutral-600 leading-snug line-clamp-2" title={report.auxColors}>
+                             {report.auxColors}
+                           </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex justify-between items-center px-2 pb-2 opacity-30">
+                        <div className="flex flex-col items-center gap-3 w-1/3">
+                            <div className="w-12 h-12 rounded-full shadow-sm border border-neutral-100 bg-neutral-100"></div>
+                        </div>
+                        <div className="flex flex-col items-center gap-3 w-1/3">
+                            <div className="w-12 h-12 rounded-full shadow-sm border border-neutral-100 bg-neutral-100"></div>
+                        </div>
+                        <div className="flex flex-col items-center gap-3 w-1/3">
+                            <div className="w-12 h-12 rounded-full shadow-sm border border-neutral-100 bg-neutral-100"></div>
+                        </div>
+                      </div>
+                    )}
                  </div>
 
-                 {/* Card 3 */}
+                 {/* Card 3: Style Direction */}
                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-neutral-100 flex flex-col justify-between h-48">
                     <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wide">
                       <div className="w-5 h-5 rounded bg-orange-50 text-orange-500 flex items-center justify-center">✨</div>
                       风格导向
                     </div>
                     {report ? (
-                      <div className="animate-fade-in">
-                         <h4 className="text-lg font-black text-neutral-900 leading-tight mb-2 truncate" title={selectedStyle.split(' ')[1]}>{selectedStyle.split(' ')[1]}</h4>
-                         <p className="text-[10px] text-neutral-500 font-bold truncate" title={selectedTypography.split(' ')[1]}>{selectedTypography.split(' ')[1]}</p>
+                      <div className="animate-fade-in flex-1 pt-4">
+                         <h4 className="text-sm font-black text-neutral-900 leading-relaxed mb-2 line-clamp-3" title={report.designStyle}>
+                            {report.designStyle}
+                         </h4>
                       </div>
                     ) : (
-                      <div className="space-y-2 opacity-30">
+                      <div className="space-y-2 opacity-30 mt-6">
                         <div className="h-5 w-3/4 bg-neutral-200 rounded"></div>
                         <div className="h-2 w-full bg-neutral-100 rounded"></div>
                         <div className="h-2 w-2/3 bg-neutral-100 rounded"></div>
                       </div>
                     )}
-                    <div className="flex gap-2 pt-2">
-                       <div className={`h-6 px-3 rounded-full flex items-center text-[10px] font-bold ${report ? 'bg-neutral-50 text-neutral-600' : 'bg-neutral-50 w-20'}`}>{report?.brandTone?.slice(0,6)}</div>
-                       <div className={`h-6 px-3 rounded-full flex items-center text-[10px] font-bold ${report ? 'bg-neutral-50 text-neutral-600' : 'bg-neutral-50 w-16'}`}>...</div>
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-neutral-50 mt-auto">
+                       {report?.brandTone && (
+                          <div className="h-6 px-3 rounded-full flex items-center bg-neutral-50 text-[10px] font-bold text-neutral-600 border border-neutral-100">
+                            {report.brandTone.slice(0, 8)}
+                          </div>
+                       )}
+                       {report?.packagingHighlights && (
+                          <div className="h-6 px-3 rounded-full flex items-center bg-neutral-50 text-[10px] font-bold text-neutral-400 border border-neutral-100 truncate max-w-[120px]">
+                            {report.packagingHighlights.slice(0, 10)}...
+                          </div>
+                       )}
+                       {!report && (
+                         <>
+                           <div className="h-6 w-16 bg-neutral-100 rounded-full opacity-30"></div>
+                           <div className="h-6 w-12 bg-neutral-100 rounded-full opacity-30"></div>
+                         </>
+                       )}
                     </div>
                  </div>
               </div>
