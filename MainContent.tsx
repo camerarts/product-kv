@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { RecognitionReport, VisualStyle, TypographyStyle } from './types';
 
@@ -54,8 +53,8 @@ export const MainContent: React.FC<MainContentProps> = ({
                     </div>
                     {report ? (
                       <div className="animate-fade-in">
-                        <h4 className="text-2xl font-black text-neutral-900 mb-1">{manualBrand || report.brandName}</h4>
-                        <p className="text-xs text-neutral-400 font-medium italic">{report.brandName}</p>
+                        <h4 className="text-2xl font-black text-neutral-900 mb-1 truncate" title={manualBrand || report.brandName}>{manualBrand || report.brandName}</h4>
+                        <p className="text-xs text-neutral-400 font-medium italic truncate" title={report.brandName}>{report.brandName}</p>
                       </div>
                     ) : (
                       <div className="space-y-2 opacity-30">
@@ -64,8 +63,18 @@ export const MainContent: React.FC<MainContentProps> = ({
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-2 border-t border-neutral-50 pt-4">
-                       <div><p className="text-[9px] text-neutral-400 mb-0.5">品类定位</p><div className={`h-3 w-full rounded ${report ? 'text-xs font-bold text-neutral-700' : 'bg-neutral-100'}`}>{report?.productType}</div></div>
-                       <div><p className="text-[9px] text-neutral-400 mb-0.5">驱动人群</p><div className={`h-3 w-full rounded ${report ? 'text-xs font-bold text-neutral-700' : 'bg-neutral-100'}`}>{report?.targetAudience}</div></div>
+                       <div>
+                         <p className="text-[9px] text-neutral-400 mb-0.5">品类定位</p>
+                         <div className={`w-full rounded ${report ? 'text-xs font-bold text-neutral-700 truncate' : 'h-3 bg-neutral-100'}`} title={report?.productType}>
+                            {report?.productType}
+                         </div>
+                       </div>
+                       <div>
+                         <p className="text-[9px] text-neutral-400 mb-0.5">驱动人群</p>
+                         <div className={`w-full rounded ${report ? 'text-xs font-bold text-neutral-700 truncate' : 'h-3 bg-neutral-100'}`} title={report?.targetAudience}>
+                            {report?.targetAudience}
+                         </div>
+                       </div>
                     </div>
                  </div>
 
@@ -114,8 +123,8 @@ export const MainContent: React.FC<MainContentProps> = ({
                     </div>
                     {report ? (
                       <div className="animate-fade-in">
-                         <h4 className="text-lg font-black text-neutral-900 leading-tight mb-2">{selectedStyle.split(' ')[1]}</h4>
-                         <p className="text-[10px] text-neutral-500 font-bold">{selectedTypography.split(' ')[1]}</p>
+                         <h4 className="text-lg font-black text-neutral-900 leading-tight mb-2 truncate" title={selectedStyle.split(' ')[1]}>{selectedStyle.split(' ')[1]}</h4>
+                         <p className="text-[10px] text-neutral-500 font-bold truncate" title={selectedTypography.split(' ')[1]}>{selectedTypography.split(' ')[1]}</p>
                       </div>
                     ) : (
                       <div className="space-y-2 opacity-30">

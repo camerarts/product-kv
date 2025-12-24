@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { VisualStyle, TypographyStyle, RecognitionReport } from "./types";
 
@@ -46,7 +45,13 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
   }
   
   parts.push({ text: `分析上述产品图片并生成一份详尽的识别报告。
-  请根据以下JSON格式返回数据：
+  
+  【重要要求】
+  1. 请务必只输出纯 JSON 字符串。
+  2. 严禁使用 markdown 格式（不要包含 \`\`\`json 或 \`\`\`）。
+  3. 严禁包含任何开场白或解释性文字。
+  
+  请严格根据以下JSON格式返回数据：
   {
     "brandName": "识别到的品牌名",
     "productType": "产品类别",
@@ -88,21 +93,30 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
 
   // Clean the text to remove potential markdown formatting before parsing
   let text = response.text || '{}';
-  
-  // 1. Remove markdown code blocks
-  text = text.replace(/```json\n?/g, '').replace(/```/g, '').trim();
-  
-  // 2. Remove trailing commas in arrays/objects which cause JSON.parse to fail
-  // Replace ", }" with "}" and ", ]" with "]"
-  text = text.replace(/,(\s*[}\]])/g, '$1');
+  console.log("Raw Analysis Response:", text); // Debug log
 
   try {
+    // 1. Aggressive Markdown Cleanup: Remove ```json, ```, and standard markdown wrappers
+    text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
+
+    // 2. Substring Extraction: Find the valid JSON object { ... }
+    // This handles cases where the model adds "Here is your JSON:" prefix
+    const firstOpen = text.indexOf('{');
+    const lastClose = text.lastIndexOf('}');
+    
+    if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
+        text = text.substring(firstOpen, lastClose + 1);
+    }
+
+    // 3. Remove trailing commas in arrays/objects which cause JSON.parse to fail
+    // Replace ", }" with "}" and ", ]" with "]"
+    text = text.replace(/,(\s*[}\]])/g, '$1');
+
     return JSON.parse(text);
   } catch (e) {
     console.error("JSON Parse failed:", e);
-    console.log("Raw text:", response.text);
-    // Fallback: Return empty object or partial data if possible, or throw more descriptive error
-    throw new Error("Failed to parse product report. Please try again.");
+    console.error("Problematic text:", text);
+    throw new Error("解析产品报告失败。AI 返回的数据格式有误，请重试或检查图片是否清晰。");
   }
 };
 
