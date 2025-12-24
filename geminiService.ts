@@ -133,11 +133,11 @@ export const generatePosterSystem = async (
   - 提示词必须强调：严格还原包装形态、品牌颜色和标识位置。`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3-flash-preview',
     contents: prompt,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
-      thinkingConfig: { thinkingBudget: 24576 }
+      thinkingConfig: { thinkingBudget: 16384 }
     }
   });
 
@@ -154,7 +154,7 @@ export const generateImageContent = async (
   const ai = new GoogleGenAI({ apiKey });
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: 'gemini-3-pro-image-preview',
     contents: { 
       parts: [
         ...imagesB64.map(img => ({ inlineData: { data: img, mimeType: 'image/jpeg' } })), 

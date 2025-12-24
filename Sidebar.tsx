@@ -277,7 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-6 border-t border-neutral-100">
           <button 
             onClick={startGeneration}
-            disabled={generationLoading || !report}
+            disabled={generationLoading || !report || extractionLoading}
             className="w-full h-12 bg-gradient-to-r from-[#A78BFA] to-[#C084FC] text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 shadow-lg shadow-purple-200 hover:shadow-purple-300 hover:scale-[1.01] active:scale-99 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {generationLoading ? (

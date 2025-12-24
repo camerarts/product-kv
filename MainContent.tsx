@@ -75,21 +75,34 @@ export const MainContent: React.FC<MainContentProps> = ({
                       <div className="w-5 h-5 rounded bg-purple-50 text-purple-500 flex items-center justify-center">🎨</div>
                       色彩基因
                     </div>
-                    {report ? (
-                      <div className="flex justify-between px-2 animate-fade-in">
-                        <div className="text-center"><div className="w-12 h-12 rounded-full border border-neutral-100 shadow-sm mb-2 mx-auto" style={{backgroundColor: '#E5E7EB'}}></div><p className="text-[9px] text-neutral-500 font-bold">主本色</p></div>
-                        <div className="text-center"><div className="w-12 h-12 rounded-full border border-neutral-100 shadow-sm mb-2 mx-auto" style={{backgroundColor: '#F3F4F6'}}></div><p className="text-[9px] text-neutral-500 font-bold">辅助色</p></div>
-                        <div className="text-center"><div className="w-12 h-12 rounded-full border border-neutral-100 shadow-sm mb-2 mx-auto" style={{backgroundColor: '#D1D5DB'}}></div><p className="text-[9px] text-neutral-500 font-bold">点缀色</p></div>
-                      </div>
-                    ) : (
-                      <div className="flex justify-between px-4 opacity-30">
-                        <div className="w-12 h-12 rounded-full bg-neutral-100"></div>
-                        <div className="w-12 h-12 rounded-full bg-neutral-100"></div>
-                        <div className="w-12 h-12 rounded-full bg-neutral-100"></div>
-                      </div>
-                    )}
-                    <div className="mt-auto flex justify-between text-[9px] text-neutral-300">
-                       <span>主本色</span><span>辅助色</span><span>点缀色</span>
+                    
+                    <div className="flex-1 flex justify-between items-end px-4 pb-2">
+                       {/* Main Color */}
+                       <div className="flex flex-col items-center gap-3 w-1/3">
+                          <div 
+                            className={`w-12 h-12 rounded-full shadow-sm border border-neutral-100 transition-opacity duration-500 ${report ? 'opacity-100' : 'opacity-30'}`}
+                            style={{backgroundColor: report ? '#E5E7EB' : '#F3F4F6'}}
+                          ></div>
+                          <span className="text-[9px] text-neutral-400 font-bold">主本色</span>
+                       </div>
+
+                       {/* Aux Color */}
+                       <div className="flex flex-col items-center gap-3 w-1/3">
+                          <div 
+                            className={`w-12 h-12 rounded-full shadow-sm border border-neutral-100 transition-opacity duration-500 ${report ? 'opacity-100' : 'opacity-30'}`}
+                            style={{backgroundColor: report ? '#F3F4F6' : '#F3F4F6'}}
+                          ></div>
+                          <span className="text-[9px] text-neutral-400 font-bold">辅助色</span>
+                       </div>
+
+                       {/* Accent Color */}
+                       <div className="flex flex-col items-center gap-3 w-1/3">
+                          <div 
+                            className={`w-12 h-12 rounded-full shadow-sm border border-neutral-100 transition-opacity duration-500 ${report ? 'opacity-100' : 'opacity-30'}`}
+                            style={{backgroundColor: report ? '#D1D5DB' : '#F3F4F6'}}
+                          ></div>
+                          <span className="text-[9px] text-neutral-400 font-bold">点缀色</span>
+                       </div>
                     </div>
                  </div>
 
