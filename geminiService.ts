@@ -120,7 +120,21 @@ export const extractProductInfo = async (imagesB64: string[], textDescription: s
     // Replace ", }" with "}" and ", ]" with "]"
     text = text.replace(/,(\s*[}\]])/g, '$1');
 
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+
+    // Ensure strictly valid structure with defaults to prevent crashes
+    return {
+      brandName: parsed.brandName || '',
+      productType: parsed.productType || '',
+      productSpecs: parsed.productSpecs || '',
+      coreSellingPoints: Array.isArray(parsed.coreSellingPoints) ? parsed.coreSellingPoints : [],
+      mainColors: parsed.mainColors || '',
+      auxColors: parsed.auxColors || '',
+      designStyle: parsed.designStyle || '',
+      targetAudience: parsed.targetAudience || '',
+      brandTone: parsed.brandTone || '',
+      packagingHighlights: parsed.packagingHighlights || ''
+    };
   } catch (e) {
     console.error("JSON Parse failed:", e);
     console.error("Problematic text:", text);
@@ -139,12 +153,17 @@ export const generatePosterSystem = async (
   const apiKey = getEffectiveKey(userApiKey, isAdmin);
   const ai = new GoogleGenAI({ apiKey });
   
+  // Safety check for array joining
+  const sellingPointsStr = Array.isArray(report.coreSellingPoints) 
+    ? report.coreSellingPoints.join(', ') 
+    : String(report.coreSellingPoints || '');
+
   const prompt = `基于以下产品报告生成一套电商全系统海报（共11个模块，含LOGO提示词）。
   
   【产品信息】
   品牌：${report.brandName}
   类型：${report.productType}
-  核心卖点：${report.coreSellingPoints.join(', ')}
+  核心卖点：${sellingPointsStr}
   主视觉：${report.mainColors}
   调性：${report.brandTone}
   
