@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { extractProductInfo, generatePosterSystem, generateImageContent } from './geminiService';
-import { VisualStyle, TypographyStyle, RecognitionReport, SavedProject, ModelConfig, SyncStatus, UserProfile } from './types';
+import { VisualStyle, TypographyStyle, RecognitionReport, SavedProject, ModelConfig, SyncStatus, UserProfile, ViewType } from './types';
 import { Sidebar } from './Sidebar';
 import { MainContent } from './MainContent';
-import { Navigation, ViewType } from './Navigation';
+import { Navigation } from './Navigation';
 import { ProjectList } from './pages/ProjectList';
+import { UserManagement } from './pages/UserManagement';
 import { KeyConfig } from './pages/KeyConfig';
 import { ModelSettings } from './pages/ModelSettings';
 import { ApiKeyModal } from './ApiKeyModal';
@@ -34,6 +35,9 @@ export const App: React.FC = () => {
     }
     return false;
   });
+
+  // Store admin password in memory for API calls (User Management)
+  const [adminPassword, setAdminPassword] = useState<string | undefined>(undefined);
 
   // --- Google Auth User State ---
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -113,6 +117,9 @@ export const App: React.FC = () => {
     setIsProjectsLoading(false);
   };
 
+  // --- Effects ---
+
+  // 1. Init Auth & Key (Run once)
   useEffect(() => {
     // 恢复 API Key
     const storedKey = localStorage.getItem('USER_GEMINI_API_KEY');
@@ -120,11 +127,6 @@ export const App: React.FC = () => {
       setUserApiKey(storedKey);
     }
     
-    // 初始加载时，如果已登录则获取项目
-    if (isAdminLoggedIn || currentUser) {
-        fetchProjects();
-    }
-
     // Check Google Auth Status
     const checkAuth = async () => {
        try {
@@ -146,7 +148,15 @@ export const App: React.FC = () => {
         setHasApiKey(has);
       });
     }
-  }, [isAdminLoggedIn]);
+  }, []);
+
+  // 2. Fetch Projects when Auth changes
+  useEffect(() => {
+    if (isAdminLoggedIn || currentUser) {
+        fetchProjects();
+    }
+  }, [isAdminLoggedIn, currentUser]);
+
 
   const handleSelectKey = async () => {
     if (window.aistudio) {
@@ -173,16 +183,21 @@ export const App: React.FC = () => {
     alert("已清除自定义 Key。");
   };
 
-  const handleAdminLogin = () => {
+  const handleAdminLogin = (password?: string) => {
     setIsAdminLoggedIn(true);
     localStorage.setItem(ADMIN_SESSION_KEY, Date.now().toString());
+    if(password) {
+        setAdminPassword(password);
+    }
   };
 
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
     localStorage.removeItem(ADMIN_SESSION_KEY);
+    setAdminPassword(undefined);
     // Logout clears the projects list from memory
     setProjects([]);
+    if (currentView === 'users') setCurrentView('core');
   };
 
   const handleGoogleLogout = async () => {
@@ -205,8 +220,8 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleLoginSuccess = () => {
-    handleAdminLogin();
+  const handleLoginSuccess = (pass: string) => {
+    handleAdminLogin(pass);
   };
 
   // --- 核心业务状态 (使用 lazy init 从缓存读取) ---
@@ -689,7 +704,7 @@ export const App: React.FC = () => {
           prompt, 
           actualRatio, 
           userApiKey, 
-          isAdminLoggedIn,
+          isAdminLoggedIn, 
           modelConfig.visualModel
       );
       if (res) {
@@ -769,9 +784,12 @@ export const App: React.FC = () => {
                 if (isAdminLoggedIn || currentUser) {
                    fetchProjects();
                 } else {
-                   // 如果未登录，允许进入页面，但清空项目列表
                    setProjects([]);
                 }
+            }
+            if (view === 'users' && !isAdminLoggedIn) {
+                // Prevent navigation to users if not admin (though nav item is hidden)
+                return;
             }
             setCurrentView(view);
         }} 
@@ -837,7 +855,13 @@ export const App: React.FC = () => {
              projects={projects} 
              onLoad={loadProject} 
              onDelete={deleteProject} 
-             isAdminLoggedIn={isAdminLoggedIn || !!currentUser}
+             isAuthenticated={isAdminLoggedIn || !!currentUser}
+          />
+      )}
+
+      {currentView === 'users' && (
+          <UserManagement 
+             adminPassword={adminPassword}
           />
       )}
 
@@ -847,7 +871,7 @@ export const App: React.FC = () => {
              onSave={handleSaveKey} 
              onClear={handleClearKey}
              isAdminLoggedIn={isAdminLoggedIn}
-             onAdminLogin={handleAdminLogin}
+             onAdminLogin={(pass) => handleAdminLogin(pass)} // Update this to accept pass in KeyConfig if used there, but mostly handled by global modal
              onAdminLogout={handleAdminLogout}
           />
       )}

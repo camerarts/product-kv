@@ -1,7 +1,5 @@
 import React from 'react';
-import { UserProfile } from './types';
-
-export type ViewType = 'core' | 'projects' | 'key' | 'models';
+import { UserProfile, ViewType } from './types';
 
 interface NavigationProps {
   currentView: ViewType;
@@ -21,7 +19,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onUserClick, onSaveProject, onNewProject,
   onGoogleLogin, onGoogleLogout
 }) => {
-  const menuItems: { id: ViewType; label: string; line1: string; line2: string; icon: React.ReactNode }[] = [
+  const menuItems: { id: ViewType; label: string; line1: string; line2: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
     {
       id: 'core',
       label: '核心配置',
@@ -35,6 +33,14 @@ export const Navigation: React.FC<NavigationProps> = ({
       line1: '项目',
       line2: '列表',
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+    },
+    {
+      id: 'users',
+      label: '用户管理',
+      line1: '用户',
+      line2: '管理',
+      adminOnly: true,
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
     },
     {
       id: 'key',
@@ -80,6 +86,8 @@ export const Navigation: React.FC<NavigationProps> = ({
       {/* Menu Items */}
       <div className="flex-1 flex flex-col gap-5 w-full px-2">
         {menuItems.map((item) => {
+          if (item.adminOnly && !isAdminLoggedIn) return null;
+
           const isActive = currentView === item.id;
           
           return (
@@ -156,7 +164,7 @@ export const Navigation: React.FC<NavigationProps> = ({
            </button>
         )}
 
-        {/* Super Admin Toggle (Only visible if not logged in via Google, or kept for backend admin) */}
+        {/* Super Admin Toggle */}
         <button 
           onClick={onUserClick}
           className={`

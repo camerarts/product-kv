@@ -88,6 +88,8 @@ export interface UserProfile {
   lastLoginAt: number;
 }
 
+export type ViewType = 'core' | 'projects' | 'users' | 'key' | 'models';
+
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;

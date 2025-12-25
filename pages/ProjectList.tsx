@@ -5,10 +5,10 @@ interface ProjectListProps {
   projects: any[]; // Changed to any to accept metadata object
   onLoad: (project: SavedProject) => void;
   onDelete: (id: string) => void;
-  isAdminLoggedIn: boolean;
+  isAuthenticated: boolean;
 }
 
-export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDelete, isAdminLoggedIn }) => {
+export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDelete, isAuthenticated }) => {
   return (
     <div className="flex-1 bg-neutral-50 flex flex-col h-full overflow-hidden">
       {/* Fixed Header Section */}
@@ -36,14 +36,14 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDe
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
-                     {!isAdminLoggedIn ? (
+                     {!isAuthenticated ? (
                         /* Not Logged In State - Empty Blank Content with Helper Text */
                         <tr>
                             <td colSpan={5} className="px-6 py-32 text-center">
                                 <div className="flex flex-col items-center justify-center text-neutral-400">
                                     <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mb-4 text-3xl">🔒</div>
                                     <h3 className="text-sm font-bold text-neutral-600 mb-1">未授权访问</h3>
-                                    <p className="text-xs">请先登录管理员账号以查看或管理项目列表</p>
+                                    <p className="text-xs">请先登录账号以查看或管理项目列表</p>
                                 </div>
                             </td>
                         </tr>

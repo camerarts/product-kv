@@ -1,0 +1,155 @@
+import React, { useEffect, useState } from 'react';
+import { UserProfile } from '../types';
+
+interface UserManagementProps {
+  adminPassword?: string; // Passed from App state for API authorization
+}
+
+export const UserManagement: React.FC<UserManagementProps> = ({ adminPassword }) => {
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const fetchUsers = async () => {
+    if (!adminPassword) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/users', {
+        headers: {
+          'X-Admin-Pass': adminPassword
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data);
+      } else {
+        setError('无法加载用户列表，请检查管理员权限');
+      }
+    } catch (e) {
+      setError('网络请求失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [adminPassword]);
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!window.confirm(`警告：确定要删除用户 "${userName}" 吗？\n此操作不可恢复，用户数据和项目可能丢失。`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-Admin-Pass': adminPassword || ''
+        }
+      });
+      
+      if (res.ok) {
+        alert('用户已删除');
+        setUsers(prev => prev.filter(u => u.id !== userId));
+      } else {
+        alert('删除失败');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('删除操作出错');
+    }
+  };
+
+  if (!adminPassword) {
+    return (
+       <div className="flex-1 flex flex-col items-center justify-center bg-neutral-50 text-neutral-400 p-8">
+         <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4 text-3xl text-red-500">🚫</div>
+         <h3 className="text-lg font-bold text-neutral-600 mb-1">会话失效</h3>
+         <p className="text-xs">请重新登录管理员账号以获取访问凭证。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 bg-neutral-50 flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="px-8 pt-8 pb-6 shrink-0 flex justify-between items-end">
+        <div className="max-w-5xl mx-auto w-full">
+           <h1 className="text-2xl font-black text-neutral-900 flex items-center gap-2">
+              <span className="text-purple-600">👥</span> 用户管理
+           </h1>
+           <p className="text-xs text-neutral-500 mt-1 ml-9">管理已注册的 Google 账号用户</p>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 px-8 pb-8 overflow-hidden">
+         <div className="max-w-5xl mx-auto w-full h-full">
+            <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 h-full flex flex-col overflow-hidden">
+               {loading ? (
+                   <div className="flex-1 flex items-center justify-center text-neutral-400 gap-2">
+                       <div className="w-4 h-4 border-2 border-neutral-300 border-t-purple-600 rounded-full animate-spin"></div>
+                       <span className="text-xs font-bold">加载用户数据...</span>
+                   </div>
+               ) : error ? (
+                   <div className="flex-1 flex flex-col items-center justify-center text-neutral-400">
+                       <p className="text-sm font-bold text-red-500">{error}</p>
+                       <button onClick={fetchUsers} className="mt-4 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg text-xs font-bold transition-colors">重试</button>
+                   </div>
+               ) : users.length === 0 ? (
+                   <div className="flex-1 flex flex-col items-center justify-center text-neutral-400">
+                       <div className="text-3xl mb-2">🤷‍♂️</div>
+                       <p className="text-sm font-bold">暂无用户</p>
+                   </div>
+               ) : (
+                   <div className="flex-1 overflow-y-auto custom-scrollbar">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-neutral-50 border-b border-neutral-200 sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                            <tr>
+                                <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50">用户</th>
+                                <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50">邮箱</th>
+                                <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50">注册时间</th>
+                                <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50">最近登录</th>
+                                <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100">
+                            {users.map(user => (
+                                <tr key={user.id} className="hover:bg-purple-50/30 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <img src={user.picture} alt="" className="w-8 h-8 rounded-full border border-neutral-200" />
+                                            <span className="text-sm font-bold text-neutral-900">{user.name}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="text-xs font-mono text-neutral-600 bg-neutral-100 px-2 py-1 rounded">{user.email}</span>
+                                    </td>
+                                    <td className="px-6 py-4 text-xs text-neutral-500 font-mono">
+                                        {new Date(user.firstLoginAt).toLocaleString()}
+                                    </td>
+                                    <td className="px-6 py-4 text-xs text-neutral-500 font-mono">
+                                        {new Date(user.lastLoginAt).toLocaleString()}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <button 
+                                            onClick={() => handleDeleteUser(user.id, user.name)}
+                                            className="text-xs font-bold text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors"
+                                        >
+                                            删除账号
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                   </div>
+               )}
+            </div>
+         </div>
+      </div>
+    </div>
+  );
+};

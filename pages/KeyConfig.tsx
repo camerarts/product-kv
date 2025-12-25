@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 
 interface KeyConfigProps {
@@ -6,7 +5,7 @@ interface KeyConfigProps {
   onSave: (key: string) => void;
   onClear: () => void;
   isAdminLoggedIn: boolean;
-  onAdminLogin: () => void;
+  onAdminLogin: (password: string) => void;
   onAdminLogout: () => void;
 }
 
@@ -36,7 +35,7 @@ export const KeyConfig: React.FC<KeyConfigProps> = ({
         });
 
         if (res.ok) {
-           onAdminLogin();
+           onAdminLogin(password);
            setShowLogin(false);
            setUsername('');
            setPassword('');
