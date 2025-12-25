@@ -107,6 +107,7 @@ export const MainContent: React.FC<MainContentProps> = ({
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
            {/* Report Card */}
            <div className="mb-8 animate-fade-in">
+              <h3 className="text-sm font-black text-neutral-800 tracking-wide uppercase mb-4 px-2">参考图解析</h3>
               {/* Cards Container */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                  
@@ -263,7 +264,7 @@ export const MainContent: React.FC<MainContentProps> = ({
              <div className="animate-fade-in-up mb-20">
                {/* Section Title & Actions */}
                <div className="flex items-center justify-between mb-4 px-2">
-                   <h3 className="text-sm font-black text-neutral-800 tracking-wide uppercase">视觉方案详情</h3>
+                   <h3 className="text-sm font-black text-neutral-800 tracking-wide uppercase">产品详情页图片</h3>
                    
                    <div className="flex items-center gap-3">
                       {/* One Click Generate All Button */}
