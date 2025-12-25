@@ -81,7 +81,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
                         onChange={e => { setUsername(e.target.value); setError(false); }}
                         onKeyDown={e => e.key === 'Enter' && handleLogin()}
                         className="w-full pl-10 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm font-bold focus:border-black focus:bg-white outline-none transition-colors"
-                        placeholder="管理员账号" 
+                        placeholder="账号" 
                       />
                   </div>
 
@@ -96,7 +96,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
                         onChange={e => { setPassword(e.target.value); setError(false); }}
                         onKeyDown={e => e.key === 'Enter' && handleLogin()}
                         className={`w-full pl-10 pr-4 py-3 bg-neutral-50 border ${error ? 'border-red-500 bg-red-50' : 'border-neutral-200'} rounded-xl text-sm font-bold focus:border-black focus:bg-white outline-none tracking-widest transition-colors`}
-                        placeholder="管理员密码" 
+                        placeholder="密码" 
                       />
                   </div>
              </div>
@@ -111,7 +111,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
                       <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                       验证中...
                     </>
-                ) : '管理员登录'}
+                ) : '登录'}
               </button>
 
              {/* Divider */}
