@@ -1,23 +1,38 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { extractProductInfo, generatePosterSystem, generateImageContent } from './geminiService';
-import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
+import { VisualStyle, TypographyStyle, RecognitionReport, SavedProject, ModelConfig } from './types';
 import { Sidebar } from './Sidebar';
 import { MainContent } from './MainContent';
+import { Navigation, ViewType } from './Navigation';
+import { ProjectList } from './pages/ProjectList';
+import { KeyConfig } from './pages/KeyConfig';
+import { ModelSettings } from './pages/ModelSettings';
 import { ApiKeyModal } from './ApiKeyModal';
-import { ConfigModal } from './ConfigModal';
 import { LoginModal } from './LoginModal';
 
 const CACHE_KEY = 'VISION_APP_CACHE_V1';
+const PROJECTS_KEY = 'VISION_APP_PROJECTS_V1';
 
 export const App: React.FC = () => {
+  // --- View State ---
+  const [currentView, setCurrentView] = useState<ViewType>('core');
+
   // --- 全局 UI 状态 (不缓存) ---
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // --- API Key 状态 (单独存储) ---
   const [userApiKey, setUserApiKey] = useState<string>('');
   const [hasApiKey, setHasApiKey] = useState(true);
+
+  // --- Model Configuration State ---
+  const [modelConfig, setModelConfig] = useState<ModelConfig>({
+    logicModel: 'gemini-3-flash-preview',
+    visualModel: 'gemini-3-pro-image-preview'
+  });
+
+  // --- Projects State ---
+  const [projects, setProjects] = useState<SavedProject[]>([]);
 
   // --- 辅助函数：从缓存读取初始值 ---
   const getCachedState = <T,>(key: string, defaultValue: T): T => {
@@ -40,6 +55,16 @@ export const App: React.FC = () => {
       setUserApiKey(storedKey);
     }
     
+    // 恢复 Projects
+    const storedProjects = localStorage.getItem(PROJECTS_KEY);
+    if (storedProjects) {
+        try {
+            setProjects(JSON.parse(storedProjects));
+        } catch (e) {
+            console.error("Failed to parse projects", e);
+        }
+    }
+
     if (window.aistudio) {
       window.aistudio.hasSelectedApiKey().then((has) => {
         setHasApiKey(has);
@@ -56,10 +81,14 @@ export const App: React.FC = () => {
   };
 
   const handleSaveKey = (key: string) => {
-    if (!key.trim()) return;
+    // Empty key means clear
+    if (!key.trim()) {
+       handleClearKey();
+       return;
+    }
     setUserApiKey(key.trim());
     localStorage.setItem('USER_GEMINI_API_KEY', key.trim());
-    alert("API Key 已保存，将优先使用您的 Key。");
+    alert("API Key 已保存。");
   };
 
   const handleClearKey = () => {
@@ -70,11 +99,26 @@ export const App: React.FC = () => {
 
   const handleAdminLogin = () => {
     setIsAdminLoggedIn(true);
+    alert("管理员登录成功！");
   };
 
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
     alert("已退出管理员登录。");
+  };
+
+  const handleUserIconClick = () => {
+    if (isAdminLoggedIn) {
+      if(window.confirm("确定要退出管理员权限吗？")) {
+        handleAdminLogout();
+      }
+    } else {
+      setIsLoginModalOpen(true);
+    }
+  };
+
+  const handleLoginSuccess = () => {
+    handleAdminLogin();
   };
 
   // --- 核心业务状态 (使用 lazy init 从缓存读取) ---
@@ -114,7 +158,7 @@ export const App: React.FC = () => {
     generatingModulesRef.current = generatingModules;
   }, [generatingModules]);
 
-  // --- 数据持久化副作用 ---
+  // --- 数据持久化副作用 (Current State) ---
   useEffect(() => {
     const stateToCache = {
       images,
@@ -141,6 +185,66 @@ export const App: React.FC = () => {
     needsModel, modelDesc, needsScene, sceneDesc,
     needsDataVis, otherNeeds, aspectRatio, generatedImages
   ]);
+
+  // --- 项目管理功能 ---
+  const saveCurrentProject = () => {
+    const name = prompt("请输入项目名称：", manualBrand || report?.brandName || "未命名项目");
+    if (!name) return;
+
+    const newProject: SavedProject = {
+      id: Date.now().toString(),
+      name,
+      timestamp: Date.now(),
+      data: {
+        images, imageRatios, description, manualBrand, report,
+        selectedStyle, selectedTypography, finalPrompts,
+        needsModel, modelDesc, needsScene, sceneDesc,
+        needsDataVis, otherNeeds, aspectRatio, generatedImages
+      }
+    };
+
+    const updatedProjects = [newProject, ...projects];
+    setProjects(updatedProjects);
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(updatedProjects));
+    alert("项目保存成功！您可以到“项目列表”查看。");
+  };
+
+  const loadProject = (project: SavedProject) => {
+    if (images.length > 0 && !window.confirm("当前有正在编辑的内容，加载项目将覆盖当前内容，是否继续？")) {
+        return;
+    }
+
+    const d = project.data;
+    setImages(d.images);
+    setImageRatios(d.imageRatios);
+    setDescription(d.description);
+    setManualBrand(d.manualBrand);
+    setReport(d.report);
+    setSelectedStyle(d.selectedStyle);
+    setSelectedTypography(d.selectedTypography);
+    setFinalPrompts(d.finalPrompts);
+    setNeedsModel(d.needsModel);
+    setModelDesc(d.modelDesc);
+    setNeedsScene(d.needsScene);
+    setSceneDesc(d.sceneDesc);
+    setNeedsDataVis(d.needsDataVis);
+    setOtherNeeds(d.otherNeeds);
+    setAspectRatio(d.aspectRatio);
+    setGeneratedImages(d.generatedImages);
+    
+    // Reset transient states
+    setGeneratingModules({});
+    setGenerationLoading(false);
+    
+    // Switch view
+    setCurrentView('core');
+  };
+
+  const deleteProject = (id: string) => {
+    const updated = projects.filter(p => p.id !== id);
+    setProjects(updated);
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
+  };
 
   // --- 重制（清空）功能 ---
   const handleReset = useCallback(() => {
@@ -210,7 +314,13 @@ export const App: React.FC = () => {
     setGenerationLoading(true);
     try {
       // 步骤 1: 执行产品解析
-      const extractionRes = await extractProductInfo(images, description, userApiKey, isAdminLoggedIn);
+      const extractionRes = await extractProductInfo(
+          images, 
+          description, 
+          userApiKey, 
+          isAdminLoggedIn, 
+          modelConfig.logicModel
+      );
       setReport(extractionRes);
       
       let effectiveBrand = manualBrand;
@@ -242,7 +352,8 @@ export const App: React.FC = () => {
         selectedTypography,
         combinedNeeds,
         userApiKey,
-        isAdminLoggedIn
+        isAdminLoggedIn,
+        modelConfig.logicModel
       );
       setFinalPrompts(promptRes);
 
@@ -272,7 +383,14 @@ export const App: React.FC = () => {
     setGeneratingModules(prev => ({ ...prev, [index]: true }));
     try {
       const actualRatio = isLogo ? "1:1" : aspectRatio;
-      const res = await generateImageContent(images, prompt, actualRatio, userApiKey, isAdminLoggedIn);
+      const res = await generateImageContent(
+          images, 
+          prompt, 
+          actualRatio, 
+          userApiKey, 
+          isAdminLoggedIn,
+          modelConfig.visualModel
+      );
       if (res) {
         setGeneratedImages(prev => ({ ...prev, [index]: `data:image/jpeg;base64,${res}` }));
       }
@@ -327,106 +445,89 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-neutral-900 relative">
-      <Sidebar
-        images={images} setImages={setImages}
-        setImageRatios={setImageRatios}
-        description={description} setDescription={setDescription}
-        manualBrand={manualBrand} setManualBrand={setManualBrand}
-        selectedStyle={selectedStyle} setSelectedStyle={setSelectedStyle}
-        selectedTypography={selectedTypography} setSelectedTypography={setSelectedTypography}
-        needsModel={needsModel} setNeedsModel={setNeedsModel}
-        modelDesc={modelDesc} setModelDesc={setModelDesc}
-        needsScene={needsScene} setNeedsScene={setNeedsScene}
-        sceneDesc={sceneDesc} setSceneDesc={setSceneDesc}
-        needsDataVis={needsDataVis} setNeedsDataVis={setNeedsDataVis}
-        otherNeeds={otherNeeds} setOtherNeeds={setOtherNeeds}
-        aspectRatio={aspectRatio} setAspectRatio={setAspectRatio}
-        generationLoading={generationLoading} startGeneration={startGeneration}
-        report={report}
-        ratioIcons={ratioIcons}
-        visualStyleDescriptions={visualStyleDescriptions}
-        typographyDescriptions={typographyDescriptions}
-        onReset={handleReset}
-      />
-      
-      <MainContent
-        checkAuth={checkAuth}
-        hasApiKey={hasApiKey}
-        manualBrand={manualBrand}
-        report={report}
-        selectedStyle={selectedStyle}
-        selectedTypography={selectedTypography}
-        finalPrompts={finalPrompts}
-        generatedImages={generatedImages}
-        generatingModules={generatingModules}
-        previewImageUrl={previewImageUrl}
-        setPreviewImageUrl={setPreviewImageUrl}
-        generateSingleImage={generateSingleImage}
-        generateAllImages={handleGenerateAll}
-        promptModules={promptModules}
-        aspectRatio={aspectRatio}
+      <Navigation 
+        currentView={currentView} 
+        onChange={setCurrentView} 
+        isAdminLoggedIn={isAdminLoggedIn}
+        onUserClick={handleUserIconClick}
       />
 
-      {/* Top Right Buttons */}
-      <div className="absolute top-4 right-8 z-50 flex items-center gap-3">
-        
-        {/* Model Info Display */}
-        <div className="hidden xl:flex flex-row items-center gap-2 mr-2 pointer-events-none select-none">
-           {/* Logic Model */}
-           <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur border border-neutral-200 shadow-sm rounded-full px-3 py-1">
-              <span className="text-[10px] font-bold text-neutral-400">逻辑/文本</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-              <span className="text-[10px] font-semibold text-neutral-600 tracking-tight font-mono">gemini-3-flash-preview</span>
-           </div>
-           
-           {/* Visual Model */}
-           <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur border border-neutral-200 shadow-sm rounded-full px-3 py-1">
-              <span className="text-[10px] font-bold text-neutral-400">视觉/图像</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-              <span className="text-[10px] font-semibold text-neutral-600 tracking-tight font-mono">gemini-3-pro-image-preview</span>
-           </div>
-        </div>
+      {/* Main Area based on View */}
+      {currentView === 'core' && (
+        <>
+            <Sidebar
+                images={images} setImages={setImages}
+                setImageRatios={setImageRatios}
+                description={description} setDescription={setDescription}
+                manualBrand={manualBrand} setManualBrand={setManualBrand}
+                selectedStyle={selectedStyle} setSelectedStyle={setSelectedStyle}
+                selectedTypography={selectedTypography} setSelectedTypography={setSelectedTypography}
+                needsModel={needsModel} setNeedsModel={setNeedsModel}
+                modelDesc={modelDesc} setModelDesc={setModelDesc}
+                needsScene={needsScene} setNeedsScene={setNeedsScene}
+                sceneDesc={sceneDesc} setSceneDesc={setSceneDesc}
+                needsDataVis={needsDataVis} setNeedsDataVis={setNeedsDataVis}
+                otherNeeds={otherNeeds} setOtherNeeds={setOtherNeeds}
+                aspectRatio={aspectRatio} setAspectRatio={setAspectRatio}
+                generationLoading={generationLoading} startGeneration={startGeneration}
+                report={report}
+                ratioIcons={ratioIcons}
+                visualStyleDescriptions={visualStyleDescriptions}
+                typographyDescriptions={typographyDescriptions}
+                onReset={handleReset}
+                onSaveProject={saveCurrentProject}
+            />
+            
+            <MainContent
+                checkAuth={checkAuth}
+                hasApiKey={hasApiKey}
+                manualBrand={manualBrand}
+                report={report}
+                selectedStyle={selectedStyle}
+                selectedTypography={selectedTypography}
+                finalPrompts={finalPrompts}
+                generatedImages={generatedImages}
+                generatingModules={generatingModules}
+                previewImageUrl={previewImageUrl}
+                setPreviewImageUrl={setPreviewImageUrl}
+                generateSingleImage={generateSingleImage}
+                generateAllImages={handleGenerateAll}
+                promptModules={promptModules}
+                aspectRatio={aspectRatio}
+            />
+        </>
+      )}
 
-        {/* API Key Config Button */}
-        <button 
-           onClick={() => setIsConfigOpen(true)}
-           className={`px-4 py-2 border rounded-lg text-xs font-bold shadow-sm transition-all ${
-             userApiKey 
-               ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' 
-               : 'bg-white/80 backdrop-blur border-neutral-200 text-neutral-600 hover:bg-white'
-           }`}
-        >
-           {userApiKey ? '🔑 已配置个人 Key' : '⚙️ 配置 Key'}
-        </button>
+      {currentView === 'projects' && (
+          <ProjectList 
+             projects={projects} 
+             onLoad={loadProject} 
+             onDelete={deleteProject} 
+          />
+      )}
 
-        {/* Login / Logout Button */}
-        <button
-          onClick={isAdminLoggedIn ? handleAdminLogout : () => setIsLoginOpen(true)}
-          className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
-            isAdminLoggedIn
-              ? 'bg-neutral-100 text-neutral-600 hover:bg-red-50 hover:text-red-600'
-              : 'bg-neutral-900 text-white hover:bg-neutral-800'
-          }`}
-        >
-          {isAdminLoggedIn ? '退出管理员' : '管理员登录'}
-        </button>
-      </div>
+      {currentView === 'key' && (
+          <KeyConfig 
+             userApiKey={userApiKey} 
+             onSave={handleSaveKey} 
+             onClear={handleClearKey} 
+          />
+      )}
 
-      <ConfigModal
-        isOpen={isConfigOpen}
-        onClose={() => setIsConfigOpen(false)}
-        onSave={handleSaveKey}
-        onClear={handleClearKey}
-        currentKey={userApiKey}
-      />
-      
-      <LoginModal
-        isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-        onLoginSuccess={handleAdminLogin}
-      />
+      {currentView === 'models' && (
+          <ModelSettings 
+             config={modelConfig} 
+             onSave={setModelConfig} 
+          />
+      )}
 
+      {/* Global Modals */}
       <ApiKeyModal hasApiKey={hasApiKey} onSelectKey={handleSelectKey} />
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+        onLoginSuccess={handleLoginSuccess} 
+      />
 
       {previewImageUrl && (
         <div 

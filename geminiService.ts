@@ -21,11 +21,7 @@ const getEffectiveKey = (userApiKey?: string, isAdmin: boolean = false) => {
   }
   
   // 2. 其次是管理员模式下的环境变量 Key
-  // 注意：在实际构建中 process.env.API_KEY 会被注入
   if (isAdmin || process.env.API_KEY) { 
-     // 即使不是 Admin，如果有环境变量也可以尝试使用（取决于具体业务限制）
-     // 但根据需求"系统权限已激活"通常指 Admin 登录。
-     // 这里为了保证可用性，只要有 process.env.API_KEY 就允许 fallback
      if (process.env.API_KEY) return process.env.API_KEY;
   }
   
@@ -36,7 +32,8 @@ export const extractProductInfo = async (
   imagesB64: string[], 
   textDescription: string, 
   userApiKey?: string, 
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
+  modelName: string = 'gemini-3-flash-preview'
 ): Promise<RecognitionReport> => {
   const apiKey = getEffectiveKey(userApiKey, isAdmin);
   const ai = new GoogleGenAI({ apiKey });
@@ -79,9 +76,8 @@ export const extractProductInfo = async (
   }
   用户提供的描述：${textDescription || '无'}` });
 
-  // Use gemini-3-flash-preview for analysis (Text task)
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: modelName,
     contents: { parts },
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
@@ -117,6 +113,7 @@ export const extractProductInfo = async (
   
   if (!text) {
     console.warn("AI returned empty text. Full response:", response);
+    // Return dummy data if extraction fails
     return {
        brandName: "识别失败",
        productType: "未知品类",
@@ -175,7 +172,8 @@ export const generatePosterSystem = async (
   typography: TypographyStyle,
   specialNeeds: string,
   userApiKey?: string, 
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
+  modelName: string = 'gemini-3-flash-preview'
 ): Promise<string> => {
   const apiKey = getEffectiveKey(userApiKey, isAdmin);
   const ai = new GoogleGenAI({ apiKey });
@@ -215,9 +213,8 @@ export const generatePosterSystem = async (
     ### 海报10 - 使用流程图
   - 提示词必须强调：严格还原包装形态、品牌颜色和标识位置。`;
 
-  // Use gemini-3-flash-preview for text generation (Visual Scheme Prompts)
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: modelName,
     contents: prompt,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
@@ -239,14 +236,14 @@ export const generateImageContent = async (
   prompt: string,
   aspectRatio: string,
   userApiKey?: string, 
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
+  modelName: string = 'gemini-3-pro-image-preview'
 ): Promise<string | undefined> => {
   const apiKey = getEffectiveKey(userApiKey, isAdmin);
   const ai = new GoogleGenAI({ apiKey });
 
-  // Use gemini-3-pro-image-preview for image generation
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-image-preview',
+    model: modelName,
     contents: { 
       parts: [
         ...imagesB64.map(img => ({ inlineData: { data: img, mimeType: 'image/jpeg' } })), 
@@ -264,7 +261,6 @@ export const generateImageContent = async (
     }
   });
   
-  // Find the image part in the response
   const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
   return imagePart?.inlineData?.data;
 };

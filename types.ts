@@ -46,6 +46,35 @@ export interface PosterSystem {
   }[];
 }
 
+export interface ModelConfig {
+  logicModel: string;
+  visualModel: string;
+}
+
+export interface SavedProject {
+  id: string;
+  name: string;
+  timestamp: number;
+  data: {
+    images: string[];
+    imageRatios: number[];
+    description: string;
+    manualBrand: string;
+    report: RecognitionReport | null;
+    selectedStyle: VisualStyle;
+    selectedTypography: TypographyStyle;
+    finalPrompts: string;
+    needsModel: boolean;
+    modelDesc: string;
+    needsScene: boolean;
+    sceneDesc: string;
+    needsDataVis: boolean;
+    otherNeeds: string;
+    aspectRatio: string;
+    generatedImages: Record<number, string>;
+  }
+}
+
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;

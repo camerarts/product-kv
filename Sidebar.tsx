@@ -37,6 +37,7 @@ interface SidebarProps {
   visualStyleDescriptions: Record<VisualStyle, string>;
   typographyDescriptions: Record<TypographyStyle, string>;
   onReset: () => void;
+  onSaveProject: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -57,7 +58,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   generationLoading, startGeneration,
   report, ratioIcons,
   visualStyleDescriptions, typographyDescriptions,
-  onReset
+  onReset,
+  onSaveProject
 }) => {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -100,14 +102,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-6 pt-6 pb-2">
           <div className="flex justify-between items-center mb-1">
               <h1 className="text-xl font-black text-blue-600 tracking-tight">电商详情图视觉全案系统</h1>
-              <button 
-                onClick={onReset}
-                className="text-[10px] font-bold text-neutral-400 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
-                title="清空所有数据"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                重制
-              </button>
+              
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={onSaveProject}
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                  title="保存为项目"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                  保存
+                </button>
+                <button 
+                  onClick={onReset}
+                  className="text-[10px] font-bold text-neutral-400 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                  title="清空所有数据"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  重制
+                </button>
+              </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1 h-3 bg-purple-500 rounded-full"></div>
