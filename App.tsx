@@ -746,7 +746,10 @@ export const App: React.FC = () => {
           <KeyConfig 
              userApiKey={userApiKey} 
              onSave={handleSaveKey} 
-             onClear={handleClearKey} 
+             onClear={handleClearKey}
+             isAdminLoggedIn={isAdminLoggedIn}
+             onAdminLogin={handleAdminLogin}
+             onAdminLogout={handleAdminLogout}
           />
       )}
 
