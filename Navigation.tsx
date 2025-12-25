@@ -8,9 +8,10 @@ interface NavigationProps {
   isAdminLoggedIn: boolean;
   onUserClick: () => void;
   onSaveProject: () => void;
+  onNewProject: () => void;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, isAdminLoggedIn, onUserClick, onSaveProject }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, isAdminLoggedIn, onUserClick, onSaveProject, onNewProject }) => {
   const menuItems: { id: ViewType; label: string; line1: string; line2: string; icon: React.ReactNode }[] = [
     {
       id: 'core',
@@ -47,12 +48,24 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
       {/* Background Decor Layer for subtle tint */}
       <div className="absolute inset-0 bg-gradient-to-b from-blue-50/20 to-purple-50/20 pointer-events-none -z-10"></div>
 
-      {/* Brand Logo - 2025 Tech Gradient Style */}
-      <div className="mb-10 relative group cursor-default">
+      {/* Brand Logo */}
+      <div className="mb-6 relative group cursor-default">
         <div className="absolute inset-0 bg-blue-500 rounded-2xl blur-lg opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
         <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-[0_10px_20px_-5px_rgba(99,102,241,0.4)] relative z-10 border border-white/20">
           <span className="drop-shadow-sm">V</span>
         </div>
+      </div>
+
+      {/* NEW PROJECT BUTTON */}
+      <div className="mb-6 px-2 w-full">
+         <button 
+           onClick={onNewProject}
+           className="w-full aspect-square rounded-2xl bg-neutral-900 text-white flex items-center justify-center hover:bg-black hover:scale-105 active:scale-95 transition-all shadow-[0_4px_12px_-2px_rgba(0,0,0,0.3)] group relative overflow-hidden"
+           title="新建项目"
+         >
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+         </button>
       </div>
       
       {/* Menu Items */}
@@ -96,36 +109,42 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
         })}
       </div>
       
-      {/* Bottom Actions */}
-      <div className="mt-auto mb-4 flex flex-col gap-4 items-center">
-        {/* Save Button (Admin Only) */}
-        {isAdminLoggedIn && (
-           <button 
+      {/* Bottom Actions - Redesigned */}
+      <div className="mt-auto mb-4 flex flex-col gap-3 items-center w-full px-2">
+        
+        {/* Save Button */}
+        <button 
              onClick={onSaveProject}
-             className="w-10 h-10 rounded-full flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 hover:scale-110 hover:shadow-md transition-all border border-blue-200"
+             className="group flex flex-col items-center justify-center gap-1 p-2 rounded-2xl w-full transition-all duration-300 bg-blue-50/50 hover:bg-blue-100 text-blue-600 hover:shadow-sm border border-transparent hover:border-blue-200"
              title="保存项目"
-           >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-           </button>
-        )}
+        >
+              <div className="transform group-hover:scale-110 transition-transform duration-300">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+              </div>
+              <span className="text-[9px] font-bold">保存</span>
+        </button>
 
         {/* User / Admin Toggle */}
         <button 
           onClick={onUserClick}
           className={`
-            w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-all duration-300 relative overflow-hidden group
+            group flex flex-col items-center justify-center gap-1 p-2 rounded-2xl w-full transition-all duration-300 border
             ${isAdminLoggedIn 
-              ? 'bg-green-50 text-green-600 shadow-[0_4px_15px_-3px_rgba(34,197,94,0.3)] ring-2 ring-green-100' 
-              : 'bg-white text-neutral-400 shadow-[0_4px_15px_-3px_rgba(0,0,0,0.08)] ring-1 ring-neutral-100 hover:text-neutral-600 hover:ring-neutral-200'
+              ? 'bg-emerald-50/50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200' 
+              : 'bg-neutral-50 text-neutral-400 border-neutral-100 hover:bg-neutral-100 hover:text-neutral-600'
             }
           `}
           title={isAdminLoggedIn ? "管理员已登录 (点击退出)" : "管理员登录"}
         >
-           {/* Subtle Shine Effect */}
-           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-           
-           <span className="relative z-10 drop-shadow-sm transform group-hover:scale-110 transition-transform">
-             {isAdminLoggedIn ? '🛡️' : '🔒'}
+           <div className="transform group-hover:scale-110 transition-transform duration-300">
+             {isAdminLoggedIn ? (
+               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+             ) : (
+               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+             )}
+           </div>
+           <span className="text-[9px] font-bold">
+             {isAdminLoggedIn ? '已授权' : '管理员'}
            </span>
         </button>
       </div>

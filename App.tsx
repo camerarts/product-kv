@@ -326,7 +326,7 @@ export const App: React.FC = () => {
   // --- 项目管理功能 (Cloudflare API + LocalStorage) ---
   const saveCurrentProject = async () => {
     if (!isAdminLoggedIn) {
-        alert("请先登录管理员账号以保存项目。");
+        setIsLoginModalOpen(true); // Changed from alert to modal for better UX
         return;
     }
 
@@ -507,6 +507,47 @@ export const App: React.FC = () => {
     setGenerationLoading(false);
 
   }, []);
+
+  const handleNewProject = useCallback(() => {
+    // 1. Check for unsaved work
+    if (images.length > 0) {
+        if (!window.confirm("当前有正在进行的工作，创建新项目将清空当前内容。是否继续？")) {
+            return;
+        }
+    }
+
+    // 2. Prompt for name
+    const name = prompt("请输入新项目/品牌名称：");
+    if (!name) return;
+
+    // 3. Reset and Initialize
+    localStorage.removeItem(CACHE_KEY);
+    setCurrentProjectId(Date.now().toString());
+    setImages([]);
+    setImageRatios([]);
+    setDescription('');
+    setManualBrand(name); // Pre-fill brand name
+    setReport(null);
+    setSelectedStyle(VisualStyle.NORDIC);
+    setSelectedTypography(TypographyStyle.GLASS_MODERN);
+    setFinalPrompts('');
+    setNeedsModel(false);
+    setModelDesc('');
+    setNeedsScene(false);
+    setSceneDesc('');
+    setNeedsDataVis(false);
+    setOtherNeeds('');
+    setAspectRatio("9:16");
+    setGeneratedImages({});
+    setImageSyncStatus({});
+    setGeneratingModules({});
+    setIsBatchGenerating(false);
+    setPreviewImageUrl(null);
+    setGenerationLoading(false);
+
+    // 4. Switch to core view
+    setCurrentView('core');
+  }, [images]);
 
   const ratioIcons: Record<string, string> = {
     "1:1": "1:1",
@@ -706,6 +747,7 @@ export const App: React.FC = () => {
         isAdminLoggedIn={isAdminLoggedIn}
         onUserClick={handleUserIconClick}
         onSaveProject={saveCurrentProject}
+        onNewProject={handleNewProject}
       />
 
       {/* Main Area based on View */}
