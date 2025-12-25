@@ -7,9 +7,10 @@ interface NavigationProps {
   onChange: (view: ViewType) => void;
   isAdminLoggedIn: boolean;
   onUserClick: () => void;
+  onSaveProject: () => void;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, isAdminLoggedIn, onUserClick }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, isAdminLoggedIn, onUserClick, onSaveProject }) => {
   const menuItems: { id: ViewType; label: string; line1: string; line2: string; icon: React.ReactNode }[] = [
     {
       id: 'core',
@@ -95,8 +96,20 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
         })}
       </div>
       
-      {/* User / Admin Toggle */}
-      <div className="mt-auto mb-4">
+      {/* Bottom Actions */}
+      <div className="mt-auto mb-4 flex flex-col gap-4 items-center">
+        {/* Save Button (Admin Only) */}
+        {isAdminLoggedIn && (
+           <button 
+             onClick={onSaveProject}
+             className="w-10 h-10 rounded-full flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 hover:scale-110 hover:shadow-md transition-all border border-blue-200"
+             title="保存项目"
+           >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+           </button>
+        )}
+
+        {/* User / Admin Toggle */}
         <button 
           onClick={onUserClick}
           className={`

@@ -57,22 +57,23 @@ export const extractProductInfo = async (
   1. 请务必只输出纯 JSON 字符串。
   2. 严禁使用 markdown 格式（不要包含 \`\`\`json 或 \`\`\`）。
   3. 严禁包含任何开场白或解释性文字。
+  4. **必须填充所有字段。对于包装风格、字体风格、图案元素，如果图片中不明显，请根据产品类别和整体调性进行专业推断，绝对不要返回空字符串或"无"、"未知"、"未识别"。**
   
   请严格根据以下JSON格式返回数据：
   {
-    "brandName": "识别到的品牌名",
+    "brandName": "识别到的品牌名（无则根据包装文字推断）",
     "productType": "产品类别",
     "productSpecs": "规格参数",
     "coreSellingPoints": ["卖点1", "卖点2", "卖点3", "卖点4", "卖点5"],
-    "mainColors": "配色说明",
+    "mainColors": "配色说明（如：活力橙、深海蓝）",
     "auxColors": "辅助色说明",
     "designStyle": "设计语言描述",
     "targetAudience": "目标受众",
     "brandTone": "品牌调性",
     "packagingHighlights": "包装亮点",
-    "packagingStyle": "识别包装设计风格（极简/复古/可爱/科技/艺术等）",
-    "fontStyle": "识别字体风格（衬线/无衬线/手写等）",
-    "patternElements": "识别图案元素（水彩/几何/插画/摄影）"
+    "packagingStyle": "包装风格关键词（如：极简主义、国潮复古、科技感、INS风等）",
+    "fontStyle": "字体特征描述（如：现代无衬线、艺术手写、粗黑体等）",
+    "patternElements": "装饰纹理或图案（如：几何色块、植物插画、纯色磨砂、光影渐变等）"
   }
   用户提供的描述：${textDescription || '无'}` });
 
@@ -125,9 +126,9 @@ export const extractProductInfo = async (
        targetAudience: "未知",
        brandTone: "未知",
        packagingHighlights: "暂无",
-       packagingStyle: "暂无",
-       fontStyle: "暂无",
-       patternElements: "暂无"
+       packagingStyle: "常规设计",
+       fontStyle: "标准字体",
+       patternElements: "无明显纹理"
     };
   }
 
@@ -156,9 +157,9 @@ export const extractProductInfo = async (
       targetAudience: parsed.targetAudience || '',
       brandTone: parsed.brandTone || '',
       packagingHighlights: parsed.packagingHighlights || '',
-      packagingStyle: parsed.packagingStyle || '',
-      fontStyle: parsed.fontStyle || '',
-      patternElements: parsed.patternElements || ''
+      packagingStyle: parsed.packagingStyle || '简约风格', // Fallback defaults if empty
+      fontStyle: parsed.fontStyle || '现代无衬线',
+      patternElements: parsed.patternElements || '纯色/渐变'
     };
   } catch (e) {
     console.error("JSON Parse failed:", e);

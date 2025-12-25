@@ -683,6 +683,7 @@ export const App: React.FC = () => {
         }} 
         isAdminLoggedIn={isAdminLoggedIn}
         onUserClick={handleUserIconClick}
+        onSaveProject={saveCurrentProject}
       />
 
       {/* Main Area based on View */}
@@ -708,7 +709,6 @@ export const App: React.FC = () => {
                 visualStyleDescriptions={visualStyleDescriptions}
                 typographyDescriptions={typographyDescriptions}
                 onReset={handleReset}
-                onSaveProject={saveCurrentProject}
                 isAdminLoggedIn={isAdminLoggedIn}
             />
             

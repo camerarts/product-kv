@@ -37,7 +37,6 @@ interface SidebarProps {
   visualStyleDescriptions: Record<VisualStyle, string>;
   typographyDescriptions: Record<TypographyStyle, string>;
   onReset: () => void;
-  onSaveProject: () => void;
   isAdminLoggedIn: boolean;
 }
 
@@ -60,7 +59,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   report, ratioIcons,
   visualStyleDescriptions, typographyDescriptions,
   onReset,
-  onSaveProject,
   isAdminLoggedIn
 }) => {
 
@@ -106,15 +104,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-8 pt-8 pb-4 shrink-0 relative z-10 flex flex-col gap-4">
           {/* Action Buttons - Absolute Positioned */}
           <div className="absolute right-6 top-8 flex items-center gap-2 z-20">
-            {isAdminLoggedIn && (
-              <button 
-                onClick={onSaveProject}
-                className="w-8 h-8 rounded-full bg-white/80 border border-blue-100 text-blue-600 flex items-center justify-center hover:scale-110 hover:shadow-lg hover:shadow-blue-200 transition-all shadow-sm backdrop-blur-sm"
-                title="保存为项目"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-              </button>
-            )}
             <button 
               onClick={onReset}
               className="w-8 h-8 rounded-full bg-white/80 border border-red-50 text-neutral-400 hover:text-red-500 hover:border-red-100 flex items-center justify-center hover:scale-110 hover:shadow-lg hover:shadow-red-100 transition-all shadow-sm backdrop-blur-sm"
