@@ -36,6 +36,7 @@ interface SidebarProps {
   ratioIcons: Record<string, string>;
   visualStyleDescriptions: Record<VisualStyle, string>;
   typographyDescriptions: Record<TypographyStyle, string>;
+  onReset: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -55,7 +56,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   aspectRatio, setAspectRatio,
   generationLoading, startGeneration,
   report, ratioIcons,
-  visualStyleDescriptions, typographyDescriptions
+  visualStyleDescriptions, typographyDescriptions,
+  onReset
 }) => {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -96,7 +98,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="w-[500px] border-r border-neutral-100 bg-white flex flex-col z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         {/* Header */}
         <div className="px-6 pt-6 pb-2">
-          <h1 className="text-xl font-black text-blue-600 tracking-tight mb-1">电商详情图视觉全案系统</h1>
+          <div className="flex justify-between items-center mb-1">
+              <h1 className="text-xl font-black text-blue-600 tracking-tight">电商详情图视觉全案系统</h1>
+              <button 
+                onClick={onReset}
+                className="text-[10px] font-bold text-neutral-400 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                title="清空所有数据"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                重制
+              </button>
+          </div>
           <div className="flex items-center gap-2">
             <div className="w-1 h-3 bg-purple-500 rounded-full"></div>
             <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">核心配置</span>
@@ -183,18 +195,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="space-y-2 flex-1 w-0">
                   <label className="text-xs font-bold text-blue-600">2.1 基础视觉风格</label>
                   <div className="relative group">
+                    {/* Visual Layer (Underneath) - Custom styled display */}
+                    <div className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-3 flex items-center justify-between transition-colors group-hover:border-blue-300 h-[42px]">
+                       <span className="text-xs font-bold text-neutral-700 truncate mr-2 select-none">
+                         {selectedStyle}
+                       </span>
+                       <svg className="w-4 h-4 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                    
+                    {/* Interaction Layer (On Top) - Invisible Native Select */}
                     <select 
                       value={selectedStyle} 
                       onChange={e => setSelectedStyle(e.target.value as VisualStyle)}
-                      className="w-full appearance-none bg-white border border-neutral-200 rounded-lg px-3 py-3 text-xs font-bold text-neutral-700 outline-none focus:border-blue-500 transition-all cursor-pointer hover:border-blue-300"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     >
                       {Object.values(VisualStyle).map(v => (
                         <option key={v} value={v}>{v}</option>
                       ))}
                     </select>
-                    <div className="absolute right-3 top-3.5 pointer-events-none text-neutral-400">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
                   </div>
                   <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-50 h-16 overflow-y-auto custom-scrollbar-thin">
                     <p className="text-[9px] text-blue-800 font-medium leading-relaxed">
@@ -207,18 +225,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="space-y-2 flex-1 w-0">
                   <label className="text-xs font-bold text-blue-600">2.2 页面排版逻辑</label>
                   <div className="relative group">
+                     {/* Visual Layer (Underneath) - Custom styled display */}
+                     <div className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-3 flex items-center justify-between transition-colors group-hover:border-blue-300 h-[42px]">
+                       <span className="text-xs font-bold text-neutral-700 truncate mr-2 select-none">
+                         {selectedTypography}
+                       </span>
+                       <svg className="w-4 h-4 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+
+                    {/* Interaction Layer (On Top) - Invisible Native Select */}
                     <select 
                       value={selectedTypography} 
                       onChange={e => setSelectedTypography(e.target.value as TypographyStyle)}
-                      className="w-full appearance-none bg-white border border-neutral-200 rounded-lg px-3 py-3 text-xs font-bold text-neutral-700 outline-none focus:border-blue-500 transition-all cursor-pointer hover:border-blue-300"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     >
                       {Object.values(TypographyStyle).map(v => (
                         <option key={v} value={v}>{v}</option>
                       ))}
                     </select>
-                    <div className="absolute right-3 top-3.5 pointer-events-none text-neutral-400">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
                   </div>
                   <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-50 h-16 overflow-y-auto custom-scrollbar-thin">
                     <p className="text-[9px] text-blue-800 font-medium leading-relaxed">

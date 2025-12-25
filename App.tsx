@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { extractProductInfo, generatePosterSystem, generateImageContent } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 import { Sidebar } from './Sidebar';
@@ -7,18 +7,34 @@ import { ApiKeyModal } from './ApiKeyModal';
 import { ConfigModal } from './ConfigModal';
 import { LoginModal } from './LoginModal';
 
+const CACHE_KEY = 'VISION_APP_CACHE_V1';
+
 export const App: React.FC = () => {
-  // --- 全局 UI 状态 ---
+  // --- 全局 UI 状态 (不缓存) ---
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
 
-  // --- API Key 状态 ---
+  // --- API Key 状态 (单独存储) ---
   const [userApiKey, setUserApiKey] = useState<string>('');
   const [hasApiKey, setHasApiKey] = useState(true);
 
+  // --- 辅助函数：从缓存读取初始值 ---
+  const getCachedState = <T,>(key: string, defaultValue: T): T => {
+    try {
+      const saved = localStorage.getItem(CACHE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed[key] !== undefined ? parsed[key] : defaultValue;
+      }
+    } catch (e) {
+      console.warn('Failed to load cache', e);
+    }
+    return defaultValue;
+  };
+
   useEffect(() => {
-    // 恢复本地存储的 Key
+    // 恢复 API Key
     const storedKey = localStorage.getItem('USER_GEMINI_API_KEY');
     if (storedKey) {
       setUserApiKey(storedKey);
@@ -61,33 +77,34 @@ export const App: React.FC = () => {
     alert("已退出管理员登录。");
   };
 
-  // --- 核心业务状态 ---
-  const [generationLoading, setGenerationLoading] = useState(false);
-  const [images, setImages] = useState<string[]>([]);
-  const [imageRatios, setImageRatios] = useState<number[]>([]);
-  const [description, setDescription] = useState('');
-  const [manualBrand, setManualBrand] = useState('');
-  const [report, setReport] = useState<RecognitionReport | null>(null);
+  // --- 核心业务状态 (使用 lazy init 从缓存读取) ---
+  const [generationLoading, setGenerationLoading] = useState(false); // Loading 状态不缓存，防止卡死
   
-  const [selectedStyle, setSelectedStyle] = useState<VisualStyle>(VisualStyle.NORDIC);
-  const [selectedTypography, setSelectedTypography] = useState<TypographyStyle>(TypographyStyle.GLASS_MODERN);
+  const [images, setImages] = useState<string[]>(() => getCachedState('images', []));
+  const [imageRatios, setImageRatios] = useState<number[]>(() => getCachedState('imageRatios', []));
+  const [description, setDescription] = useState(() => getCachedState('description', ''));
+  const [manualBrand, setManualBrand] = useState(() => getCachedState('manualBrand', ''));
+  const [report, setReport] = useState<RecognitionReport | null>(() => getCachedState('report', null));
   
-  const [finalPrompts, setFinalPrompts] = useState<string>('');
+  const [selectedStyle, setSelectedStyle] = useState<VisualStyle>(() => getCachedState('selectedStyle', VisualStyle.NORDIC));
+  const [selectedTypography, setSelectedTypography] = useState<TypographyStyle>(() => getCachedState('selectedTypography', TypographyStyle.GLASS_MODERN));
+  
+  const [finalPrompts, setFinalPrompts] = useState(() => getCachedState('finalPrompts', ''));
   
   // 个性化需求状态
-  const [needsModel, setNeedsModel] = useState(false);
-  const [modelDesc, setModelDesc] = useState('');
+  const [needsModel, setNeedsModel] = useState(() => getCachedState('needsModel', false));
+  const [modelDesc, setModelDesc] = useState(() => getCachedState('modelDesc', ''));
   
-  const [needsScene, setNeedsScene] = useState(false);
-  const [sceneDesc, setSceneDesc] = useState('');
+  const [needsScene, setNeedsScene] = useState(() => getCachedState('needsScene', false));
+  const [sceneDesc, setSceneDesc] = useState(() => getCachedState('sceneDesc', ''));
 
-  const [needsDataVis, setNeedsDataVis] = useState(false);
-  const [otherNeeds, setOtherNeeds] = useState('');
+  const [needsDataVis, setNeedsDataVis] = useState(() => getCachedState('needsDataVis', false));
+  const [otherNeeds, setOtherNeeds] = useState(() => getCachedState('otherNeeds', ''));
   
-  const [aspectRatio, setAspectRatio] = useState<string>("9:16");
+  const [aspectRatio, setAspectRatio] = useState(() => getCachedState('aspectRatio', "9:16"));
 
-  const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
-  const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({});
+  const [generatedImages, setGeneratedImages] = useState<Record<number, string>>(() => getCachedState('generatedImages', {}));
+  const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({}); // Loading 状态不缓存
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   
   // Ref to track generating state for the batch process to avoid stale closures
@@ -96,6 +113,66 @@ export const App: React.FC = () => {
   useEffect(() => {
     generatingModulesRef.current = generatingModules;
   }, [generatingModules]);
+
+  // --- 数据持久化副作用 ---
+  useEffect(() => {
+    const stateToCache = {
+      images,
+      imageRatios,
+      description,
+      manualBrand,
+      report,
+      selectedStyle,
+      selectedTypography,
+      finalPrompts,
+      needsModel,
+      modelDesc,
+      needsScene,
+      sceneDesc,
+      needsDataVis,
+      otherNeeds,
+      aspectRatio,
+      generatedImages
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(stateToCache));
+  }, [
+    images, imageRatios, description, manualBrand, report,
+    selectedStyle, selectedTypography, finalPrompts,
+    needsModel, modelDesc, needsScene, sceneDesc,
+    needsDataVis, otherNeeds, aspectRatio, generatedImages
+  ]);
+
+  // --- 重制（清空）功能 ---
+  const handleReset = useCallback(() => {
+    if (!window.confirm("确定要重制吗？\n这将清空所有当前输入的数据和生成结果。")) {
+      return;
+    }
+    
+    // 清除 LocalStorage
+    localStorage.removeItem(CACHE_KEY);
+    
+    // 重置所有 State
+    setImages([]);
+    setImageRatios([]);
+    setDescription('');
+    setManualBrand('');
+    setReport(null);
+    setSelectedStyle(VisualStyle.NORDIC);
+    setSelectedTypography(TypographyStyle.GLASS_MODERN);
+    setFinalPrompts('');
+    setNeedsModel(false);
+    setModelDesc('');
+    setNeedsScene(false);
+    setSceneDesc('');
+    setNeedsDataVis(false);
+    setOtherNeeds('');
+    setAspectRatio("9:16");
+    setGeneratedImages({});
+    setGeneratingModules({});
+    setPreviewImageUrl(null);
+    setGenerationLoading(false);
+
+  }, []);
 
   const ratioIcons: Record<string, string> = {
     "1:1": "1:1",
@@ -132,7 +209,7 @@ export const App: React.FC = () => {
     
     setGenerationLoading(true);
     try {
-      // 步骤 1: 执行产品解析 (传入 userApiKey 和 isAdminLoggedIn)
+      // 步骤 1: 执行产品解析
       const extractionRes = await extractProductInfo(images, description, userApiKey, isAdminLoggedIn);
       setReport(extractionRes);
       
@@ -176,15 +253,18 @@ export const App: React.FC = () => {
     }
   };
 
+  // 根据需求过滤：只保留“海报”相关的模块（过滤掉 LOGO 方案）
   const promptModules = useMemo(() => {
     if (!finalPrompts) return [];
     const sections = finalPrompts.split(/###\s*/).filter(s => s.trim());
-    return sections.map(section => {
-      const firstLineEnd = section.indexOf('\n');
-      const title = section.slice(0, firstLineEnd).trim();
-      const content = section.slice(firstLineEnd).trim();
-      return { title, content };
-    });
+    return sections
+      .map(section => {
+        const firstLineEnd = section.indexOf('\n');
+        const title = section.slice(0, firstLineEnd).trim();
+        const content = section.slice(firstLineEnd).trim();
+        return { title, content };
+      })
+      .filter(module => module.title.includes('海报')); // 核心过滤逻辑：只保留标题包含“海报”的项
   }, [finalPrompts]);
 
   const generateSingleImage = async (index: number, prompt: string, isLogo: boolean) => {
@@ -198,7 +278,6 @@ export const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(`生成图片失败 (Index ${index}):`, err.message);
-      // alert(`生成图片失败: ${err.message}`); // Suppress alert for batch generation
     } finally {
       setGeneratingModules(prev => ({ ...prev, [index]: false }));
     }
@@ -209,8 +288,6 @@ export const App: React.FC = () => {
     if (!promptModules.length) return;
 
     // 1. 找出所有还没生成且当前没有正在生成的任务
-    // 使用 generatedImages 来判断是否已完成
-    // 使用 generatingModulesRef 来判断是否正在进行 (双重保险)
     const pendingTasks = promptModules.map((m, i) => ({ ...m, index: i }))
       .filter(item => !generatedImages[item.index]);
 
@@ -221,24 +298,20 @@ export const App: React.FC = () => {
 
     // 2. 定义 Worker 池，最大并发 2
     const CONCURRENCY_LIMIT = 2;
-    const taskQueue = [...pendingTasks]; // 可变队列
+    const taskQueue = [...pendingTasks];
 
     const runWorker = async () => {
       while (taskQueue.length > 0) {
-        // 取出下一个任务
         const task = taskQueue.shift();
         if (!task) break;
 
-        // 再次检查是否正在生成 (防止竞态)
         if (generatingModulesRef.current[task.index]) continue;
 
-        // 执行生成
         const isLogo = task.title.includes("LOGO");
         await generateSingleImage(task.index, task.content, isLogo);
       }
     };
 
-    // 3. 启动 Worker
     const workers = [];
     for (let i = 0; i < Math.min(pendingTasks.length, CONCURRENCY_LIMIT); i++) {
       workers.push(runWorker());
@@ -247,7 +320,6 @@ export const App: React.FC = () => {
     await Promise.all(workers);
   };
 
-  // 检查是否有可用权限 (仅用于 UI 显示判断，实际 logic 在 service 中)
   const checkAuth = () => {
     const hasSystemKey = !!(process.env.API_KEY);
     return !!(userApiKey || (isAdminLoggedIn && hasSystemKey));
@@ -274,6 +346,7 @@ export const App: React.FC = () => {
         ratioIcons={ratioIcons}
         visualStyleDescriptions={visualStyleDescriptions}
         typographyDescriptions={typographyDescriptions}
+        onReset={handleReset}
       />
       
       <MainContent
@@ -297,7 +370,7 @@ export const App: React.FC = () => {
       {/* Top Right Buttons */}
       <div className="absolute top-4 right-8 z-50 flex items-center gap-3">
         
-        {/* Model Info Display - Updated to be single line with labels */}
+        {/* Model Info Display */}
         <div className="hidden xl:flex flex-row items-center gap-2 mr-2 pointer-events-none select-none">
            {/* Logic Model */}
            <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur border border-neutral-200 shadow-sm rounded-full px-3 py-1">
@@ -363,7 +436,7 @@ export const App: React.FC = () => {
            <img 
             src={previewImageUrl} 
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default" 
-            onClick={(e) => e.stopPropagation()} // 阻止冒泡，点击图片不关闭
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
       )}
