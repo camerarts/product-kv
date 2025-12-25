@@ -38,6 +38,7 @@ interface SidebarProps {
   typographyDescriptions: Record<TypographyStyle, string>;
   onReset: () => void;
   onSaveProject: () => void;
+  isAdminLoggedIn: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -59,7 +60,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   report, ratioIcons,
   visualStyleDescriptions, typographyDescriptions,
   onReset,
-  onSaveProject
+  onSaveProject,
+  isAdminLoggedIn
 }) => {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -104,14 +106,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <h1 className="text-xl font-black text-blue-600 tracking-tight">电商详情图视觉全案系统</h1>
               
               <div className="flex items-center gap-2">
-                <button 
-                  onClick={onSaveProject}
-                  className="text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors flex items-center gap-1"
-                  title="保存为项目"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-                  保存
-                </button>
+                {isAdminLoggedIn && (
+                  <button 
+                    onClick={onSaveProject}
+                    className="text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                    title="保存为项目"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                    保存
+                  </button>
+                )}
                 <button 
                   onClick={onReset}
                   className="text-[10px] font-bold text-neutral-400 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors flex items-center gap-1"

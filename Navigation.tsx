@@ -48,26 +48,35 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
       </div>
       
       <div className="flex-1 flex flex-col gap-4 w-full px-2">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onChange(item.id)}
-            className={`
-              flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl transition-all w-full
-              ${currentView === item.id 
-                ? 'bg-white/10 text-white shadow-inner' 
-                : 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5'
-              }
-            `}
-            title={item.label}
-          >
-            {item.icon}
-            <div className="text-[10px] font-bold text-center leading-none">
-               <span className="block">{item.line1}</span>
-               <span className="block mt-0.5">{item.line2}</span>
-            </div>
-          </button>
-        ))}
+        {menuItems.map((item) => {
+          const isDisabled = item.id === 'projects' && !isAdminLoggedIn;
+          
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                if (!isDisabled) onChange(item.id);
+              }}
+              disabled={isDisabled}
+              className={`
+                flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl transition-all w-full
+                ${currentView === item.id 
+                  ? 'bg-white/10 text-white shadow-inner' 
+                  : isDisabled 
+                    ? 'text-neutral-700 cursor-not-allowed opacity-50' 
+                    : 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5'
+                }
+              `}
+              title={isDisabled ? "请登录后使用" : item.label}
+            >
+              {item.icon}
+              <div className="text-[10px] font-bold text-center leading-none">
+                <span className="block">{item.line1}</span>
+                <span className="block mt-0.5">{item.line2}</span>
+              </div>
+            </button>
+          );
+        })}
       </div>
       
       <div className="mt-auto">

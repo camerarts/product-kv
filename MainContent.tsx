@@ -13,6 +13,7 @@ interface MainContentProps {
   generatedImages: Record<number, string>;
   imageSyncStatus?: Record<number, SyncStatus>;
   generatingModules: Record<number, boolean>;
+  isBatchGenerating: boolean;
   previewImageUrl: string | null;
   setPreviewImageUrl: (val: string | null) => void;
   generateSingleImage: (index: number, prompt: string, isLogo: boolean) => void;
@@ -23,7 +24,7 @@ interface MainContentProps {
 
 export const MainContent: React.FC<MainContentProps> = ({
   manualBrand, report, selectedStyle, selectedTypography,
-  finalPrompts, generatedImages, imageSyncStatus = {}, generatingModules,
+  finalPrompts, generatedImages, imageSyncStatus = {}, generatingModules, isBatchGenerating,
   previewImageUrl, setPreviewImageUrl, generateSingleImage, generateAllImages,
   promptModules, aspectRatio
 }) => {
@@ -250,19 +251,19 @@ export const MainContent: React.FC<MainContentProps> = ({
                       {/* One Click Generate All Button */}
                       <button
                          onClick={generateAllImages}
-                         disabled={isGeneratingAny}
+                         disabled={isBatchGenerating}
                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shadow-sm ${
-                           isGeneratingAny 
+                           isBatchGenerating 
                              ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' 
                              : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:shadow-purple-200 hover:scale-[1.02]'
                          }`}
                       >
-                          {isGeneratingAny ? (
+                          {isBatchGenerating ? (
                              <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
                           ) : (
                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                           )}
-                          {isGeneratingAny ? '自动生成中...' : '一键出图'}
+                          {isBatchGenerating ? '自动生成中...' : '一键出图'}
                       </button>
 
                       {Object.keys(generatedImages).length > 0 && (

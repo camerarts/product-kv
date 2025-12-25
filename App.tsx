@@ -141,6 +141,10 @@ export const App: React.FC = () => {
 
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
+    // If on projects page, redirect to core
+    if (currentView === 'projects') {
+        setCurrentView('core');
+    }
   };
 
   const handleUserIconClick = () => {
@@ -189,6 +193,7 @@ export const App: React.FC = () => {
   const [imageSyncStatus, setImageSyncStatus] = useState<Record<number, SyncStatus>>(() => getCachedState('imageSyncStatus', {}));
 
   const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({}); // Loading 状态不缓存
+  const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   
   // Ref to track generating state for the batch process to avoid stale closures
@@ -298,6 +303,11 @@ export const App: React.FC = () => {
 
   // --- 项目管理功能 (Cloudflare API + LocalStorage) ---
   const saveCurrentProject = async () => {
+    if (!isAdminLoggedIn) {
+        alert("请先登录管理员账号以保存项目。");
+        return;
+    }
+
     const name = prompt("请输入项目名称：", manualBrand || report?.brandName || "未命名项目");
     if (!name) return;
 
@@ -411,6 +421,7 @@ export const App: React.FC = () => {
     
     // Reset transient states
     setGeneratingModules({});
+    setIsBatchGenerating(false);
     setGenerationLoading(false);
     
     // Switch view
@@ -469,6 +480,7 @@ export const App: React.FC = () => {
     setGeneratedImages({});
     setImageSyncStatus({});
     setGeneratingModules({});
+    setIsBatchGenerating(false);
     setPreviewImageUrl(null);
     setGenerationLoading(false);
 
@@ -608,38 +620,46 @@ export const App: React.FC = () => {
   // --- 批量生成逻辑 ---
   const handleGenerateAll = async () => {
     if (!promptModules.length) return;
+    if (isBatchGenerating) return;
 
     // 1. 找出所有还没生成且当前没有正在生成的任务
+    // This filter logic ensures we only generate images for prompts that are currently empty.
     const pendingTasks = promptModules.map((m, i) => ({ ...m, index: i }))
       .filter(item => !generatedImages[item.index]);
 
     if (pendingTasks.length === 0) {
-      alert("所有图片已生成完毕！");
+      alert("所有图片已生成完毕！（一键出图仅对未生成的图片有效）");
       return;
     }
 
-    // 2. 定义 Worker 池，最大并发 2
-    const CONCURRENCY_LIMIT = 2;
-    const taskQueue = [...pendingTasks];
+    setIsBatchGenerating(true);
 
-    const runWorker = async () => {
-      while (taskQueue.length > 0) {
-        const task = taskQueue.shift();
-        if (!task) break;
+    try {
+      // 2. 定义 Worker 池，最大并发 2
+      const CONCURRENCY_LIMIT = 2;
+      const taskQueue = [...pendingTasks];
 
-        if (generatingModulesRef.current[task.index]) continue;
+      const runWorker = async () => {
+        while (taskQueue.length > 0) {
+          const task = taskQueue.shift();
+          if (!task) break;
 
-        const isLogo = task.title.includes("LOGO");
-        await generateSingleImage(task.index, task.content, isLogo);
+          if (generatingModulesRef.current[task.index]) continue;
+
+          const isLogo = task.title.includes("LOGO");
+          await generateSingleImage(task.index, task.content, isLogo);
+        }
+      };
+
+      const workers = [];
+      for (let i = 0; i < Math.min(pendingTasks.length, CONCURRENCY_LIMIT); i++) {
+        workers.push(runWorker());
       }
-    };
 
-    const workers = [];
-    for (let i = 0; i < Math.min(pendingTasks.length, CONCURRENCY_LIMIT); i++) {
-      workers.push(runWorker());
+      await Promise.all(workers);
+    } finally {
+      setIsBatchGenerating(false);
     }
-
-    await Promise.all(workers);
   };
 
   const checkAuth = () => {
@@ -652,7 +672,13 @@ export const App: React.FC = () => {
       <Navigation 
         currentView={currentView} 
         onChange={(view) => {
-            if (view === 'projects') fetchProjects(); // Refresh when entering project list
+            if (view === 'projects') {
+                if (!isAdminLoggedIn) {
+                   alert("请先登录管理员账号以查看项目列表。");
+                   return;
+                }
+                fetchProjects();
+            }
             setCurrentView(view);
         }} 
         isAdminLoggedIn={isAdminLoggedIn}
@@ -683,6 +709,7 @@ export const App: React.FC = () => {
                 typographyDescriptions={typographyDescriptions}
                 onReset={handleReset}
                 onSaveProject={saveCurrentProject}
+                isAdminLoggedIn={isAdminLoggedIn}
             />
             
             <MainContent
@@ -696,6 +723,7 @@ export const App: React.FC = () => {
                 generatedImages={generatedImages}
                 imageSyncStatus={imageSyncStatus}
                 generatingModules={generatingModules}
+                isBatchGenerating={isBatchGenerating}
                 previewImageUrl={previewImageUrl}
                 setPreviewImageUrl={setPreviewImageUrl}
                 generateSingleImage={generateSingleImage}
