@@ -3,12 +3,16 @@ import { UserProfile } from '../types';
 
 interface UserManagementProps {
   adminPassword?: string; // Passed from App state for API authorization
+  onRelogin: (password: string) => void;
 }
 
-export const UserManagement: React.FC<UserManagementProps> = ({ adminPassword }) => {
+export const UserManagement: React.FC<UserManagementProps> = ({ adminPassword, onRelogin }) => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Re-login State
+  const [localPassword, setLocalPassword] = useState('');
 
   // Editing State
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -101,12 +105,42 @@ export const UserManagement: React.FC<UserManagementProps> = ({ adminPassword })
       }
   };
 
+  const handleReloginSubmit = () => {
+    if (localPassword) {
+      onRelogin(localPassword);
+      setLocalPassword('');
+    }
+  };
+
   if (!adminPassword) {
     return (
        <div className="flex-1 flex flex-col items-center justify-center bg-neutral-50 text-neutral-400 p-8">
-         <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4 text-3xl text-red-500">🚫</div>
-         <h3 className="text-lg font-bold text-neutral-600 mb-1">会话失效</h3>
-         <p className="text-xs">请重新登录管理员账号以获取访问凭证。</p>
+         <div className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-sm border border-neutral-200 text-center animate-fade-in-up">
+             <div className="w-16 h-16 bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl text-white shadow-lg shadow-neutral-500/30">🔐</div>
+             <h3 className="text-lg font-black text-neutral-800 mb-2">安全验证</h3>
+             <p className="text-xs text-neutral-500 mb-6 leading-relaxed">
+               为了确保安全，页面刷新后需要验证管理员身份。<br/>
+               请输入管理员密码以继续管理用户。
+             </p>
+             
+             <div className="space-y-3">
+               <input 
+                 type="password" 
+                 className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm font-bold text-center tracking-widest outline-none focus:border-black focus:bg-white transition-colors"
+                 placeholder="• • • • • •"
+                 value={localPassword}
+                 onChange={e => setLocalPassword(e.target.value)}
+                 onKeyDown={e => e.key === 'Enter' && handleReloginSubmit()}
+               />
+               <button 
+                 onClick={handleReloginSubmit}
+                 disabled={!localPassword}
+                 className="w-full py-3 bg-neutral-900 text-white rounded-xl text-xs font-bold hover:bg-neutral-800 transition-colors disabled:opacity-50"
+               >
+                 验证并进入
+               </button>
+             </div>
+         </div>
       </div>
     );
   }

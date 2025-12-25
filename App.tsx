@@ -936,6 +936,7 @@ export const App: React.FC = () => {
       {currentView === 'users' && (
           <UserManagement 
              adminPassword={adminPassword}
+             onRelogin={(pass) => setAdminPassword(pass)}
           />
       )}
 
