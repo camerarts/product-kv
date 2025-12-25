@@ -88,6 +88,8 @@ export interface UserProfile {
   firstLoginAt: number;
   lastLoginAt: number;
   expiresAt: number; // Timestamp for account expiration
+  customLogicModels?: string[];
+  customVisualModels?: string[];
 }
 
 export type ViewType = 'core' | 'projects' | 'users' | 'key' | 'models';

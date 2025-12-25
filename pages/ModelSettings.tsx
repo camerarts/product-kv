@@ -4,6 +4,7 @@ import { ModelConfig } from '../types';
 interface ModelSettingsProps {
   config: ModelConfig;
   onSave: (config: ModelConfig) => void;
+  isAuthenticated: boolean;
 }
 
 const DEFAULT_LOGIC_MODELS = [
@@ -20,7 +21,7 @@ const DEFAULT_VISUAL_MODELS = [
 
 const CUSTOM_MODELS_KEY = 'VISION_APP_CUSTOM_MODELS_V1';
 
-export const ModelSettings: React.FC<ModelSettingsProps> = ({ config, onSave }) => {
+export const ModelSettings: React.FC<ModelSettingsProps> = ({ config, onSave, isAuthenticated }) => {
   // Current Selections
   const [selectedLogic, setSelectedLogic] = useState(config.logicModel);
   const [selectedVisual, setSelectedVisual] = useState(config.visualModel);
@@ -34,26 +35,58 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({ config, onSave }) 
   const [customVisualList, setCustomVisualList] = useState<string[]>([]);
 
   useEffect(() => {
-    // Load custom models
-    try {
-      const stored = localStorage.getItem(CUSTOM_MODELS_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setCustomLogicList(parsed.logic || []);
-        setCustomVisualList(parsed.visual || []);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
+    // Load custom models based on auth state
+    const loadModels = async () => {
+        if (isAuthenticated) {
+            // Load from Server
+            try {
+                const res = await fetch('/api/me/models');
+                if (res.ok) {
+                    const data = await res.json();
+                    setCustomLogicList(data.logic || []);
+                    setCustomVisualList(data.visual || []);
+                }
+            } catch (e) {
+                console.error("Failed to load user models", e);
+            }
+        } else {
+            // Load from Local Storage (Guest)
+            try {
+                const stored = localStorage.getItem(CUSTOM_MODELS_KEY);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    setCustomLogicList(parsed.logic || []);
+                    setCustomVisualList(parsed.visual || []);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    };
+    loadModels();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     setSelectedLogic(config.logicModel);
     setSelectedVisual(config.visualModel);
   }, [config]);
 
-  const saveCustomLists = (logic: string[], visual: string[]) => {
-    localStorage.setItem(CUSTOM_MODELS_KEY, JSON.stringify({ logic, visual }));
+  const saveCustomLists = async (logic: string[], visual: string[]) => {
+    if (isAuthenticated) {
+        // Save to Server
+        try {
+            await fetch('/api/me/models', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ logic, visual })
+            });
+        } catch (e) {
+            console.error("Failed to save models to server", e);
+        }
+    } else {
+        // Save to Local Storage
+        localStorage.setItem(CUSTOM_MODELS_KEY, JSON.stringify({ logic, visual }));
+    }
   };
 
   const handleAddLogicModel = () => {
@@ -128,7 +161,7 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({ config, onSave }) 
                    {defaultList.map(m => <option key={m} value={m}>{m}</option>)}
                  </optgroup>
                  {customList.length > 0 && (
-                   <optgroup label="自定义模型">
+                   <optgroup label="自定义模型 (User)">
                      {customList.map(m => <option key={m} value={m}>{m}</option>)}
                    </optgroup>
                  )}
@@ -175,7 +208,9 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({ config, onSave }) 
               <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg shadow-lg shadow-blue-500/20">🤖</span>
               模型设置
            </h1>
-           <p className="mt-2 text-neutral-500 text-sm font-medium pl-14">管理并选择用于生成的 Gemini 模型版本</p>
+           <p className="mt-2 text-neutral-500 text-sm font-medium pl-14">
+             {isAuthenticated ? '已登录：自定义模型将同步至云端' : '未登录：自定义模型仅保存在本地'}
+           </p>
         </div>
       </div>
 

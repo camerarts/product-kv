@@ -75,7 +75,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // Check if user exists to set firstLoginAt and check expiry
     const existingUserStr = await context.env.VISION_KV.get(`user:${userId}`);
     
-    let userProfile = {
+    let userProfile: any = {
       id: userId,
       email: userData.email,
       name: userData.name,
@@ -83,6 +83,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       firstLoginAt: now,
       lastLoginAt: now,
       expiresAt: now + DEFAULT_VALIDITY_MS, // Default: Valid for 30 days from first login
+      customLogicModels: [],
+      customVisualModels: []
     };
 
     if (existingUserStr) {
@@ -90,7 +92,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       
       // Preserve original data
       userProfile.firstLoginAt = existingUser.firstLoginAt || now;
-      userProfile.expiresAt = existingUser.expiresAt || (now + DEFAULT_VALIDITY_MS); // Backfill if missing
+      userProfile.expiresAt = existingUser.expiresAt || (now + DEFAULT_VALIDITY_MS); 
+      
+      // Preserve custom models
+      userProfile.customLogicModels = existingUser.customLogicModels || [];
+      userProfile.customVisualModels = existingUser.customVisualModels || [];
       
       // CRITICAL: Check Expiry
       if (now > userProfile.expiresAt) {

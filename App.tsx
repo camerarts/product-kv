@@ -898,6 +898,7 @@ export const App: React.FC = () => {
           <ModelSettings 
              config={modelConfig} 
              onSave={setModelConfig} 
+             isAuthenticated={!!currentUser}
           />
       )}
 
