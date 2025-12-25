@@ -143,7 +143,7 @@ export const KeyConfig: React.FC<KeyConfigProps> = ({
               <div>
                  <h3 className="text-lg font-black text-neutral-900">管理员权限</h3>
                  <p className="text-xs text-neutral-400 font-bold">
-                   {isAdminLoggedIn ? '已激活系统高级权限' : '登录以使用系统默认 Key'}
+                   {isAdminLoggedIn ? '已激活系统高级权限' : '未登录'}
                  </p>
               </div>
             </div>

@@ -20,9 +20,9 @@ const getEffectiveKey = (userApiKey?: string, isAdmin: boolean = false) => {
     return userApiKey;
   }
   
-  // 2. 其次是管理员模式下的环境变量 Key
-  if (isAdmin || process.env.API_KEY) { 
-     if (process.env.API_KEY) return process.env.API_KEY;
+  // 2. 其次是管理员模式下的环境变量 Key (严格限制: 仅管理员可用)
+  if (isAdmin && process.env.API_KEY) { 
+     return process.env.API_KEY;
   }
   
   throw new Error("请配置 API Key 或登录管理员账号");
