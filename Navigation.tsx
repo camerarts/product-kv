@@ -1,6 +1,7 @@
 import React from 'react';
-import { ViewType } from './Navigation';
 import { UserProfile } from './types';
+
+export type ViewType = 'core' | 'projects' | 'key' | 'models';
 
 interface NavigationProps {
   currentView: ViewType;

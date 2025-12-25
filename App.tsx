@@ -865,6 +865,7 @@ export const App: React.FC = () => {
         isOpen={isLoginModalOpen} 
         onClose={() => setIsLoginModalOpen(false)} 
         onLoginSuccess={handleLoginSuccess} 
+        onGoogleLogin={() => window.location.href = '/api/auth/google'}
       />
 
       {previewImageUrl && (

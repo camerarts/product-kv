@@ -1,4 +1,10 @@
 
+type PagesFunction<Env = any> = (context: {
+  request: Request;
+  env: Env;
+  params: Record<string, string | string[]>;
+}) => Response | Promise<Response>;
+
 interface Env {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_REDIRECT_URI: string;

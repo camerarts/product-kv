@@ -1,4 +1,14 @@
 
+interface KVNamespace {
+  get(key: string): Promise<string | null>;
+}
+
+type PagesFunction<Env = any> = (context: {
+  request: Request;
+  env: Env;
+  params: Record<string, string | string[]>;
+}) => Response | Promise<Response>;
+
 interface Env {
   VISION_KV: KVNamespace;
 }

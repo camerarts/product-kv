@@ -1,4 +1,15 @@
 
+interface KVNamespace {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+}
+
+type PagesFunction<Env = any> = (context: {
+  request: Request;
+  env: Env;
+  params: Record<string, string | string[]>;
+}) => Response | Promise<Response>;
+
 interface Env {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
