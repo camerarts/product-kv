@@ -42,20 +42,20 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
   ];
 
   return (
-    <nav className="w-[96px] h-screen bg-white/80 backdrop-blur-xl border-r border-neutral-200 flex flex-col items-center py-8 shrink-0 z-50 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.08)] relative">
+    <nav className="w-[73px] h-screen bg-white/80 backdrop-blur-xl border-r border-neutral-200 flex flex-col items-center py-8 shrink-0 z-50 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.08)] relative">
       {/* Background Decor Layer for subtle tint */}
       <div className="absolute inset-0 bg-gradient-to-b from-blue-50/20 to-purple-50/20 pointer-events-none -z-10"></div>
 
       {/* Brand Logo - 2025 Tech Gradient Style */}
       <div className="mb-10 relative group cursor-default">
         <div className="absolute inset-0 bg-blue-500 rounded-2xl blur-lg opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
-        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-[0_10px_20px_-5px_rgba(99,102,241,0.4)] relative z-10 border border-white/20">
+        <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-[0_10px_20px_-5px_rgba(99,102,241,0.4)] relative z-10 border border-white/20">
           <span className="drop-shadow-sm">V</span>
         </div>
       </div>
       
       {/* Menu Items */}
-      <div className="flex-1 flex flex-col gap-5 w-full px-3">
+      <div className="flex-1 flex flex-col gap-5 w-full px-2">
         {menuItems.map((item) => {
           const isDisabled = item.id === 'projects' && !isAdminLoggedIn;
           const isActive = currentView === item.id;
@@ -68,7 +68,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
               }}
               disabled={isDisabled}
               className={`
-                group flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl transition-all duration-300 w-full relative
+                group flex flex-col items-center justify-center gap-1 p-2 rounded-2xl transition-all duration-300 w-full relative
                 ${isActive 
                   ? 'bg-white shadow-[0_8px_20px_-6px_rgba(0,0,0,0.08),inset_0_1px_2px_rgba(255,255,255,1)] text-blue-600 scale-100 ring-1 ring-black/5' 
                   : isDisabled 
@@ -83,10 +83,10 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-blue-50 to-purple-50 opacity-50 -z-10"></div>
               )}
 
-              <div className={`transition-transform duration-300 ${isActive ? 'scale-110 drop-shadow-sm' : 'group-hover:scale-105'}`}>
+              <div className={`transition-transform duration-300 ${isActive ? 'scale-105 drop-shadow-sm' : 'group-hover:scale-105'}`}>
                 {item.icon}
               </div>
-              <div className={`text-[10px] font-bold text-center leading-none tracking-tight transition-opacity ${isActive ? 'opacity-100' : 'opacity-80'}`}>
+              <div className={`text-[9px] font-bold text-center leading-none tracking-tight transition-opacity ${isActive ? 'opacity-100' : 'opacity-80'}`}>
                 <span className="block">{item.line1}</span>
                 <span className="block mt-0.5">{item.line2}</span>
               </div>
@@ -100,7 +100,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
         <button 
           onClick={onUserClick}
           className={`
-            w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold transition-all duration-300 relative overflow-hidden group
+            w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-all duration-300 relative overflow-hidden group
             ${isAdminLoggedIn 
               ? 'bg-green-50 text-green-600 shadow-[0_4px_15px_-3px_rgba(34,197,94,0.3)] ring-2 ring-green-100' 
               : 'bg-white text-neutral-400 shadow-[0_4px_15px_-3px_rgba(0,0,0,0.08)] ring-1 ring-neutral-100 hover:text-neutral-600 hover:ring-neutral-200'

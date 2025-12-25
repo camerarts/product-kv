@@ -100,37 +100,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className="w-[500px] h-full bg-white/80 backdrop-blur-2xl border-r border-neutral-200 flex flex-col z-20 shadow-[6px_0_24px_-6px_rgba(0,0,0,0.06)] relative">
         {/* Background Ambient Glow */}
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-50/30 to-transparent pointer-events-none"></div>
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-50/40 via-purple-50/20 to-transparent pointer-events-none"></div>
 
         {/* Header */}
         <div className="px-8 pt-8 pb-4 shrink-0 relative z-10 flex flex-col gap-4">
-          <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-neutral-800 to-neutral-600 tracking-tight">视觉全案系统</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">VISION CONFIGURATION</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {isAdminLoggedIn && (
-                  <button 
-                    onClick={onSaveProject}
-                    className="w-8 h-8 rounded-full bg-white border border-blue-100 text-blue-600 flex items-center justify-center hover:scale-110 hover:shadow-lg hover:shadow-blue-200 transition-all shadow-sm"
-                    title="保存为项目"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-                  </button>
-                )}
-                <button 
-                  onClick={onReset}
-                  className="w-8 h-8 rounded-full bg-white border border-red-50 text-neutral-400 hover:text-red-500 hover:border-red-100 flex items-center justify-center hover:scale-110 hover:shadow-lg hover:shadow-red-100 transition-all shadow-sm"
-                  title="重制"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                </button>
-              </div>
+          {/* Action Buttons - Absolute Positioned */}
+          <div className="absolute right-6 top-8 flex items-center gap-2 z-20">
+            {isAdminLoggedIn && (
+              <button 
+                onClick={onSaveProject}
+                className="w-8 h-8 rounded-full bg-white/80 border border-blue-100 text-blue-600 flex items-center justify-center hover:scale-110 hover:shadow-lg hover:shadow-blue-200 transition-all shadow-sm backdrop-blur-sm"
+                title="保存为项目"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+              </button>
+            )}
+            <button 
+              onClick={onReset}
+              className="w-8 h-8 rounded-full bg-white/80 border border-red-50 text-neutral-400 hover:text-red-500 hover:border-red-100 flex items-center justify-center hover:scale-110 hover:shadow-lg hover:shadow-red-100 transition-all shadow-sm backdrop-blur-sm"
+              title="重制"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            </button>
+          </div>
+
+          {/* Centered Title */}
+          <div className="flex flex-col items-center justify-center w-full pt-2">
+            <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 tracking-tight text-center drop-shadow-sm">
+              商品详情页视觉全案系统
+            </h1>
+            <div className="flex items-center gap-2 mt-1.5">
+              <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.8)]"></div>
+              <span className="text-[10px] font-bold text-indigo-400/80 uppercase tracking-[0.2em]">ECOMMERCE VISION SYSTEM</span>
+            </div>
           </div>
         </div>
 
@@ -189,17 +191,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            <div className="flex gap-3 h-24">
+            <div className="flex gap-3 h-12">
                 <textarea
                   value={description} 
                   onChange={e=>setDescription(e.target.value)} 
-                  className="flex-1 bg-white/60 border border-neutral-100 rounded-2xl p-3 text-[10px] font-medium text-neutral-700 focus:bg-white focus:border-blue-200 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all resize-none placeholder:text-neutral-300 shadow-sm" 
+                  className="flex-1 bg-white/60 border border-neutral-100 rounded-2xl p-2 text-[10px] font-medium text-neutral-700 focus:bg-white focus:border-blue-200 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all resize-none placeholder:text-neutral-300 shadow-sm" 
                   placeholder="输入产品卖点或详细说明..."
                 />
-                 <div className="w-1/3 bg-white/60 border border-neutral-100 rounded-2xl p-3 flex flex-col focus-within:bg-white focus-within:border-blue-200 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all shadow-sm">
-                    <span className="text-[9px] font-bold text-neutral-400 mb-1">品牌名称</span>
-                    <textarea 
-                      className="w-full flex-1 bg-transparent text-[11px] font-bold text-neutral-800 outline-none placeholder:text-neutral-300 resize-none leading-relaxed"
+                 <div className="w-1/3 bg-white/60 border border-neutral-100 rounded-2xl p-2 flex flex-col justify-center focus-within:bg-white focus-within:border-blue-200 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all shadow-sm">
+                    <span className="text-[8px] font-bold text-neutral-400 mb-0.5">品牌名称</span>
+                    <input 
+                      className="w-full flex-1 bg-transparent text-[11px] font-bold text-neutral-800 outline-none placeholder:text-neutral-300 leading-none"
                       placeholder="Brand" 
                       value={manualBrand} 
                       onChange={e=>setManualBrand(e.target.value)} 
@@ -219,7 +221,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {/* Style Dropdowns */}
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                       <label className="text-[10px] font-bold text-neutral-400 ml-1">基础视觉风格</label>
+                       <label className="text-[10px] font-bold text-neutral-400 ml-1">2.1 基础视觉风格</label>
                        <div className="relative group">
                           <div className="bg-white border border-neutral-100 rounded-2xl px-3 py-2.5 flex items-center justify-between shadow-sm group-hover:border-purple-200 transition-all cursor-pointer h-[40px]">
                               <span className="text-[10px] font-bold text-neutral-700 truncate">{selectedStyle.split(' ')[0]} {selectedStyle.split(' ')[1]}</span>
@@ -236,7 +238,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
 
                     <div className="space-y-1.5">
-                       <label className="text-[10px] font-bold text-neutral-400 ml-1">排版逻辑</label>
+                       <label className="text-[10px] font-bold text-neutral-400 ml-1">2.2 排版逻辑</label>
                        <div className="relative group">
                           <div className="bg-white border border-neutral-100 rounded-2xl px-3 py-2.5 flex items-center justify-between shadow-sm group-hover:border-purple-200 transition-all cursor-pointer h-[40px]">
                               <span className="text-[10px] font-bold text-neutral-700 truncate">{selectedTypography.split(' ')[0]} {selectedTypography.split(' ')[1]}</span>
@@ -264,92 +266,98 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                 {/* Custom Needs Buttons */}
                 <div className="space-y-3">
-                   <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => setNeedsModel(!needsModel)}
-                        className={`py-2.5 rounded-xl text-[10px] font-bold transition-all border ${
-                          needsModel 
-                            ? 'bg-neutral-800 text-white border-neutral-800 shadow-md shadow-neutral-200 scale-[1.02]' 
-                            : 'bg-white border-neutral-100 text-neutral-500 hover:bg-neutral-50'
-                        }`}
-                      >
-                         {needsModel ? '✓' : '+'} 真人模特
-                      </button>
-                      <button
-                        onClick={() => setNeedsScene(!needsScene)}
-                        className={`py-2.5 rounded-xl text-[10px] font-bold transition-all border ${
-                          needsScene 
-                            ? 'bg-neutral-800 text-white border-neutral-800 shadow-md shadow-neutral-200 scale-[1.02]' 
-                            : 'bg-white border-neutral-100 text-neutral-500 hover:bg-neutral-50'
-                        }`}
-                      >
-                         {needsScene ? '✓' : '+'} 定制场景
-                      </button>
-                      <button
-                        onClick={() => setNeedsDataVis(!needsDataVis)}
-                        className={`py-2.5 rounded-xl text-[10px] font-bold transition-all border ${
-                          needsDataVis 
-                            ? 'bg-neutral-800 text-white border-neutral-800 shadow-md shadow-neutral-200 scale-[1.02]' 
-                            : 'bg-white border-neutral-100 text-neutral-500 hover:bg-neutral-50'
-                        }`}
-                      >
-                         {needsDataVis ? '✓' : '+'} 数据图表
-                      </button>
+                   <div>
+                       <label className="text-[10px] font-bold text-neutral-400 ml-1 block mb-2">2.3 个性化需求</label>
+                       <div className="grid grid-cols-3 gap-2">
+                          <button
+                            onClick={() => setNeedsModel(!needsModel)}
+                            className={`py-2.5 rounded-xl text-[10px] font-bold transition-all border ${
+                              needsModel 
+                                ? 'bg-neutral-800 text-white border-neutral-800 shadow-md shadow-neutral-200 scale-[1.02]' 
+                                : 'bg-white border-neutral-100 text-neutral-500 hover:bg-neutral-50'
+                            }`}
+                          >
+                             {needsModel ? '✓' : '+'} 真人模特
+                          </button>
+                          <button
+                            onClick={() => setNeedsScene(!needsScene)}
+                            className={`py-2.5 rounded-xl text-[10px] font-bold transition-all border ${
+                              needsScene 
+                                ? 'bg-neutral-800 text-white border-neutral-800 shadow-md shadow-neutral-200 scale-[1.02]' 
+                                : 'bg-white border-neutral-100 text-neutral-500 hover:bg-neutral-50'
+                            }`}
+                          >
+                             {needsScene ? '✓' : '+'} 定制场景
+                          </button>
+                          <button
+                            onClick={() => setNeedsDataVis(!needsDataVis)}
+                            className={`py-2.5 rounded-xl text-[10px] font-bold transition-all border ${
+                              needsDataVis 
+                                ? 'bg-neutral-800 text-white border-neutral-800 shadow-md shadow-neutral-200 scale-[1.02]' 
+                                : 'bg-white border-neutral-100 text-neutral-500 hover:bg-neutral-50'
+                            }`}
+                          >
+                             {needsDataVis ? '✓' : '+'} 数据图表
+                          </button>
+                       </div>
+
+                       {/* Details Expansion - Moved Inside 2.3 Section */}
+                       {(needsModel || needsScene) && (
+                         <div className="bg-neutral-50/80 rounded-2xl border border-neutral-100 p-3 space-y-3 animate-slide-down mt-3">
+                           {needsModel && (
+                             <div className="space-y-1.5">
+                               <label className="text-[9px] font-bold text-neutral-400 ml-1">模特特征</label>
+                               <input 
+                                 value={modelDesc}
+                                 onChange={e => setModelDesc(e.target.value)}
+                                 placeholder="描述模特..."
+                                 className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-[10px] outline-none focus:border-purple-300 transition-colors"
+                               />
+                               <div className="flex flex-wrap gap-1.5">
+                                  {modelTags.map(tag => (
+                                    <button key={tag} onClick={() => setModelDesc(tag)} className="px-2 py-1 bg-white border border-neutral-100 rounded-lg text-[9px] text-neutral-400 hover:text-purple-600 hover:border-purple-100 hover:shadow-sm transition-all">{tag}</button>
+                                  ))}
+                               </div>
+                             </div>
+                           )}
+                           {needsModel && needsScene && <div className="h-px bg-neutral-200/50 w-full"></div>}
+                           {needsScene && (
+                             <div className="space-y-1.5">
+                               <label className="text-[9px] font-bold text-neutral-400 ml-1">场景风格</label>
+                                <input 
+                                 value={sceneDesc}
+                                 onChange={e => setSceneDesc(e.target.value)}
+                                 placeholder="描述场景..."
+                                 className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-[10px] outline-none focus:border-purple-300 transition-colors"
+                               />
+                               <div className="flex flex-wrap gap-1.5">
+                                  {sceneTags.map(tag => (
+                                    <button key={tag} onClick={() => setSceneDesc(tag)} className="px-2 py-1 bg-white border border-neutral-100 rounded-lg text-[9px] text-neutral-400 hover:text-purple-600 hover:border-purple-100 hover:shadow-sm transition-all">{tag}</button>
+                                  ))}
+                               </div>
+                             </div>
+                           )}
+                         </div>
+                       )}
                    </div>
                    
-                   <div className="relative">
-                      <input 
-                        value={otherNeeds} 
-                        onChange={e=>setOtherNeeds(e.target.value)} 
-                        className="w-full px-4 py-3 bg-white border border-neutral-100 rounded-2xl text-[10px] font-medium text-neutral-700 focus:border-purple-200 focus:ring-4 focus:ring-purple-500/10 outline-none transition-all placeholder:text-neutral-400 shadow-sm" 
-                        placeholder="输入其他特殊补充要求..."
-                      />
-                      <div className="absolute right-2 top-1.5 flex gap-1">
-                          {['+ 产品', '+ 对比', '+ 评价'].map(tag => (
-                              <button key={tag} onClick={() => setOtherNeeds(prev => prev ? `${prev}，${tag.slice(2)}` : tag.slice(2))} className="px-2 py-1.5 bg-neutral-50 hover:bg-purple-50 text-[9px] font-bold text-neutral-400 hover:text-purple-600 rounded-lg transition-colors">{tag}</button>
-                          ))}
+                   <div>
+                      <label className="text-[10px] font-bold text-neutral-400 ml-1 block mb-2">2.4 其他特殊补充要求</label>
+                      <div className="relative">
+                          <input 
+                            value={otherNeeds} 
+                            onChange={e=>setOtherNeeds(e.target.value)} 
+                            className="w-full px-4 py-3 bg-white border border-neutral-100 rounded-2xl text-[10px] font-medium text-neutral-700 focus:border-purple-200 focus:ring-4 focus:ring-purple-500/10 outline-none transition-all placeholder:text-neutral-400 shadow-sm" 
+                            placeholder="输入其他特殊补充要求..."
+                          />
+                          <div className="absolute right-2 top-1.5 flex gap-1">
+                              {['+ 产品', '+ 对比', '+ 评价'].map(tag => (
+                                  <button key={tag} onClick={() => setOtherNeeds(prev => prev ? `${prev}，${tag.slice(2)}` : tag.slice(2))} className="px-2 py-1.5 bg-neutral-50 hover:bg-purple-50 text-[9px] font-bold text-neutral-400 hover:text-purple-600 rounded-lg transition-colors">{tag}</button>
+                              ))}
+                          </div>
                       </div>
                    </div>
                 </div>
-
-                {/* Details Expansion */}
-                {(needsModel || needsScene) && (
-                  <div className="bg-neutral-50/80 rounded-2xl border border-neutral-100 p-3 space-y-3 animate-slide-down">
-                    {needsModel && (
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-bold text-neutral-400 ml-1">模特特征</label>
-                        <input 
-                          value={modelDesc}
-                          onChange={e => setModelDesc(e.target.value)}
-                          placeholder="描述模特..."
-                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-[10px] outline-none focus:border-purple-300 transition-colors"
-                        />
-                        <div className="flex flex-wrap gap-1.5">
-                           {modelTags.map(tag => (
-                             <button key={tag} onClick={() => setModelDesc(tag)} className="px-2 py-1 bg-white border border-neutral-100 rounded-lg text-[9px] text-neutral-400 hover:text-purple-600 hover:border-purple-100 hover:shadow-sm transition-all">{tag}</button>
-                           ))}
-                        </div>
-                      </div>
-                    )}
-                    {needsModel && needsScene && <div className="h-px bg-neutral-200/50 w-full"></div>}
-                    {needsScene && (
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-bold text-neutral-400 ml-1">场景风格</label>
-                         <input 
-                          value={sceneDesc}
-                          onChange={e => setSceneDesc(e.target.value)}
-                          placeholder="描述场景..."
-                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-[10px] outline-none focus:border-purple-300 transition-colors"
-                        />
-                        <div className="flex flex-wrap gap-1.5">
-                           {sceneTags.map(tag => (
-                             <button key={tag} onClick={() => setSceneDesc(tag)} className="px-2 py-1 bg-white border border-neutral-100 rounded-lg text-[9px] text-neutral-400 hover:text-purple-600 hover:border-purple-100 hover:shadow-sm transition-all">{tag}</button>
-                           ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
             </div>
           </section>
 
@@ -368,8 +376,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     flex-1 py-2 rounded-lg text-[10px] font-bold 
                     transition-all duration-300 relative
                     ${aspectRatio === r 
-                      ? 'bg-white text-orange-600 shadow-md shadow-orange-100 scale-100 z-10' 
-                      : 'text-neutral-400 hover:text-neutral-600 hover:bg-white/50'
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 scale-105 z-10 ring-2 ring-white/50' 
+                      : 'text-neutral-400 hover:text-neutral-600 hover:bg-white/60'
                     }
                   `}
                 >
