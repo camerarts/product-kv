@@ -86,7 +86,13 @@ export const App: React.FC = () => {
     // 2. Get Cloud Data
     let cloudList: any[] = [];
     try {
-      const res = await fetch('/api/projects');
+      const headers: Record<string, string> = {};
+      // If admin and password present, send it to see all projects
+      if (isAdminLoggedIn && adminPassword) {
+         headers['X-Admin-Pass'] = adminPassword;
+      }
+
+      const res = await fetch('/api/projects', { headers });
       if (res.ok) {
         cloudList = await res.json();
       }
@@ -164,7 +170,7 @@ export const App: React.FC = () => {
     if (isAdminLoggedIn || currentUser) {
         fetchProjects();
     }
-  }, [isAdminLoggedIn, currentUser]);
+  }, [isAdminLoggedIn, currentUser, adminPassword]);
 
 
   const handleSelectKey = async () => {
@@ -356,9 +362,12 @@ export const App: React.FC = () => {
 
     // Then upload to Cloud
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (isAdminLoggedIn && adminPassword) headers['X-Admin-Pass'] = adminPassword;
+
       const res = await fetch('/api/projects', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify(projectDataToSave)
       });
 
@@ -420,9 +429,12 @@ export const App: React.FC = () => {
 
     // 2. 尝试上传到 Cloudflare
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (isAdminLoggedIn && adminPassword) headers['X-Admin-Pass'] = adminPassword;
+
       const res = await fetch('/api/projects', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify(newProject)
       });
 

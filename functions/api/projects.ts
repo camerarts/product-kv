@@ -18,22 +18,74 @@ type PagesFunction<Env = any> = (context: {
 interface Env {
   VISION_KV: KVNamespace;
   VISION_R2: R2Bucket;
+  ADMIN_PASSWORD?: string;
+}
+
+// Helper: Get Current User ID from Session Cookie
+async function getCurrentUserId(request: Request, env: Env): Promise<string | null> {
+  const cookieHeader = request.headers.get("Cookie");
+  if (!cookieHeader) return null;
+
+  const cookies = Object.fromEntries(
+    cookieHeader.split("; ").map((c) => {
+      const [key, ...v] = c.split("=");
+      return [key, v.join("=")];
+    })
+  );
+
+  const sessionId = cookies["auth_session"];
+  if (!sessionId) return null;
+
+  const sessionStr = await env.VISION_KV.get(`session:${sessionId}`);
+  if (!sessionStr) return null;
+
+  const session = JSON.parse(sessionStr);
+  if (session.expiresAt && Date.now() > session.expiresAt) return null;
+
+  return session.userId;
+}
+
+// Helper: Check Admin
+function isAdmin(request: Request, env: Env): boolean {
+  const adminPass = request.headers.get("X-Admin-Pass");
+  const envPass = env.ADMIN_PASSWORD;
+  return !!(envPass && adminPass === envPass);
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
-    // 列出 KV 中所有以 "meta:" 开头的键
+    const isUserAdmin = isAdmin(context.request, context.env);
+    const currentUserId = await getCurrentUserId(context.request, context.env);
+
+    // If not admin and not logged in, return empty or unauthorized
+    if (!isUserAdmin && !currentUserId) {
+        return new Response(JSON.stringify([]), {
+            headers: { "Content-Type": "application/json" }
+        });
+    }
+
+    // List all projects metadata
     const list = await context.env.VISION_KV.list({ prefix: "meta:" });
     const projects = [];
 
     for (const key of list.keys) {
       const metaStr = await context.env.VISION_KV.get(key.name);
       if (metaStr) {
-        projects.push(JSON.parse(metaStr));
+        const meta = JSON.parse(metaStr);
+        
+        // Filter Logic:
+        // 1. Admin sees everything.
+        // 2. User sees only projects where userId matches.
+        
+        if (isUserAdmin) {
+            projects.push(meta);
+        } else if (currentUserId && meta.userId === currentUserId) {
+            projects.push(meta);
+        }
       }
     }
 
-    // 按时间倒序排序
+    // Sort by timestamp desc
     projects.sort((a: any, b: any) => b.timestamp - a.timestamp);
 
     return new Response(JSON.stringify(projects), {
@@ -52,18 +104,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return new Response("Invalid project data", { status: 400 });
     }
 
-    // 1. 提取元数据 (用于列表显示)
+    const isUserAdmin = isAdmin(context.request, context.env);
+    const currentUserId = await getCurrentUserId(context.request, context.env);
+
+    // Determine Owner
+    let ownerId = null;
+    if (isUserAdmin) {
+        ownerId = 'admin'; 
+    } else if (currentUserId) {
+        ownerId = currentUserId;
+    } else {
+        return new Response("Unauthorized: Please login to save", { status: 401 });
+    }
+
+    // 1. Extract Meta
     const metadata = {
       id: project.id,
       name: project.name,
       timestamp: project.timestamp,
-      brandName: project.data.manualBrand || project.data.report?.brandName || '未命名品牌'
+      brandName: project.data.manualBrand || project.data.report?.brandName || '未命名品牌',
+      userId: ownerId // Bind project to user
     };
 
-    // 2. 并行存储
-    // R2 存储完整数据 (包含图片)
+    // Update project object with userId as well for R2 storage consistency
+    project.userId = ownerId;
+
+    // 2. Parallel Store
     const r2Promise = context.env.VISION_R2.put(`project-${project.id}`, JSON.stringify(project));
-    // KV 存储元数据
     const kvPromise = context.env.VISION_KV.put(`meta:${project.id}`, JSON.stringify(metadata));
 
     await Promise.all([r2Promise, kvPromise]);

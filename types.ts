@@ -57,6 +57,7 @@ export interface SavedProject {
   id: string;
   name: string;
   timestamp: number;
+  userId?: string; // Owner ID
   data: {
     images: string[];
     imageRatios: number[];
