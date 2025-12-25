@@ -49,13 +49,14 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDe
                        projects.map((project) => (
                          <tr key={project.id} className="hover:bg-blue-50/30 transition-colors group">
                             <td className="px-6 py-4">
-                               <div 
-                                 className="text-sm font-bold text-neutral-900 truncate max-w-[200px] cursor-pointer hover:text-blue-600 hover:underline transition-colors" 
-                                 title="点击加载项目"
+                               <button 
+                                 className="flex items-center gap-2 text-sm font-bold text-neutral-900 max-w-[240px] cursor-pointer hover:text-blue-600 transition-colors text-left group/btn" 
+                                 title="点击进入项目配置"
                                  onClick={() => onLoad(project)}
                                >
-                                 {project.name}
-                               </div>
+                                 <span className="truncate underline decoration-transparent group-hover/btn:decoration-blue-600 underline-offset-4 transition-all">{project.name}</span>
+                                 <svg className="w-4 h-4 opacity-0 group-hover/btn:opacity-100 transition-all -translate-x-2 group-hover/btn:translate-x-0 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                               </button>
                             </td>
                             <td className="px-6 py-4">
                                <div className="text-xs font-bold text-neutral-600 bg-neutral-100 inline-block px-2 py-1 rounded truncate max-w-[150px]">
@@ -90,8 +91,9 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDe
                                      onDelete(project.id);
                                    }
                                  }}
-                                 className="text-xs font-bold text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors"
+                                 className="text-xs font-bold text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
                                >
+                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                  删除
                                </button>
                             </td>
