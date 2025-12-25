@@ -73,7 +73,7 @@ export const App: React.FC = () => {
   };
 
   // 获取项目列表 (Cloudflare API + LocalStorage Merge)
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     setIsProjectsLoading(true);
     
     // 1. Get Local Data
@@ -121,7 +121,7 @@ export const App: React.FC = () => {
     const merged = Array.from(map.values()).sort((a: any, b: any) => b.timestamp - a.timestamp);
     setProjects(merged);
     setIsProjectsLoading(false);
-  };
+  }, [isAdminLoggedIn, adminPassword]);
 
   // --- Effects ---
 
@@ -165,12 +165,12 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // 2. Fetch Projects when Auth changes
+  // 2. Fetch Projects when Auth changes (Auto-Download)
   useEffect(() => {
     if (isAdminLoggedIn || currentUser) {
         fetchProjects();
     }
-  }, [isAdminLoggedIn, currentUser, adminPassword]);
+  }, [isAdminLoggedIn, currentUser, adminPassword, fetchProjects]);
 
 
   const handleSelectKey = async () => {
@@ -286,7 +286,7 @@ export const App: React.FC = () => {
     generatedImagesRef.current = generatedImages;
   }, [generatedImages]);
 
-  // --- 数据持久化副作用 (Current State) ---
+  // --- 数据持久化副作用 (Current State Local Cache) ---
   useEffect(() => {
     try {
       const stateToCache = {
@@ -321,16 +321,13 @@ export const App: React.FC = () => {
     needsDataVis, otherNeeds, aspectRatio, generatedImages, imageSyncStatus
   ]);
 
-  // --- 自动上传/同步逻辑 ---
-  const syncProjectToCloud = async (targetIndexToMarkSynced?: number) => {
-    const pid = currentProjectId || Date.now().toString();
-    if (!currentProjectId) {
-        setCurrentProjectId(pid);
-    }
+  // --- 自动上传/同步逻辑 (Backend Sync) ---
+  const syncProjectToCloud = useCallback(async (targetIndexToMarkSynced?: number) => {
+    if (!currentProjectId) return; // Don't sync if no ID (shouldn't happen in auto-save context usually)
     
     // Prepare project data
     const projectDataToSave: SavedProject = {
-      id: pid,
+      id: currentProjectId,
       name: manualBrand || report?.brandName || `自动保存 ${new Date().toLocaleString()}`,
       timestamp: Date.now(),
       data: {
@@ -347,7 +344,7 @@ export const App: React.FC = () => {
     try {
         const stored = localStorage.getItem(PROJECTS_KEY);
         const currentProjects = stored ? JSON.parse(stored) : [];
-        const existingIdx = currentProjects.findIndex((p: any) => p.id === pid);
+        const existingIdx = currentProjects.findIndex((p: any) => p.id === currentProjectId);
         let updated;
         if (existingIdx >= 0) {
             currentProjects[existingIdx] = projectDataToSave;
@@ -356,11 +353,116 @@ export const App: React.FC = () => {
             updated = [projectDataToSave, ...currentProjects];
         }
         localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
+        
         // Update Project List UI
-        setProjects(updated.map((p: any) => ({ ...p, isSynced: false }))); 
+        setProjects(updated.map((p: any) => ({ 
+            ...p, 
+            isSynced: p.id === currentProjectId ? false : p.isSynced // Temporarily mark as local until cloud confirms
+        }))); 
     } catch (e) { console.error("Auto-save local failed (quota likely exceeded)", e); }
 
     // Then upload to Cloud
+    if (isAdminLoggedIn || currentUser) {
+        try {
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (isAdminLoggedIn && adminPassword) headers['X-Admin-Pass'] = adminPassword;
+
+          const res = await fetch('/api/projects', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(projectDataToSave)
+          });
+
+          if (res.ok) {
+            // Mark image as synced if specified
+            if (targetIndexToMarkSynced !== undefined) {
+                setImageSyncStatus(prev => ({ ...prev, [targetIndexToMarkSynced]: 'synced' }));
+            }
+            // Update project list sync status
+            setProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, isSynced: true } : p));
+          } else {
+            console.warn("Auto-upload to cloud failed");
+          }
+        } catch (e) {
+          console.error("Auto-upload error", e);
+        }
+    }
+  }, [
+    currentProjectId, manualBrand, report, images, imageRatios, description, 
+    selectedStyle, selectedTypography, finalPrompts, needsModel, modelDesc, 
+    needsScene, sceneDesc, needsDataVis, otherNeeds, aspectRatio, imageSyncStatus,
+    isAdminLoggedIn, adminPassword, currentUser
+  ]);
+
+  // --- Auto-Save Effect (Debounced) ---
+  useEffect(() => {
+    // Check if we are in a valid project state to auto-save
+    // We only auto-save if we have a currentProjectId AND we are not currently generating heavy content (to avoid partial saves)
+    if (!currentProjectId || generationLoading) return;
+
+    // Use a timeout to debounce save operations (wait 2s after last change)
+    const timer = setTimeout(() => {
+        syncProjectToCloud();
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [
+    // Watch all data fields that constitute a project
+    currentProjectId,
+    images, imageRatios, description, manualBrand, report,
+    selectedStyle, selectedTypography, finalPrompts,
+    needsModel, modelDesc, needsScene, sceneDesc,
+    needsDataVis, otherNeeds, aspectRatio, 
+    generatedImages, // Watch generated images too
+    syncProjectToCloud,
+    generationLoading
+  ]);
+
+  // --- 手动保存项目 (Forcing a save/name change) ---
+  const saveCurrentProject = async () => {
+    if (!isAdminLoggedIn && !currentUser) {
+        setIsLoginModalOpen(true); 
+        return;
+    }
+
+    const name = prompt("请输入项目名称：", manualBrand || report?.brandName || "未命名项目");
+    if (!name) return;
+
+    // Update brand name which triggers auto-save eventually, but we force it here
+    setManualBrand(name);
+    
+    // Force sync immediately with new name
+    // We need to wait a tick for manualBrand state to update or pass it directly.
+    // Simpler: just update the ref/local var inside sync logic, but here we can just wait for the debounce or force calls.
+    // Let's force call with the explicit name overrides to ensure immediate feedback.
+    
+    const pid = currentProjectId || Date.now().toString();
+    if (!currentProjectId) setCurrentProjectId(pid);
+
+    const projectDataToSave: SavedProject = {
+      id: pid,
+      name, // Use new name
+      timestamp: Date.now(),
+      data: {
+        images, imageRatios, description, manualBrand: name, report,
+        selectedStyle, selectedTypography, finalPrompts,
+        needsModel, modelDesc, needsScene, sceneDesc,
+        needsDataVis, otherNeeds, aspectRatio, generatedImages,
+        imageSyncStatus
+      }
+    };
+
+    // Save Local
+    try {
+        const stored = localStorage.getItem(PROJECTS_KEY);
+        const currentProjects = stored ? JSON.parse(stored) : [];
+        const filtered = currentProjects.filter((p: any) => p.id !== pid);
+        const updated = [projectDataToSave, ...filtered];
+        localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
+        setProjects(updated.map((p: any) => ({ ...p, isSynced: p.id === pid ? false : p.isSynced })));
+    } catch (e) { console.error(e); }
+
+    // Save Cloud
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (isAdminLoggedIn && adminPassword) headers['X-Admin-Pass'] = adminPassword;
@@ -372,81 +474,12 @@ export const App: React.FC = () => {
       });
 
       if (res.ok) {
-        // Mark image as synced if specified
-        if (targetIndexToMarkSynced !== undefined) {
-            setImageSyncStatus(prev => ({ ...prev, [targetIndexToMarkSynced]: 'synced' }));
-        }
-        // Update project list sync status
         setProjects(prev => prev.map(p => p.id === pid ? { ...p, isSynced: true } : p));
-      } else {
-        console.warn("Auto-upload to cloud failed");
-      }
-    } catch (e) {
-      console.error("Auto-upload error", e);
-    }
-  };
-
-  // --- 项目管理功能 (Cloudflare API + LocalStorage) ---
-  const saveCurrentProject = async () => {
-    if (!isAdminLoggedIn && !currentUser) {
-        setIsLoginModalOpen(true); // Changed from alert to modal for better UX
-        return;
-    }
-
-    const name = prompt("请输入项目名称：", manualBrand || report?.brandName || "未命名项目");
-    if (!name) return;
-
-    const pid = currentProjectId || Date.now().toString();
-    setCurrentProjectId(pid);
-
-    const newProject: SavedProject = {
-      id: pid,
-      name,
-      timestamp: Date.now(),
-      data: {
-        images, imageRatios, description, manualBrand, report,
-        selectedStyle, selectedTypography, finalPrompts,
-        needsModel, modelDesc, needsScene, sceneDesc,
-        needsDataVis, otherNeeds, aspectRatio, generatedImages,
-        imageSyncStatus
-      }
-    };
-
-    // 1. 先保存到本地 LocalStorage (作为备份和离线支持)
-    try {
-        const stored = localStorage.getItem(PROJECTS_KEY);
-        const currentProjects = stored ? JSON.parse(stored) : [];
-        // Remove existing if overwriting same ID
-        const filtered = currentProjects.filter((p: any) => p.id !== pid);
-        const updated = [newProject, ...filtered];
-        localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
-        
-        // Optimistically update UI
-        setProjects(updated.map((p: any) => ({ ...p, isSynced: p.id === pid ? false : p.isSynced })));
-    } catch (e) {
-        console.error("Local save failed", e);
-    }
-
-    // 2. 尝试上传到 Cloudflare
-    try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (isAdminLoggedIn && adminPassword) headers['X-Admin-Pass'] = adminPassword;
-
-      const res = await fetch('/api/projects', {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(newProject)
-      });
-
-      if (res.ok) {
-        // Mark as synced
-        setProjects(prev => prev.map(p => p.id === newProject.id ? { ...p, isSynced: true } : p));
         alert("项目保存成功 (已同步至云端)！");
       } else {
         throw new Error('Cloud save failed');
       }
     } catch (e) {
-      // 仅本地保存成功
       alert("项目已保存到本地 (云端同步失败，请检查网络或配置)");
     }
   };
@@ -485,7 +518,7 @@ export const App: React.FC = () => {
         return;
     }
 
-    // Set Current ID
+    // Set Current ID - This will eventually trigger auto-save debounce which updates "last opened" timestamp
     setCurrentProjectId(projectMeta.id);
 
     // 应用数据
@@ -549,7 +582,7 @@ export const App: React.FC = () => {
     localStorage.removeItem(CACHE_KEY);
     
     // 重置所有 State
-    setCurrentProjectId(null);
+    setCurrentProjectId(null); // Setting null prevents auto-save until manual creation/naming
     setImages([]);
     setImageRatios([]);
     setDescription('');
@@ -588,7 +621,7 @@ export const App: React.FC = () => {
 
     // 3. Reset and Initialize
     localStorage.removeItem(CACHE_KEY);
-    setCurrentProjectId(Date.now().toString());
+    setCurrentProjectId(Date.now().toString()); // Setting ID enables auto-save
     setImages([]);
     setImageRatios([]);
     setDescription('');
@@ -734,10 +767,8 @@ export const App: React.FC = () => {
         // Mark as unsynced initially
         setImageSyncStatus(prev => ({ ...prev, [index]: 'unsynced' }));
         
-        // Trigger auto-upload (Real-time sync)
-        // We use a timeout to let the state settle or just call it directly with valid data
-        // To be safe, we access the latest data via Refs or assume syncProjectToCloud reads valid state
-        setTimeout(() => syncProjectToCloud(index), 100);
+        // Trigger auto-upload (Real-time sync) - The useEffect debounce will handle this, 
+        // but we can force a faster update here if desired. Relying on useEffect is safer to avoid race conditions.
       }
     } catch (err: any) {
       console.error(`生成图片失败 (Index ${index}):`, err.message);
