@@ -1,17 +1,25 @@
 import React from 'react';
-
-export type ViewType = 'core' | 'projects' | 'key' | 'models';
+import { ViewType } from './Navigation';
+import { UserProfile } from './types';
 
 interface NavigationProps {
   currentView: ViewType;
   onChange: (view: ViewType) => void;
   isAdminLoggedIn: boolean;
+  currentUser: UserProfile | null;
   onUserClick: () => void;
   onSaveProject: () => void;
   onNewProject: () => void;
+  onGoogleLogin: () => void;
+  onGoogleLogout: () => void;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, isAdminLoggedIn, onUserClick, onSaveProject, onNewProject }) => {
+export const Navigation: React.FC<NavigationProps> = ({ 
+  currentView, onChange, 
+  isAdminLoggedIn, currentUser, 
+  onUserClick, onSaveProject, onNewProject,
+  onGoogleLogin, onGoogleLogout
+}) => {
   const menuItems: { id: ViewType; label: string; line1: string; line2: string; icon: React.ReactNode }[] = [
     {
       id: 'core',
@@ -71,26 +79,20 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
       {/* Menu Items */}
       <div className="flex-1 flex flex-col gap-5 w-full px-2">
         {menuItems.map((item) => {
-          const isDisabled = item.id === 'projects' && !isAdminLoggedIn;
           const isActive = currentView === item.id;
           
           return (
             <button
               key={item.id}
-              onClick={() => {
-                if (!isDisabled) onChange(item.id);
-              }}
-              disabled={isDisabled}
+              onClick={() => onChange(item.id)}
               className={`
                 group flex flex-col items-center justify-center gap-1 p-2 rounded-2xl transition-all duration-300 w-full relative
                 ${isActive 
                   ? 'bg-white shadow-[0_8px_20px_-6px_rgba(0,0,0,0.08),inset_0_1px_2px_rgba(255,255,255,1)] text-blue-600 scale-100 ring-1 ring-black/5' 
-                  : isDisabled 
-                    ? 'text-neutral-300 cursor-not-allowed opacity-60 grayscale' 
-                    : 'text-neutral-500 hover:text-neutral-800 hover:bg-white/40 hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.05)]'
+                  : 'text-neutral-500 hover:text-neutral-800 hover:bg-white/40 hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.05)]'
                 }
               `}
-              title={isDisabled ? "请登录后使用" : item.label}
+              title={item.label}
             >
               {/* Active Indicator Glow */}
               {isActive && (
@@ -124,27 +126,56 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
               <span className="text-[9px] font-bold">保存</span>
         </button>
 
-        {/* User / Admin Toggle */}
+        {/* Divider */}
+        <div className="w-full h-px bg-neutral-200/60 my-1"></div>
+
+        {/* Google User Auth */}
+        {currentUser ? (
+           <button 
+             onClick={onGoogleLogout}
+             className="group flex flex-col items-center justify-center gap-1 p-1 rounded-2xl w-full transition-all duration-300 relative"
+             title={`已登录: ${currentUser.name}`}
+           >
+              <div className="relative">
+                 <img src={currentUser.picture} className="w-8 h-8 rounded-full border border-neutral-200 shadow-sm" alt="User" />
+                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+              </div>
+              <span className="text-[9px] font-bold text-neutral-600 truncate max-w-full px-1">{currentUser.name.split(' ')[0]}</span>
+           </button>
+        ) : (
+           <button 
+             onClick={onGoogleLogin}
+             className="group flex flex-col items-center justify-center gap-1 p-2 rounded-2xl w-full transition-all duration-300 bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 shadow-sm"
+             title="Google 登录/注册"
+           >
+              <div className="w-5 h-5 flex items-center justify-center">
+                 <svg viewBox="0 0 24 24" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              </div>
+              <span className="text-[9px] font-bold">注册/登录</span>
+           </button>
+        )}
+
+        {/* Super Admin Toggle (Only visible if not logged in via Google, or kept for backend admin) */}
         <button 
           onClick={onUserClick}
           className={`
-            group flex flex-col items-center justify-center gap-1 p-2 rounded-2xl w-full transition-all duration-300 border
+            group flex flex-col items-center justify-center gap-1 p-2 rounded-2xl w-full transition-all duration-300 border mt-1
             ${isAdminLoggedIn 
-              ? 'bg-emerald-50/50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200' 
-              : 'bg-neutral-50 text-neutral-400 border-neutral-100 hover:bg-neutral-100 hover:text-neutral-600'
+              ? 'bg-purple-50/50 text-purple-600 border-purple-100 hover:bg-purple-100 hover:border-purple-200' 
+              : 'text-neutral-300 border-transparent hover:text-neutral-400'
             }
           `}
-          title={isAdminLoggedIn ? "管理员已登录 (点击退出)" : "管理员登录"}
+          title={isAdminLoggedIn ? "超级管理员已登录" : "管理员入口"}
         >
            <div className="transform group-hover:scale-110 transition-transform duration-300">
              {isAdminLoggedIn ? (
                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
              ) : (
-               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
              )}
            </div>
            <span className="text-[9px] font-bold">
-             {isAdminLoggedIn ? '已授权' : '管理员'}
+             {isAdminLoggedIn ? 'ROOT' : 'Admin'}
            </span>
         </button>
       </div>

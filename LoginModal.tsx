@@ -25,7 +25,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
     setErrorMsg('');
 
     try {
-        // 1. 尝试服务器端验证 (Cloudflare Environment Variables)
+        // 尝试服务器端验证 (Cloudflare Environment Variables)
         const res = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -37,31 +37,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
             onLoginSuccess();
             resetForm();
             return;
-        } else if (res.status === 401) {
-            // 账号或密码错误 (服务器已配置，但验证失败)
-            // 这里我们依然检查一下是否是旧密码 '123' (为了满足"暂时保留目前的登录")
-            // 如果你想严格执行服务器验证，可以去掉下面的 fallback 逻辑
-            if (password === '123') {
-                 // Legacy Pass
-                 onLoginSuccess();
-                 resetForm();
-                 return;
-            }
-            
-            throw new Error("账号或密码错误");
         } else {
-            // 503 或其他错误 (服务器未配置环境变量) -> 回退到本地逻辑
-            throw new Error("Fallback");
+            // 验证失败
+            throw new Error("账号或密码错误");
         }
     } catch (e: any) {
-        // 2. 本地回退逻辑 (Legacy Fallback)
-        if (password === '123') {
-            onLoginSuccess();
-            resetForm();
-        } else {
-            setError(true);
-            setErrorMsg(e.message === "Fallback" ? "密码错误" : e.message);
-        }
+        setError(true);
+        setErrorMsg("账号或密码错误");
     } finally {
         setLoading(false);
     }

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 
 interface KeyConfigProps {
@@ -19,15 +20,33 @@ export const KeyConfig: React.FC<KeyConfigProps> = ({
 
   // Login Modal State handled locally for this view
   const [showLogin, setShowLogin] = useState(false);
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   
-  const handleLoginSubmit = () => {
-     if(password === '123') {
-       onAdminLogin();
-       setShowLogin(false);
-       setPassword('');
-     } else {
-       alert('密码错误');
+  const handleLoginSubmit = async () => {
+     if(!password) return;
+
+     setLoading(true);
+     try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (res.ok) {
+           onAdminLogin();
+           setShowLogin(false);
+           setUsername('');
+           setPassword('');
+        } else {
+           alert('验证失败: 账号或密码错误');
+        }
+     } catch(e) {
+        alert('登录出错，请检查网络');
+     } finally {
+        setLoading(false);
      }
   };
 
@@ -143,7 +162,7 @@ export const KeyConfig: React.FC<KeyConfigProps> = ({
               <div>
                  <h3 className="text-lg font-black text-neutral-900">管理员权限</h3>
                  <p className="text-xs text-neutral-400 font-bold">
-                   {isAdminLoggedIn ? '已激活系统高级权限' : '未登录'}
+                   {isAdminLoggedIn ? '已激活系统高级权限' : '登录以使用系统默认 Key'}
                  </p>
               </div>
             </div>
@@ -162,21 +181,35 @@ export const KeyConfig: React.FC<KeyConfigProps> = ({
          {/* Inline Login Form */}
          {showLogin && !isAdminLoggedIn && (
            <div className="mt-6 pt-6 border-t border-neutral-100 animate-fade-in">
-              <p className="text-xs font-bold text-neutral-500 mb-2">输入管理密码</p>
-              <div className="flex gap-2">
+              <p className="text-xs font-bold text-neutral-500 mb-2">管理员验证</p>
+              <div className="flex flex-col gap-3">
+                 <input 
+                   type="text" 
+                   value={username}
+                   onChange={e => setUsername(e.target.value)}
+                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm bg-neutral-50"
+                   placeholder="USERNAME"
+                 />
                  <input 
                    type="password" 
                    value={password}
                    onChange={e => setPassword(e.target.value)}
-                   className="flex-1 px-3 py-2 border border-neutral-200 rounded-lg text-sm"
+                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm bg-neutral-50"
                    placeholder="PASSWORD"
                  />
-                 <button onClick={handleLoginSubmit} className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold">
-                   确认
-                 </button>
-                 <button onClick={() => setShowLogin(false)} className="px-3 py-2 text-neutral-400 hover:text-neutral-600">
-                   取消
-                 </button>
+                 <div className="flex gap-2 justify-end mt-1">
+                     <button onClick={() => setShowLogin(false)} className="px-3 py-2 text-neutral-400 hover:text-neutral-600 text-xs font-bold">
+                       取消
+                     </button>
+                     <button 
+                        onClick={handleLoginSubmit} 
+                        disabled={loading}
+                        className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold flex items-center gap-2"
+                     >
+                       {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+                       确认登录
+                     </button>
+                 </div>
               </div>
            </div>
          )}

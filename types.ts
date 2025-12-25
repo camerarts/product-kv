@@ -79,6 +79,15 @@ export interface SavedProject {
   isSynced?: boolean;
 }
 
+export interface UserProfile {
+  id: string; // Google sub
+  email: string;
+  name: string;
+  picture: string;
+  firstLoginAt: number;
+  lastLoginAt: number;
+}
+
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { extractProductInfo, generatePosterSystem, generateImageContent } from './geminiService';
-import { VisualStyle, TypographyStyle, RecognitionReport, SavedProject, ModelConfig, SyncStatus } from './types';
+import { VisualStyle, TypographyStyle, RecognitionReport, SavedProject, ModelConfig, SyncStatus, UserProfile } from './types';
 import { Sidebar } from './Sidebar';
 import { MainContent } from './MainContent';
 import { Navigation, ViewType } from './Navigation';
@@ -34,6 +34,9 @@ export const App: React.FC = () => {
     }
     return false;
   });
+
+  // --- Google Auth User State ---
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
@@ -117,14 +120,33 @@ export const App: React.FC = () => {
       setUserApiKey(storedKey);
     }
     
-    fetchProjects();
+    // 初始加载时，如果已登录则获取项目
+    if (isAdminLoggedIn || currentUser) {
+        fetchProjects();
+    }
+
+    // Check Google Auth Status
+    const checkAuth = async () => {
+       try {
+         const res = await fetch('/api/auth/me');
+         if (res.ok) {
+           const data = await res.json();
+           if (data.authenticated) {
+             setCurrentUser(data.user);
+           }
+         }
+       } catch (e) {
+         console.warn("Auth check failed", e);
+       }
+    };
+    checkAuth();
 
     if (window.aistudio) {
       window.aistudio.hasSelectedApiKey().then((has) => {
         setHasApiKey(has);
       });
     }
-  }, []);
+  }, [isAdminLoggedIn]);
 
   const handleSelectKey = async () => {
     if (window.aistudio) {
@@ -159,9 +181,17 @@ export const App: React.FC = () => {
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
     localStorage.removeItem(ADMIN_SESSION_KEY);
-    // If on projects page, redirect to core
-    if (currentView === 'projects') {
-        setCurrentView('core');
+    // Logout clears the projects list from memory
+    setProjects([]);
+  };
+
+  const handleGoogleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setCurrentUser(null);
+      setProjects([]);
+    } catch (e) {
+      console.error("Logout failed", e);
     }
   };
 
@@ -325,7 +355,7 @@ export const App: React.FC = () => {
 
   // --- 项目管理功能 (Cloudflare API + LocalStorage) ---
   const saveCurrentProject = async () => {
-    if (!isAdminLoggedIn) {
+    if (!isAdminLoggedIn && !currentUser) {
         setIsLoginModalOpen(true); // Changed from alert to modal for better UX
         return;
     }
@@ -736,18 +766,22 @@ export const App: React.FC = () => {
         currentView={currentView} 
         onChange={(view) => {
             if (view === 'projects') {
-                if (!isAdminLoggedIn) {
-                   alert("请先登录管理员账号以查看项目列表。");
-                   return;
+                if (isAdminLoggedIn || currentUser) {
+                   fetchProjects();
+                } else {
+                   // 如果未登录，允许进入页面，但清空项目列表
+                   setProjects([]);
                 }
-                fetchProjects();
             }
             setCurrentView(view);
         }} 
         isAdminLoggedIn={isAdminLoggedIn}
+        currentUser={currentUser}
         onUserClick={handleUserIconClick}
         onSaveProject={saveCurrentProject}
         onNewProject={handleNewProject}
+        onGoogleLogin={() => window.location.href = '/api/auth/google'}
+        onGoogleLogout={handleGoogleLogout}
       />
 
       {/* Main Area based on View */}
@@ -803,6 +837,7 @@ export const App: React.FC = () => {
              projects={projects} 
              onLoad={loadProject} 
              onDelete={deleteProject} 
+             isAdminLoggedIn={isAdminLoggedIn || !!currentUser}
           />
       )}
 
