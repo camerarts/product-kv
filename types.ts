@@ -72,7 +72,8 @@ export interface SavedProject {
     otherNeeds: string;
     aspectRatio: string;
     generatedImages: Record<number, string>;
-  }
+  };
+  isSynced?: boolean;
 }
 
 declare global {

@@ -49,27 +49,49 @@ export const App: React.FC = () => {
     return defaultValue;
   };
 
-  // 获取项目列表 (Cloudflare API + LocalStorage Fallback)
+  // 获取项目列表 (Cloudflare API + LocalStorage Merge)
   const fetchProjects = async () => {
     setIsProjectsLoading(true);
+    
+    // 1. Get Local Data
+    let localList: any[] = [];
+    try {
+        const stored = localStorage.getItem(PROJECTS_KEY);
+        if (stored) localList = JSON.parse(stored);
+    } catch(e) { console.error(e); }
+
+    // 2. Get Cloud Data
+    let cloudList: any[] = [];
     try {
       const res = await fetch('/api/projects');
       if (res.ok) {
-        const data = await res.json();
-        setProjects(data);
-      } else {
-        console.warn("Cloud projects API not available, using local data only.");
-        // If API fails, ensure we fallback to local storage if state is empty
-        if (projects.length === 0) {
-           const stored = localStorage.getItem(PROJECTS_KEY);
-           if (stored) setProjects(JSON.parse(stored));
-        }
+        cloudList = await res.json();
       }
-    } catch (e) {
-      console.warn("Network error fetching projects, using local data.");
-    } finally {
-      setIsProjectsLoading(false);
-    }
+    } catch (e) { console.warn("Cloud fetch failed", e); }
+
+    // 3. Merge & Determine Status
+    const map = new Map<string, any>();
+
+    // Initialize with local (default unsynced)
+    localList.forEach(p => {
+        map.set(p.id, { ...p, isSynced: false });
+    });
+
+    // Merge cloud (mark synced)
+    cloudList.forEach(p => {
+        const existing = map.get(p.id);
+        if (existing) {
+             // Exists locally, mark as synced
+             map.set(p.id, { ...existing, isSynced: true });
+        } else {
+             // Only in cloud
+             map.set(p.id, { ...p, isSynced: true });
+        }
+    });
+
+    const merged = Array.from(map.values()).sort((a: any, b: any) => b.timestamp - a.timestamp);
+    setProjects(merged);
+    setIsProjectsLoading(false);
   };
 
   useEffect(() => {
@@ -79,15 +101,6 @@ export const App: React.FC = () => {
       setUserApiKey(storedKey);
     }
     
-    // 1. 先加载本地项目数据，保证立马有数据显示
-    const localProjects = localStorage.getItem(PROJECTS_KEY);
-    if (localProjects) {
-        try {
-            setProjects(JSON.parse(localProjects));
-        } catch(e) { console.error(e); }
-    }
-    
-    // 2. 尝试从云端加载
     fetchProjects();
 
     if (window.aistudio) {
@@ -232,7 +245,9 @@ export const App: React.FC = () => {
         const currentProjects = stored ? JSON.parse(stored) : [];
         const updated = [newProject, ...currentProjects];
         localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
-        setProjects(updated); // 立即更新 UI
+        
+        // Optimistically update UI
+        setProjects(prev => [{ ...newProject, isSynced: false }, ...prev]);
     } catch (e) {
         console.error("Local save failed", e);
     }
@@ -246,8 +261,9 @@ export const App: React.FC = () => {
       });
 
       if (res.ok) {
+        // Mark as synced
+        setProjects(prev => prev.map(p => p.id === newProject.id ? { ...p, isSynced: true } : p));
         alert("项目保存成功 (已同步至云端)！");
-        fetchProjects(); // 刷新以确保数据一致
       } else {
         throw new Error('Cloud save failed');
       }
@@ -325,19 +341,14 @@ export const App: React.FC = () => {
             const list = JSON.parse(stored);
             const updated = list.filter((p: any) => p.id !== id);
             localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
-            setProjects(updated);
         }
     } catch(e) {}
 
-    // 2. 删除云端
-    try {
-       const res = await fetch(`/api/project/${id}`, { method: 'DELETE' });
-       if (!res.ok) {
-         console.warn("Cloud delete failed");
-       }
-    } catch (e) {
-      console.error("Delete error", e);
-    }
+    // 2. 删除云端 (fire and forget)
+    fetch(`/api/project/${id}`, { method: 'DELETE' }).catch(e => console.error(e));
+
+    // Update UI
+    setProjects(prev => prev.filter(p => p.id !== id));
   };
 
   // --- 重制（清空）功能 ---
