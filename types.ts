@@ -29,6 +29,9 @@ export interface RecognitionReport {
   targetAudience: string;
   brandTone: string;
   packagingHighlights: string;
+  packagingStyle?: string;
+  fontStyle?: string;
+  patternElements?: string;
 }
 
 export interface PosterSystem {

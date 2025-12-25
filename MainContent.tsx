@@ -114,7 +114,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                              </div>
                            </div>
                            <div>
-                             <p className="text-[9px] font-bold text-neutral-400 mb-0.5">驱动人群</p>
+                             <p className="text-[9px] font-bold text-neutral-400 mb-0.5">目标人群</p>
                              <div className="text-[11px] font-bold text-neutral-800 leading-tight line-clamp-2" title={report.targetAudience}>
                                 {report.targetAudience}
                              </div>
@@ -201,10 +201,26 @@ export const MainContent: React.FC<MainContentProps> = ({
                             {report.packagingHighlights || '3D浮雕文字 + 金属质感 (奢华风)'}
                          </p>
                          
-                         <div className="mt-auto">
+                         <div className="mt-auto space-y-3">
                             <div className="inline-flex items-center gap-1.5 bg-neutral-50 rounded-full pl-2 pr-3 py-1">
                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
                                <span className="text-[10px] font-bold text-neutral-700">{report.brandTone}</span>
+                            </div>
+
+                            {/* Additional Recognized Details */}
+                            <div className="flex flex-col gap-1.5 pl-1 border-l-2 border-neutral-100 ml-1 py-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] text-neutral-400 font-medium min-w-[36px]">包装风格</span>
+                                  <span className="text-[9px] font-bold text-neutral-600 truncate">{report.packagingStyle || '未识别'}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] text-neutral-400 font-medium min-w-[36px]">字体风格</span>
+                                  <span className="text-[9px] font-bold text-neutral-600 truncate">{report.fontStyle || '未识别'}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] text-neutral-400 font-medium min-w-[36px]">图案元素</span>
+                                  <span className="text-[9px] font-bold text-neutral-600 truncate">{report.patternElements || '未识别'}</span>
+                                </div>
                             </div>
                          </div>
                       </div>

@@ -72,7 +72,10 @@ export const extractProductInfo = async (
     "designStyle": "设计语言描述",
     "targetAudience": "目标受众",
     "brandTone": "品牌调性",
-    "packagingHighlights": "包装亮点"
+    "packagingHighlights": "包装亮点",
+    "packagingStyle": "识别包装设计风格（极简/复古/可爱/科技/艺术等）",
+    "fontStyle": "识别字体风格（衬线/无衬线/手写等）",
+    "patternElements": "识别图案元素（水彩/几何/插画/摄影）"
   }
   用户提供的描述：${textDescription || '无'}` });
 
@@ -95,7 +98,10 @@ export const extractProductInfo = async (
           designStyle: { type: Type.STRING },
           targetAudience: { type: Type.STRING },
           brandTone: { type: Type.STRING },
-          packagingHighlights: { type: Type.STRING }
+          packagingHighlights: { type: Type.STRING },
+          packagingStyle: { type: Type.STRING },
+          fontStyle: { type: Type.STRING },
+          patternElements: { type: Type.STRING }
         }
       },
       safetySettings: [
@@ -121,7 +127,10 @@ export const extractProductInfo = async (
        designStyle: "暂无",
        targetAudience: "未知",
        brandTone: "未知",
-       packagingHighlights: "暂无"
+       packagingHighlights: "暂无",
+       packagingStyle: "暂无",
+       fontStyle: "暂无",
+       patternElements: "暂无"
     };
   }
 
@@ -149,7 +158,10 @@ export const extractProductInfo = async (
       designStyle: parsed.designStyle || '',
       targetAudience: parsed.targetAudience || '',
       brandTone: parsed.brandTone || '',
-      packagingHighlights: parsed.packagingHighlights || ''
+      packagingHighlights: parsed.packagingHighlights || '',
+      packagingStyle: parsed.packagingStyle || '',
+      fontStyle: parsed.fontStyle || '',
+      patternElements: parsed.patternElements || ''
     };
   } catch (e) {
     console.error("JSON Parse failed:", e);
@@ -180,6 +192,7 @@ export const generatePosterSystem = async (
   核心卖点：${sellingPointsStr}
   主视觉：${report.mainColors}
   调性：${report.brandTone}
+  包装风格：${report.packagingStyle || ''}
   
   【设计配置】
   风格：${visualStyle}
