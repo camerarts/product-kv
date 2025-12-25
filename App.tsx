@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { extractProductInfo, generatePosterSystem, generateImageContent } from './geminiService';
-import { VisualStyle, TypographyStyle, RecognitionReport, SavedProject, ModelConfig } from './types';
+import { VisualStyle, TypographyStyle, RecognitionReport, SavedProject, ModelConfig, SyncStatus } from './types';
 import { Sidebar } from './Sidebar';
 import { MainContent } from './MainContent';
 import { Navigation, ViewType } from './Navigation';
@@ -160,6 +160,8 @@ export const App: React.FC = () => {
   // --- 核心业务状态 (使用 lazy init 从缓存读取) ---
   const [generationLoading, setGenerationLoading] = useState(false); // Loading 状态不缓存，防止卡死
   
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(() => getCachedState('currentProjectId', null));
+
   const [images, setImages] = useState<string[]>(() => getCachedState('images', []));
   const [imageRatios, setImageRatios] = useState<number[]>(() => getCachedState('imageRatios', []));
   const [description, setDescription] = useState(() => getCachedState('description', ''));
@@ -184,19 +186,27 @@ export const App: React.FC = () => {
   const [aspectRatio, setAspectRatio] = useState(() => getCachedState('aspectRatio', "9:16"));
 
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>(() => getCachedState('generatedImages', {}));
+  const [imageSyncStatus, setImageSyncStatus] = useState<Record<number, SyncStatus>>(() => getCachedState('imageSyncStatus', {}));
+
   const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({}); // Loading 状态不缓存
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   
   // Ref to track generating state for the batch process to avoid stale closures
   const generatingModulesRef = useRef<Record<number, boolean>>({});
+  const generatedImagesRef = useRef<Record<number, string>>({});
 
   useEffect(() => {
     generatingModulesRef.current = generatingModules;
   }, [generatingModules]);
 
+  useEffect(() => {
+    generatedImagesRef.current = generatedImages;
+  }, [generatedImages]);
+
   // --- 数据持久化副作用 (Current State) ---
   useEffect(() => {
     const stateToCache = {
+      currentProjectId,
       images,
       imageRatios,
       description,
@@ -212,30 +222,98 @@ export const App: React.FC = () => {
       needsDataVis,
       otherNeeds,
       aspectRatio,
-      generatedImages
+      generatedImages,
+      imageSyncStatus
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(stateToCache));
   }, [
+    currentProjectId,
     images, imageRatios, description, manualBrand, report,
     selectedStyle, selectedTypography, finalPrompts,
     needsModel, modelDesc, needsScene, sceneDesc,
-    needsDataVis, otherNeeds, aspectRatio, generatedImages
+    needsDataVis, otherNeeds, aspectRatio, generatedImages, imageSyncStatus
   ]);
+
+  // --- 自动上传/同步逻辑 ---
+  const syncProjectToCloud = async (targetIndexToMarkSynced?: number) => {
+    const pid = currentProjectId || Date.now().toString();
+    if (!currentProjectId) {
+        setCurrentProjectId(pid);
+    }
+    
+    // Prepare project data
+    const projectDataToSave: SavedProject = {
+      id: pid,
+      name: manualBrand || report?.brandName || `自动保存 ${new Date().toLocaleString()}`,
+      timestamp: Date.now(),
+      data: {
+        images, imageRatios, description, manualBrand, report,
+        selectedStyle, selectedTypography, finalPrompts,
+        needsModel, modelDesc, needsScene, sceneDesc,
+        needsDataVis, otherNeeds, aspectRatio, 
+        generatedImages: generatedImagesRef.current, // Use ref for latest
+        imageSyncStatus // This might be slightly stale if called immediately, but we update optimistically below
+      }
+    };
+
+    // First, save to local storage project list
+    try {
+        const stored = localStorage.getItem(PROJECTS_KEY);
+        const currentProjects = stored ? JSON.parse(stored) : [];
+        const existingIdx = currentProjects.findIndex((p: any) => p.id === pid);
+        let updated;
+        if (existingIdx >= 0) {
+            currentProjects[existingIdx] = projectDataToSave;
+            updated = [...currentProjects];
+        } else {
+            updated = [projectDataToSave, ...currentProjects];
+        }
+        localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
+        // Update Project List UI
+        setProjects(updated.map((p: any) => ({ ...p, isSynced: false }))); 
+    } catch (e) { console.error("Auto-save local failed", e); }
+
+    // Then upload to Cloud
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectDataToSave)
+      });
+
+      if (res.ok) {
+        // Mark image as synced if specified
+        if (targetIndexToMarkSynced !== undefined) {
+            setImageSyncStatus(prev => ({ ...prev, [targetIndexToMarkSynced]: 'synced' }));
+        }
+        // Update project list sync status
+        setProjects(prev => prev.map(p => p.id === pid ? { ...p, isSynced: true } : p));
+      } else {
+        console.warn("Auto-upload to cloud failed");
+      }
+    } catch (e) {
+      console.error("Auto-upload error", e);
+    }
+  };
 
   // --- 项目管理功能 (Cloudflare API + LocalStorage) ---
   const saveCurrentProject = async () => {
     const name = prompt("请输入项目名称：", manualBrand || report?.brandName || "未命名项目");
     if (!name) return;
 
+    const pid = currentProjectId || Date.now().toString();
+    setCurrentProjectId(pid);
+
     const newProject: SavedProject = {
-      id: Date.now().toString(),
+      id: pid,
       name,
       timestamp: Date.now(),
       data: {
         images, imageRatios, description, manualBrand, report,
         selectedStyle, selectedTypography, finalPrompts,
         needsModel, modelDesc, needsScene, sceneDesc,
-        needsDataVis, otherNeeds, aspectRatio, generatedImages
+        needsDataVis, otherNeeds, aspectRatio, generatedImages,
+        imageSyncStatus
       }
     };
 
@@ -243,11 +321,13 @@ export const App: React.FC = () => {
     try {
         const stored = localStorage.getItem(PROJECTS_KEY);
         const currentProjects = stored ? JSON.parse(stored) : [];
-        const updated = [newProject, ...currentProjects];
+        // Remove existing if overwriting same ID
+        const filtered = currentProjects.filter((p: any) => p.id !== pid);
+        const updated = [newProject, ...filtered];
         localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
         
         // Optimistically update UI
-        setProjects(prev => [{ ...newProject, isSynced: false }, ...prev]);
+        setProjects(updated.map((p: any) => ({ ...p, isSynced: p.id === pid ? false : p.isSynced })));
     } catch (e) {
         console.error("Local save failed", e);
     }
@@ -307,6 +387,9 @@ export const App: React.FC = () => {
         return;
     }
 
+    // Set Current ID
+    setCurrentProjectId(projectMeta.id);
+
     // 应用数据
     setImages(projectData.images || []);
     setImageRatios(projectData.imageRatios || []);
@@ -324,6 +407,7 @@ export const App: React.FC = () => {
     setOtherNeeds(projectData.otherNeeds || '');
     setAspectRatio(projectData.aspectRatio || "9:16");
     setGeneratedImages(projectData.generatedImages || {});
+    setImageSyncStatus(projectData.imageSyncStatus || {});
     
     // Reset transient states
     setGeneratingModules({});
@@ -349,6 +433,11 @@ export const App: React.FC = () => {
 
     // Update UI
     setProjects(prev => prev.filter(p => p.id !== id));
+    
+    // If deleted current project, clear ID
+    if (id === currentProjectId) {
+        setCurrentProjectId(null);
+    }
   };
 
   // --- 重制（清空）功能 ---
@@ -361,6 +450,7 @@ export const App: React.FC = () => {
     localStorage.removeItem(CACHE_KEY);
     
     // 重置所有 State
+    setCurrentProjectId(null);
     setImages([]);
     setImageRatios([]);
     setDescription('');
@@ -377,6 +467,7 @@ export const App: React.FC = () => {
     setOtherNeeds('');
     setAspectRatio("9:16");
     setGeneratedImages({});
+    setImageSyncStatus({});
     setGeneratingModules({});
     setPreviewImageUrl(null);
     setGenerationLoading(false);
@@ -497,7 +588,15 @@ export const App: React.FC = () => {
           modelConfig.visualModel
       );
       if (res) {
-        setGeneratedImages(prev => ({ ...prev, [index]: `data:image/jpeg;base64,${res}` }));
+        const b64 = `data:image/jpeg;base64,${res}`;
+        setGeneratedImages(prev => ({ ...prev, [index]: b64 }));
+        // Mark as unsynced initially
+        setImageSyncStatus(prev => ({ ...prev, [index]: 'unsynced' }));
+        
+        // Trigger auto-upload (Real-time sync)
+        // We use a timeout to let the state settle or just call it directly with valid data
+        // To be safe, we access the latest data via Refs or assume syncProjectToCloud reads valid state
+        setTimeout(() => syncProjectToCloud(index), 100);
       }
     } catch (err: any) {
       console.error(`生成图片失败 (Index ${index}):`, err.message);
@@ -595,6 +694,7 @@ export const App: React.FC = () => {
                 selectedTypography={selectedTypography}
                 finalPrompts={finalPrompts}
                 generatedImages={generatedImages}
+                imageSyncStatus={imageSyncStatus}
                 generatingModules={generatingModules}
                 previewImageUrl={previewImageUrl}
                 setPreviewImageUrl={setPreviewImageUrl}

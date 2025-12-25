@@ -1,6 +1,6 @@
 import React from 'react';
 import JSZip from 'jszip';
-import { RecognitionReport, VisualStyle, TypographyStyle } from './types';
+import { RecognitionReport, VisualStyle, TypographyStyle, SyncStatus } from './types';
 
 interface MainContentProps {
   checkAuth: () => boolean;
@@ -11,6 +11,7 @@ interface MainContentProps {
   selectedTypography: TypographyStyle;
   finalPrompts: string;
   generatedImages: Record<number, string>;
+  imageSyncStatus?: Record<number, SyncStatus>;
   generatingModules: Record<number, boolean>;
   previewImageUrl: string | null;
   setPreviewImageUrl: (val: string | null) => void;
@@ -22,7 +23,7 @@ interface MainContentProps {
 
 export const MainContent: React.FC<MainContentProps> = ({
   manualBrand, report, selectedStyle, selectedTypography,
-  finalPrompts, generatedImages, generatingModules,
+  finalPrompts, generatedImages, imageSyncStatus = {}, generatingModules,
   previewImageUrl, setPreviewImageUrl, generateSingleImage, generateAllImages,
   promptModules, aspectRatio
 }) => {
@@ -280,6 +281,9 @@ export const MainContent: React.FC<MainContentProps> = ({
                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                  {promptModules.map((m, idx) => {
                    const isLogo = m.title.includes("LOGO");
+                   const isSynced = imageSyncStatus[idx] === 'synced';
+                   const isUnsynced = imageSyncStatus[idx] === 'unsynced';
+
                    return (
                      <div key={idx} className="bg-white rounded-2xl border border-neutral-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-md transition-shadow overflow-hidden flex h-52">
                         
@@ -317,6 +321,15 @@ export const MainContent: React.FC<MainContentProps> = ({
                                     className="w-full h-full object-cover cursor-zoom-in" 
                                     onClick={()=>setPreviewImageUrl(generatedImages[idx])} 
                                   />
+                                  {/* Sync Status Indicator */}
+                                  <div className="absolute top-2 left-2 z-20">
+                                     {isSynced && (
+                                         <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-white shadow-sm animate-pulse" title="已同步至云端"></div>
+                                     )}
+                                     {isUnsynced && (
+                                         <div className="w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow-sm" title="未同步 (正在尝试上传或保存失败)"></div>
+                                     )}
+                                  </div>
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none"></div>
                                 </>
                               ) : (

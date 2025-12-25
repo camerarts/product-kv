@@ -51,6 +51,8 @@ export interface ModelConfig {
   visualModel: string;
 }
 
+export type SyncStatus = 'synced' | 'unsynced';
+
 export interface SavedProject {
   id: string;
   name: string;
@@ -72,6 +74,7 @@ export interface SavedProject {
     otherNeeds: string;
     aspectRatio: string;
     generatedImages: Record<number, string>;
+    imageSyncStatus?: Record<number, SyncStatus>;
   };
   isSynced?: boolean;
 }
