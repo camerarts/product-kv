@@ -891,9 +891,6 @@ export const App: React.FC = () => {
              userApiKey={userApiKey} 
              onSave={handleSaveKey} 
              onClear={handleClearKey}
-             isAdminLoggedIn={isAdminLoggedIn}
-             onAdminLogin={(pass) => handleAdminLogin(pass)} // Update this to accept pass in KeyConfig if used there, but mostly handled by global modal
-             onAdminLogout={handleAdminLogout}
           />
       )}
 

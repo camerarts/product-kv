@@ -1,60 +1,23 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 
 interface KeyConfigProps {
   userApiKey: string;
   onSave: (key: string) => void;
   onClear: () => void;
-  isAdminLoggedIn: boolean;
-  onAdminLogin: (password: string) => void;
-  onAdminLogout: () => void;
 }
 
 export const KeyConfig: React.FC<KeyConfigProps> = ({ 
-  userApiKey, onSave, onClear, 
-  isAdminLoggedIn, onAdminLogin, onAdminLogout 
+  userApiKey, onSave, onClear
 }) => {
   const [inputValue, setInputValue] = useState(userApiKey);
   const [showKey, setShowKey] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-
-  // Login Modal State handled locally for this view
-  const [showLogin, setShowLogin] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  
-  const handleLoginSubmit = async () => {
-     if(!password) return;
-
-     setLoading(true);
-     try {
-        const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-
-        if (res.ok) {
-           onAdminLogin(password);
-           setShowLogin(false);
-           setUsername('');
-           setPassword('');
-        } else {
-           alert('验证失败: 账号或密码错误');
-        }
-     } catch(e) {
-        alert('登录出错，请检查网络');
-     } finally {
-        setLoading(false);
-     }
-  };
 
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
         setInputValue(text);
-        // Optional: Flash success or something, but standard behavior is just set value.
       }
     } catch (err) {
       console.error('Failed to paste:', err);
@@ -74,7 +37,7 @@ export const KeyConfig: React.FC<KeyConfigProps> = ({
     <div className="flex-1 bg-neutral-50 p-8 flex flex-col items-center justify-center">
       
       {/* API Key Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 w-full max-w-lg p-8 mb-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 w-full max-w-lg p-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-2xl">🔑</div>
           <div>
@@ -149,69 +112,6 @@ export const KeyConfig: React.FC<KeyConfigProps> = ({
             保存 Key
           </button>
         </div>
-      </div>
-
-      {/* Admin Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 w-full max-w-lg p-8">
-         <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-colors ${isAdminLoggedIn ? 'bg-green-100 text-green-600' : 'bg-neutral-100 text-neutral-400'}`}>
-                {isAdminLoggedIn ? '🛡️' : '🔒'}
-              </div>
-              <div>
-                 <h3 className="text-lg font-black text-neutral-900">管理员权限</h3>
-                 <p className="text-xs text-neutral-400 font-bold">
-                   {isAdminLoggedIn ? '已激活系统高级权限' : '登录以使用系统默认 Key'}
-                 </p>
-              </div>
-            </div>
-            
-            {isAdminLoggedIn ? (
-               <button onClick={onAdminLogout} className="px-4 py-2 border border-red-200 text-red-600 bg-red-50 rounded-lg text-xs font-bold hover:bg-red-100">
-                 退出登录
-               </button>
-            ) : (
-               <button onClick={() => setShowLogin(true)} className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold hover:bg-neutral-800">
-                 管理员登录
-               </button>
-            )}
-         </div>
-
-         {/* Inline Login Form */}
-         {showLogin && !isAdminLoggedIn && (
-           <div className="mt-6 pt-6 border-t border-neutral-100 animate-fade-in">
-              <p className="text-xs font-bold text-neutral-500 mb-2">管理员验证</p>
-              <div className="flex flex-col gap-3">
-                 <input 
-                   type="text" 
-                   value={username}
-                   onChange={e => setUsername(e.target.value)}
-                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm bg-neutral-50"
-                   placeholder="USERNAME"
-                 />
-                 <input 
-                   type="password" 
-                   value={password}
-                   onChange={e => setPassword(e.target.value)}
-                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm bg-neutral-50"
-                   placeholder="PASSWORD"
-                 />
-                 <div className="flex gap-2 justify-end mt-1">
-                     <button onClick={() => setShowLogin(false)} className="px-3 py-2 text-neutral-400 hover:text-neutral-600 text-xs font-bold">
-                       取消
-                     </button>
-                     <button 
-                        onClick={handleLoginSubmit} 
-                        disabled={loading}
-                        className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold flex items-center gap-2"
-                     >
-                       {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                       确认登录
-                     </button>
-                 </div>
-              </div>
-           </div>
-         )}
       </div>
     </div>
   );
