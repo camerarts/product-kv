@@ -110,21 +110,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 4. Create Session
     const sessionId = crypto.randomUUID();
+    const SESSION_TTL_SECONDS = 4 * 60 * 60; // 4 Hours
+    
     const sessionData = {
       userId: userId,
       email: userData.email,
       createdAt: now,
-      expiresAt: now + 7 * 24 * 60 * 60 * 1000, // Session valid for 7 days
+      expiresAt: now + (SESSION_TTL_SECONDS * 1000), // Session valid for 4 hours
     };
 
-    // Store Session in KV (Expire in 7 days)
+    // Store Session in KV (Expire in 4 hours)
     await context.env.VISION_KV.put(`session:${sessionId}`, JSON.stringify(sessionData), {
-      expirationTtl: 7 * 24 * 60 * 60,
+      expirationTtl: SESSION_TTL_SECONDS,
     });
 
     // 5. Set Cookie and Redirect
     const headers = new Headers();
-    const cookie = `auth_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800; Secure`;
+    const cookie = `auth_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}; Secure`;
     
     headers.append("Set-Cookie", cookie);
     headers.append("Location", "/"); // Redirect to home

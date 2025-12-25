@@ -30,6 +30,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDe
                     <tr>
                        <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 whitespace-nowrap">项目名称</th>
                        <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 whitespace-nowrap">品牌</th>
+                       <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 whitespace-nowrap">创作者</th>
                        <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 whitespace-nowrap">状态</th>
                        <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 whitespace-nowrap">保存时间</th>
                        <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider text-right bg-neutral-50 whitespace-nowrap">操作</th>
@@ -39,7 +40,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDe
                      {!isAuthenticated ? (
                         /* Not Logged In State - Empty Blank Content with Helper Text */
                         <tr>
-                            <td colSpan={5} className="px-6 py-32 text-center">
+                            <td colSpan={6} className="px-6 py-32 text-center">
                                 <div className="flex flex-col items-center justify-center text-neutral-400">
                                     <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mb-4 text-3xl">🔒</div>
                                     <h3 className="text-sm font-bold text-neutral-600 mb-1">未授权访问</h3>
@@ -49,7 +50,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDe
                         </tr>
                      ) : projects.length === 0 ? (
                        <tr>
-                         <td colSpan={5} className="px-6 py-32 text-center">
+                         <td colSpan={6} className="px-6 py-32 text-center">
                             <div className="flex flex-col items-center justify-center text-neutral-400">
                                 <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mb-4 text-3xl">📁</div>
                                 <h3 className="text-sm font-bold text-neutral-600 mb-1">暂无项目</h3>
@@ -73,6 +74,11 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDe
                             <td className="px-6 py-4">
                                <div className="text-xs font-bold text-neutral-600 bg-neutral-100 inline-block px-2 py-1 rounded truncate max-w-[150px]">
                                  {project.brandName || project.data?.manualBrand || '未命名品牌'}
+                               </div>
+                            </td>
+                            <td className="px-6 py-4">
+                               <div className="text-xs font-bold text-purple-600 bg-purple-50 inline-block px-2 py-1 rounded truncate max-w-[120px]">
+                                 {project.userName || (project.userId ? 'User ' + project.userId.slice(0,4) : '本地用户')}
                                </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">

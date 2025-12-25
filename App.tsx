@@ -83,6 +83,17 @@ export const App: React.FC = () => {
         if (stored) localList = JSON.parse(stored);
     } catch(e) { console.error(e); }
 
+    // --- SECURITY FILTER ---
+    // Prevent users from seeing other users' local projects on shared devices
+    if (currentUser) {
+        // If logged in via Google, only show projects belonging to this user ID
+        localList = localList.filter(p => p.userId === currentUser.id);
+    } else {
+        // If Guest (or Admin login which is separate), only show projects with NO userId (Guest projects)
+        // This ensures that logging out hides the user's projects from the guest view
+        localList = localList.filter(p => !p.userId);
+    }
+
     // 2. Get Cloud Data
     let cloudList: any[] = [];
     try {
@@ -121,7 +132,7 @@ export const App: React.FC = () => {
     const merged = Array.from(map.values()).sort((a: any, b: any) => b.timestamp - a.timestamp);
     setProjects(merged);
     setIsProjectsLoading(false);
-  }, [isAdminLoggedIn, adminPassword]);
+  }, [isAdminLoggedIn, adminPassword, currentUser]);
 
   // --- Effects ---
 
@@ -167,9 +178,8 @@ export const App: React.FC = () => {
 
   // 2. Fetch Projects when Auth changes (Auto-Download)
   useEffect(() => {
-    if (isAdminLoggedIn || currentUser) {
-        fetchProjects();
-    }
+    // Always fetch projects to ensure the list reflects the current user state (including guest)
+    fetchProjects();
   }, [isAdminLoggedIn, currentUser, adminPassword, fetchProjects]);
 
 
@@ -330,6 +340,8 @@ export const App: React.FC = () => {
       id: currentProjectId,
       name: manualBrand || report?.brandName || `自动保存 ${new Date().toLocaleString()}`,
       timestamp: Date.now(),
+      userId: currentUser?.id, // Bind to current user locally as well
+      userName: currentUser?.name, // Bind creator name
       data: {
         images, imageRatios, description, manualBrand, report,
         selectedStyle, selectedTypography, finalPrompts,
@@ -358,7 +370,11 @@ export const App: React.FC = () => {
         setProjects(updated.map((p: any) => ({ 
             ...p, 
             isSynced: p.id === currentProjectId ? false : p.isSynced // Temporarily mark as local until cloud confirms
-        }))); 
+        })).filter(p => {
+            // Apply same filtering to the immediate state update
+            if (currentUser) return p.userId === currentUser.id;
+            return !p.userId;
+        })); 
     } catch (e) { console.error("Auto-save local failed (quota likely exceeded)", e); }
 
     // Then upload to Cloud
@@ -432,9 +448,6 @@ export const App: React.FC = () => {
     setManualBrand(name);
     
     // Force sync immediately with new name
-    // We need to wait a tick for manualBrand state to update or pass it directly.
-    // Simpler: just update the ref/local var inside sync logic, but here we can just wait for the debounce or force calls.
-    // Let's force call with the explicit name overrides to ensure immediate feedback.
     
     const pid = currentProjectId || Date.now().toString();
     if (!currentProjectId) setCurrentProjectId(pid);
@@ -443,6 +456,8 @@ export const App: React.FC = () => {
       id: pid,
       name, // Use new name
       timestamp: Date.now(),
+      userId: currentUser?.id, // Bind user ID
+      userName: currentUser?.name, // Bind creator name
       data: {
         images, imageRatios, description, manualBrand: name, report,
         selectedStyle, selectedTypography, finalPrompts,
@@ -459,7 +474,14 @@ export const App: React.FC = () => {
         const filtered = currentProjects.filter((p: any) => p.id !== pid);
         const updated = [projectDataToSave, ...filtered];
         localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
-        setProjects(updated.map((p: any) => ({ ...p, isSynced: p.id === pid ? false : p.isSynced })));
+        
+        // Filter visible projects immediately
+        setProjects(updated.map((p: any) => ({ ...p, isSynced: p.id === pid ? false : p.isSynced }))
+            .filter((p: any) => {
+                if (currentUser) return p.userId === currentUser.id;
+                return !p.userId;
+            })
+        );
     } catch (e) { console.error(e); }
 
     // Save Cloud

@@ -123,7 +123,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       name: project.name,
       timestamp: project.timestamp,
       brandName: project.data.manualBrand || project.data.report?.brandName || '未命名品牌',
-      userId: ownerId // Bind project to user
+      userId: ownerId, // Bind project to user
+      userName: project.userName || 'Unknown' // Save creator name for display
     };
 
     // Update project object with userId as well for R2 storage consistency
