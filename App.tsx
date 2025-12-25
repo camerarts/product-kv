@@ -12,13 +12,29 @@ import { LoginModal } from './LoginModal';
 
 const CACHE_KEY = 'VISION_APP_CACHE_V1';
 const PROJECTS_KEY = 'VISION_APP_PROJECTS_V1';
+const ADMIN_SESSION_KEY = 'VISION_ADMIN_SESSION_TIMESTAMP';
+const SESSION_DURATION = 4 * 60 * 60 * 1000; // 4 hours
 
 export const App: React.FC = () => {
   // --- View State ---
   const [currentView, setCurrentView] = useState<ViewType>('core');
 
-  // --- 全局 UI 状态 (不缓存) ---
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  // --- 全局 UI 状态 (持久化登录) ---
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
+    try {
+      const stored = localStorage.getItem(ADMIN_SESSION_KEY);
+      if (stored) {
+        const timestamp = parseInt(stored, 10);
+        if (!isNaN(timestamp) && (Date.now() - timestamp < SESSION_DURATION)) {
+          return true;
+        }
+      }
+    } catch (e) {
+      console.error("Session restore failed", e);
+    }
+    return false;
+  });
+
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // --- API Key 状态 (单独存储) ---
@@ -137,10 +153,12 @@ export const App: React.FC = () => {
 
   const handleAdminLogin = () => {
     setIsAdminLoggedIn(true);
+    localStorage.setItem(ADMIN_SESSION_KEY, Date.now().toString());
   };
 
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
+    localStorage.removeItem(ADMIN_SESSION_KEY);
     // If on projects page, redirect to core
     if (currentView === 'projects') {
         setCurrentView('core');
@@ -210,27 +228,31 @@ export const App: React.FC = () => {
 
   // --- 数据持久化副作用 (Current State) ---
   useEffect(() => {
-    const stateToCache = {
-      currentProjectId,
-      images,
-      imageRatios,
-      description,
-      manualBrand,
-      report,
-      selectedStyle,
-      selectedTypography,
-      finalPrompts,
-      needsModel,
-      modelDesc,
-      needsScene,
-      sceneDesc,
-      needsDataVis,
-      otherNeeds,
-      aspectRatio,
-      generatedImages,
-      imageSyncStatus
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(stateToCache));
+    try {
+      const stateToCache = {
+        currentProjectId,
+        images,
+        imageRatios,
+        description,
+        manualBrand,
+        report,
+        selectedStyle,
+        selectedTypography,
+        finalPrompts,
+        needsModel,
+        modelDesc,
+        needsScene,
+        sceneDesc,
+        needsDataVis,
+        otherNeeds,
+        aspectRatio,
+        generatedImages,
+        imageSyncStatus
+      };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(stateToCache));
+    } catch (e) {
+      console.warn("Local storage update failed (likely quota exceeded). This only affects offline cache, not cloud sync.", e);
+    }
   }, [
     currentProjectId,
     images, imageRatios, description, manualBrand, report,
@@ -276,7 +298,7 @@ export const App: React.FC = () => {
         localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
         // Update Project List UI
         setProjects(updated.map((p: any) => ({ ...p, isSynced: false }))); 
-    } catch (e) { console.error("Auto-save local failed", e); }
+    } catch (e) { console.error("Auto-save local failed (quota likely exceeded)", e); }
 
     // Then upload to Cloud
     try {
