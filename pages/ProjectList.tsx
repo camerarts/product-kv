@@ -49,7 +49,13 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDe
                        projects.map((project) => (
                          <tr key={project.id} className="hover:bg-blue-50/30 transition-colors group">
                             <td className="px-6 py-4">
-                               <div className="text-sm font-bold text-neutral-900 truncate max-w-[200px]" title={project.name}>{project.name}</div>
+                               <div 
+                                 className="text-sm font-bold text-neutral-900 truncate max-w-[200px] cursor-pointer hover:text-blue-600 hover:underline transition-colors" 
+                                 title="点击加载项目"
+                                 onClick={() => onLoad(project)}
+                               >
+                                 {project.name}
+                               </div>
                             </td>
                             <td className="px-6 py-4">
                                <div className="text-xs font-bold text-neutral-600 bg-neutral-100 inline-block px-2 py-1 rounded truncate max-w-[150px]">
@@ -75,12 +81,6 @@ export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDe
                                </div>
                             </td>
                             <td className="px-6 py-4 text-right flex gap-3 justify-end whitespace-nowrap">
-                               <button 
-                                 onClick={() => onLoad(project)}
-                                 className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
-                               >
-                                 加载
-                               </button>
                                <button 
                                  onClick={() => {
                                    const msg = project.isSynced 
