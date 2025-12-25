@@ -32,7 +32,8 @@ export const App: React.FC = () => {
   });
 
   // --- Projects State ---
-  const [projects, setProjects] = useState<SavedProject[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
 
   // --- 辅助函数：从缓存读取初始值 ---
   const getCachedState = <T,>(key: string, defaultValue: T): T => {
@@ -48,6 +49,29 @@ export const App: React.FC = () => {
     return defaultValue;
   };
 
+  // 获取项目列表 (Cloudflare API + LocalStorage Fallback)
+  const fetchProjects = async () => {
+    setIsProjectsLoading(true);
+    try {
+      const res = await fetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data);
+      } else {
+        console.warn("Cloud projects API not available, using local data only.");
+        // If API fails, ensure we fallback to local storage if state is empty
+        if (projects.length === 0) {
+           const stored = localStorage.getItem(PROJECTS_KEY);
+           if (stored) setProjects(JSON.parse(stored));
+        }
+      }
+    } catch (e) {
+      console.warn("Network error fetching projects, using local data.");
+    } finally {
+      setIsProjectsLoading(false);
+    }
+  };
+
   useEffect(() => {
     // 恢复 API Key
     const storedKey = localStorage.getItem('USER_GEMINI_API_KEY');
@@ -55,15 +79,16 @@ export const App: React.FC = () => {
       setUserApiKey(storedKey);
     }
     
-    // 恢复 Projects
-    const storedProjects = localStorage.getItem(PROJECTS_KEY);
-    if (storedProjects) {
+    // 1. 先加载本地项目数据，保证立马有数据显示
+    const localProjects = localStorage.getItem(PROJECTS_KEY);
+    if (localProjects) {
         try {
-            setProjects(JSON.parse(storedProjects));
-        } catch (e) {
-            console.error("Failed to parse projects", e);
-        }
+            setProjects(JSON.parse(localProjects));
+        } catch(e) { console.error(e); }
     }
+    
+    // 2. 尝试从云端加载
+    fetchProjects();
 
     if (window.aistudio) {
       window.aistudio.hasSelectedApiKey().then((has) => {
@@ -99,12 +124,10 @@ export const App: React.FC = () => {
 
   const handleAdminLogin = () => {
     setIsAdminLoggedIn(true);
-    alert("管理员登录成功！");
   };
 
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
-    alert("已退出管理员登录。");
   };
 
   const handleUserIconClick = () => {
@@ -186,8 +209,8 @@ export const App: React.FC = () => {
     needsDataVis, otherNeeds, aspectRatio, generatedImages
   ]);
 
-  // --- 项目管理功能 ---
-  const saveCurrentProject = () => {
+  // --- 项目管理功能 (Cloudflare API + LocalStorage) ---
+  const saveCurrentProject = async () => {
     const name = prompt("请输入项目名称：", manualBrand || report?.brandName || "未命名项目");
     if (!name) return;
 
@@ -203,34 +226,88 @@ export const App: React.FC = () => {
       }
     };
 
-    const updatedProjects = [newProject, ...projects];
-    setProjects(updatedProjects);
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify(updatedProjects));
-    alert("项目保存成功！您可以到“项目列表”查看。");
+    // 1. 先保存到本地 LocalStorage (作为备份和离线支持)
+    try {
+        const stored = localStorage.getItem(PROJECTS_KEY);
+        const currentProjects = stored ? JSON.parse(stored) : [];
+        const updated = [newProject, ...currentProjects];
+        localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
+        setProjects(updated); // 立即更新 UI
+    } catch (e) {
+        console.error("Local save failed", e);
+    }
+
+    // 2. 尝试上传到 Cloudflare
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProject)
+      });
+
+      if (res.ok) {
+        alert("项目保存成功 (已同步至云端)！");
+        fetchProjects(); // 刷新以确保数据一致
+      } else {
+        throw new Error('Cloud save failed');
+      }
+    } catch (e) {
+      // 仅本地保存成功
+      alert("项目已保存到本地 (云端同步失败，请检查网络或配置)");
+    }
   };
 
-  const loadProject = (project: SavedProject) => {
+  const loadProject = async (projectMeta: any) => {
     if (images.length > 0 && !window.confirm("当前有正在编辑的内容，加载项目将覆盖当前内容，是否继续？")) {
         return;
     }
 
-    const d = project.data;
-    setImages(d.images);
-    setImageRatios(d.imageRatios);
-    setDescription(d.description);
-    setManualBrand(d.manualBrand);
-    setReport(d.report);
-    setSelectedStyle(d.selectedStyle);
-    setSelectedTypography(d.selectedTypography);
-    setFinalPrompts(d.finalPrompts);
-    setNeedsModel(d.needsModel);
-    setModelDesc(d.modelDesc);
-    setNeedsScene(d.needsScene);
-    setSceneDesc(d.sceneDesc);
-    setNeedsDataVis(d.needsDataVis);
-    setOtherNeeds(d.otherNeeds);
-    setAspectRatio(d.aspectRatio);
-    setGeneratedImages(d.generatedImages);
+    let projectData = projectMeta.data;
+
+    // 如果对象中没有 data (说明是来自云端的元数据列表)，需要去获取完整数据
+    if (!projectData) {
+        try {
+            const res = await fetch(`/api/project/${projectMeta.id}`);
+            if (res.ok) {
+                const fullProject = await res.json();
+                projectData = fullProject.data;
+            } else {
+                throw new Error("Cloud load failed");
+            }
+        } catch (e) {
+            console.warn("Cloud load failed, trying local storage...");
+            // 尝试从本地查找
+            const stored = localStorage.getItem(PROJECTS_KEY);
+            if (stored) {
+                const list = JSON.parse(stored);
+                const found = list.find((p: any) => p.id === projectMeta.id);
+                if (found) projectData = found.data;
+            }
+        }
+    }
+
+    if (!projectData) {
+        alert("加载失败：无法获取项目数据 (云端和本地均未找到)");
+        return;
+    }
+
+    // 应用数据
+    setImages(projectData.images || []);
+    setImageRatios(projectData.imageRatios || []);
+    setDescription(projectData.description || '');
+    setManualBrand(projectData.manualBrand || '');
+    setReport(projectData.report);
+    setSelectedStyle(projectData.selectedStyle);
+    setSelectedTypography(projectData.selectedTypography);
+    setFinalPrompts(projectData.finalPrompts || '');
+    setNeedsModel(projectData.needsModel || false);
+    setModelDesc(projectData.modelDesc || '');
+    setNeedsScene(projectData.needsScene || false);
+    setSceneDesc(projectData.sceneDesc || '');
+    setNeedsDataVis(projectData.needsDataVis || false);
+    setOtherNeeds(projectData.otherNeeds || '');
+    setAspectRatio(projectData.aspectRatio || "9:16");
+    setGeneratedImages(projectData.generatedImages || {});
     
     // Reset transient states
     setGeneratingModules({});
@@ -240,10 +317,27 @@ export const App: React.FC = () => {
     setCurrentView('core');
   };
 
-  const deleteProject = (id: string) => {
-    const updated = projects.filter(p => p.id !== id);
-    setProjects(updated);
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
+  const deleteProject = async (id: string) => {
+    // 1. 删除本地
+    try {
+        const stored = localStorage.getItem(PROJECTS_KEY);
+        if (stored) {
+            const list = JSON.parse(stored);
+            const updated = list.filter((p: any) => p.id !== id);
+            localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
+            setProjects(updated);
+        }
+    } catch(e) {}
+
+    // 2. 删除云端
+    try {
+       const res = await fetch(`/api/project/${id}`, { method: 'DELETE' });
+       if (!res.ok) {
+         console.warn("Cloud delete failed");
+       }
+    } catch (e) {
+      console.error("Delete error", e);
+    }
   };
 
   // --- 重制（清空）功能 ---
@@ -447,7 +541,10 @@ export const App: React.FC = () => {
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-neutral-900 relative">
       <Navigation 
         currentView={currentView} 
-        onChange={setCurrentView} 
+        onChange={(view) => {
+            if (view === 'projects') fetchProjects(); // Refresh when entering project list
+            setCurrentView(view);
+        }} 
         isAdminLoggedIn={isAdminLoggedIn}
         onUserClick={handleUserIconClick}
       />
