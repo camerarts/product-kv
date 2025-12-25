@@ -98,9 +98,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const sceneTags = ["极简纯色", "自然户外", "家居生活", "办公商务", "科技炫光"];
 
   return (
-    <aside className="w-[500px] h-full bg-white/60 backdrop-blur-3xl border-r border-white/40 flex flex-col z-20 shadow-[10px_0_40px_-10px_rgba(0,0,0,0.05)] relative">
+    <aside className="w-[500px] h-full bg-white/80 backdrop-blur-2xl border-r border-neutral-200 flex flex-col z-20 shadow-[6px_0_24px_-6px_rgba(0,0,0,0.06)] relative">
         {/* Background Ambient Glow */}
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none"></div>
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-50/30 to-transparent pointer-events-none"></div>
 
         {/* Header */}
         <div className="px-8 pt-8 pb-4 shrink-0 relative z-10 flex flex-col gap-4">
@@ -148,7 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="relative rounded-2xl border-2 border-dashed border-neutral-200/80 bg-neutral-50/50 hover:bg-blue-50/50 hover:border-blue-300 transition-all cursor-pointer flex flex-col items-center justify-center group overflow-hidden">
                  {images[0] ? (
                    <>
-                     <img src={`data:image/jpeg;base64,${images[0]}`} className="w-full h-full object-cover rounded-2xl" />
+                     <img src={`data:image/jpeg;base64,${images[0]}`} className="w-full h-full object-contain rounded-2xl p-1" />
                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button onClick={(e) => {e.stopPropagation(); removeImage(0);}} className="bg-white/20 backdrop-blur text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors">
                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -170,7 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="relative rounded-2xl border-2 border-dashed border-neutral-200/80 bg-neutral-50/50 hover:bg-blue-50/50 hover:border-blue-300 transition-all cursor-pointer flex flex-col items-center justify-center group overflow-hidden">
                  {images[1] ? (
                     <>
-                     <img src={`data:image/jpeg;base64,${images[1]}`} className="w-full h-full object-cover rounded-2xl" />
+                     <img src={`data:image/jpeg;base64,${images[1]}`} className="w-full h-full object-contain rounded-2xl p-1" />
                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button onClick={(e) => {e.stopPropagation(); removeImage(1);}} className="bg-white/20 backdrop-blur text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors">
                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>

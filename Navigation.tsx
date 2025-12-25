@@ -42,9 +42,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentView, onChange, i
   ];
 
   return (
-    <nav className="w-[96px] h-screen bg-white/70 backdrop-blur-3xl border-r border-white/60 flex flex-col items-center py-8 shrink-0 z-50 shadow-[5px_0_30px_-10px_rgba(0,0,0,0.03)] relative">
+    <nav className="w-[96px] h-screen bg-white/80 backdrop-blur-xl border-r border-neutral-200 flex flex-col items-center py-8 shrink-0 z-50 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.08)] relative">
       {/* Background Decor Layer for subtle tint */}
-      <div className="absolute inset-0 bg-gradient-to-b from-blue-50/30 to-purple-50/30 pointer-events-none -z-10"></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-blue-50/20 to-purple-50/20 pointer-events-none -z-10"></div>
 
       {/* Brand Logo - 2025 Tech Gradient Style */}
       <div className="mb-10 relative group cursor-default">
