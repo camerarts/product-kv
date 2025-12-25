@@ -121,6 +121,15 @@ export const App: React.FC = () => {
 
   // 1. Init Auth & Key (Run once)
   useEffect(() => {
+    // Check for auth errors in URL (e.g. Expired Account)
+    const urlParams = new URLSearchParams(window.location.search);
+    const authError = urlParams.get('auth_error');
+    if (authError === 'expired') {
+      alert("⚠️ 您的账号已过期。\n\n账号有效期默认为首次登录后30天。请联系管理员进行延期处理。");
+      // Clear URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     // 恢复 API Key
     const storedKey = localStorage.getItem('USER_GEMINI_API_KEY');
     if (storedKey) {

@@ -86,6 +86,7 @@ export interface UserProfile {
   picture: string;
   firstLoginAt: number;
   lastLoginAt: number;
+  expiresAt: number; // Timestamp for account expiration
 }
 
 export type ViewType = 'core' | 'projects' | 'users' | 'key' | 'models';

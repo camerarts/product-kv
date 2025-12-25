@@ -70,9 +70,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 3. Process User Data (KV)
     const userId = userData.sub; // Google unique ID
     const now = Date.now();
+    const DEFAULT_VALIDITY_MS = 30 * 24 * 60 * 60 * 1000; // 30 Days
 
-    // Check if user exists to set firstLoginAt
+    // Check if user exists to set firstLoginAt and check expiry
     const existingUserStr = await context.env.VISION_KV.get(`user:${userId}`);
+    
     let userProfile = {
       id: userId,
       email: userData.email,
@@ -80,11 +82,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       picture: userData.picture,
       firstLoginAt: now,
       lastLoginAt: now,
+      expiresAt: now + DEFAULT_VALIDITY_MS, // Default: Valid for 30 days from first login
     };
 
     if (existingUserStr) {
       const existingUser = JSON.parse(existingUserStr);
-      userProfile.firstLoginAt = existingUser.firstLoginAt; // Keep original first login
+      
+      // Preserve original data
+      userProfile.firstLoginAt = existingUser.firstLoginAt || now;
+      userProfile.expiresAt = existingUser.expiresAt || (now + DEFAULT_VALIDITY_MS); // Backfill if missing
+      
+      // CRITICAL: Check Expiry
+      if (now > userProfile.expiresAt) {
+          // User is expired. Deny login.
+          return Response.redirect(`${url.origin}/?auth_error=expired`, 302);
+      }
     }
 
     // Save/Update User
@@ -96,7 +108,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       userId: userId,
       email: userData.email,
       createdAt: now,
-      expiresAt: now + 7 * 24 * 60 * 60 * 1000, // 7 days
+      expiresAt: now + 7 * 24 * 60 * 60 * 1000, // Session valid for 7 days
     };
 
     // Store Session in KV (Expire in 7 days)
@@ -106,10 +118,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // 5. Set Cookie and Redirect
     const headers = new Headers();
-    // Use Secure; HttpOnly; SameSite=Lax for security
-    // In local dev (localhost), Secure might prevent cookies if not HTTPS, but Cloudflare Pages defaults to HTTPS.
-    // We conditionally apply 'Secure' if protocol matches, but typically handled by browser.
-    // For wider compatibility in this demo, we use Path=/; HttpOnly; SameSite=Lax; Max-Age=604800
     const cookie = `auth_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800; Secure`;
     
     headers.append("Set-Cookie", cookie);

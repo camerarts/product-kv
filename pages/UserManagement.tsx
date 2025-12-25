@@ -10,6 +10,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({ adminPassword })
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Editing State
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [newExpiryDate, setNewExpiryDate] = useState<string>(''); // YYYY-MM-DD format
+
   const fetchUsers = async () => {
     if (!adminPassword) return;
     setLoading(true);
@@ -62,6 +66,41 @@ export const UserManagement: React.FC<UserManagementProps> = ({ adminPassword })
     }
   };
 
+  const startEditingExpiry = (user: UserProfile) => {
+    setEditingUserId(user.id);
+    // Convert timestamp to YYYY-MM-DD
+    const date = new Date(user.expiresAt || (Date.now() + 30*24*60*60*1000));
+    setNewExpiryDate(date.toISOString().split('T')[0]);
+  };
+
+  const saveExpiry = async (userId: string) => {
+      if (!newExpiryDate) return;
+      
+      // Convert YYYY-MM-DD back to timestamp (end of day roughly, or same time)
+      // Let's ensure it's set to the end of that day locally
+      const timestamp = new Date(newExpiryDate).getTime() + 24*60*60*1000 - 1; 
+
+      try {
+        const res = await fetch(`/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Admin-Pass': adminPassword || ''
+            },
+            body: JSON.stringify({ expiresAt: timestamp })
+        });
+
+        if (res.ok) {
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, expiresAt: timestamp } : u));
+            setEditingUserId(null);
+        } else {
+            alert('更新失败');
+        }
+      } catch(e) {
+          alert('更新出错');
+      }
+  };
+
   if (!adminPassword) {
     return (
        <div className="flex-1 flex flex-col items-center justify-center bg-neutral-50 text-neutral-400 p-8">
@@ -110,25 +149,54 @@ export const UserManagement: React.FC<UserManagementProps> = ({ adminPassword })
                             <tr>
                                 <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50">用户</th>
                                 <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50">邮箱</th>
-                                <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50">注册时间</th>
+                                <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50">有效期至</th>
                                 <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50">最近登录</th>
                                 <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 text-right">操作</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-100">
-                            {users.map(user => (
-                                <tr key={user.id} className="hover:bg-purple-50/30 transition-colors">
+                            {users.map(user => {
+                                const isExpired = Date.now() > (user.expiresAt || 0);
+                                return (
+                                <tr key={user.id} className="hover:bg-purple-50/30 transition-colors group">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <img src={user.picture} alt="" className="w-8 h-8 rounded-full border border-neutral-200" />
-                                            <span className="text-sm font-bold text-neutral-900">{user.name}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-neutral-900">{user.name}</span>
+                                                {isExpired && <span className="text-[10px] font-bold text-red-500">已过期</span>}
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className="text-xs font-mono text-neutral-600 bg-neutral-100 px-2 py-1 rounded">{user.email}</span>
                                     </td>
-                                    <td className="px-6 py-4 text-xs text-neutral-500 font-mono">
-                                        {new Date(user.firstLoginAt).toLocaleString()}
+                                    <td className="px-6 py-4">
+                                        {editingUserId === user.id ? (
+                                            <div className="flex items-center gap-2">
+                                                <input 
+                                                  type="date" 
+                                                  value={newExpiryDate} 
+                                                  onChange={(e) => setNewExpiryDate(e.target.value)}
+                                                  className="bg-white border border-purple-300 rounded px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-purple-200"
+                                                />
+                                                <button onClick={() => saveExpiry(user.id)} className="text-green-600 hover:text-green-700 font-bold text-xs">保存</button>
+                                                <button onClick={() => setEditingUserId(null)} className="text-neutral-400 hover:text-neutral-600 text-xs">取消</button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 group-hover:bg-white/50 py-1 px-2 rounded-lg transition-colors w-fit">
+                                                <span className={`text-xs font-mono font-medium ${isExpired ? 'text-red-500' : 'text-neutral-600'}`}>
+                                                    {user.expiresAt ? new Date(user.expiresAt).toLocaleDateString() : '永久'}
+                                                </span>
+                                                <button 
+                                                   onClick={() => startEditingExpiry(user)}
+                                                   className="opacity-0 group-hover:opacity-100 text-purple-600 hover:text-purple-800 transition-opacity p-1"
+                                                   title="修改有效期"
+                                                >
+                                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                </button>
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-xs text-neutral-500 font-mono">
                                         {new Date(user.lastLoginAt).toLocaleString()}
@@ -142,7 +210,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ adminPassword })
                                         </button>
                                     </td>
                                 </tr>
-                            ))}
+                            )})}
                         </tbody>
                       </table>
                    </div>
