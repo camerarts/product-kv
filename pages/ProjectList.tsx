@@ -7,12 +7,13 @@ interface ProjectListProps {
   onLoad: (project: SavedProject) => void;
   onDelete: (id: string) => void;
   isAuthenticated: boolean;
+  isAuthChecking: boolean; // New prop
   isSaving: boolean;
   lastSaveTime: number | null;
 }
 
 export const ProjectList: React.FC<ProjectListProps> = ({ 
-  projects, onLoad, onDelete, isAuthenticated,
+  projects, onLoad, onDelete, isAuthenticated, isAuthChecking,
   isSaving, lastSaveTime 
 }) => {
   return (
@@ -43,7 +44,16 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                     </tr>
                   </thead>
                   <tbody className="space-y-2">
-                     {!isAuthenticated ? (
+                     {isAuthChecking ? (
+                        <tr>
+                            <td colSpan={5} className="px-6 py-32 text-center">
+                                <div className="flex flex-col items-center justify-center text-slate-400 gap-3">
+                                    <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin"></div>
+                                    <p className="text-xs font-bold">验证身份中...</p>
+                                </div>
+                            </td>
+                        </tr>
+                     ) : !isAuthenticated ? (
                         <tr>
                             <td colSpan={5} className="px-6 py-32 text-center">
                                 <div className="flex flex-col items-center justify-center text-slate-400">

@@ -73,6 +73,7 @@ export const App: React.FC = () => {
 
   // --- Google Auth User State ---
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true); // New loading state for auth
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
@@ -197,9 +198,12 @@ export const App: React.FC = () => {
     } catch(e) { console.error(e); }
 
     // --- SECURITY FILTER ---
+    // Only filter local list if we have a user. If still checking or null, we might be guest or just loading.
     if (currentUser) {
         localList = localList.filter(p => p.userId === currentUser.id);
     } else {
+        // If not logged in, we only show local projects that have NO userId (guest projects).
+        // On a new device, this list is naturally empty, which is correct.
         localList = localList.filter(p => !p.userId);
     }
 
@@ -216,6 +220,9 @@ export const App: React.FC = () => {
         cloudList = await res.json();
         
         // --- SECURITY FILTER (CLOUD) ---
+        // If logged in as user (not admin), only show own projects.
+        // If currentUser is null (during initial load), we might still receive data from the server
+        // if the session cookie is valid. We should trust the server's return in that case.
         if (currentUser && !isAdminLoggedIn) {
              cloudList = cloudList.filter(p => p.userId === currentUser.id);
         }
@@ -499,6 +506,8 @@ export const App: React.FC = () => {
          }
        } catch (e) {
          console.warn("Auth check failed", e);
+       } finally {
+         setIsAuthChecking(false);
        }
     };
     checkAuth();
@@ -997,6 +1006,7 @@ export const App: React.FC = () => {
              onLoad={(p) => window.location.hash = `#/project/${p.id}`} 
              onDelete={deleteProject} 
              isAuthenticated={isAdminLoggedIn || !!currentUser} 
+             isAuthChecking={isAuthChecking} // Pass the checking state
              isSaving={isSaving} 
              lastSaveTime={lastSaveTime} 
           />
