@@ -850,7 +850,9 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-neutral-900 relative">
+    <div className="flex h-screen w-screen overflow-hidden font-sans text-slate-800 relative bg-transparent">
+      
+      {/* Floating Navigation Rail */}
       <Navigation 
         currentView={currentView} 
         onChange={(view) => {
@@ -967,12 +969,12 @@ export const App: React.FC = () => {
 
       {previewImageUrl && (
         <div 
-          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur flex items-center justify-center p-10 cursor-zoom-out animate-fade-in"
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-2xl flex items-center justify-center p-10 cursor-zoom-out animate-fade-in"
           onClick={() => setPreviewImageUrl(null)}
         >
            <img 
             src={previewImageUrl} 
-            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default" 
+            className="max-w-full max-h-full object-contain rounded-3xl shadow-2xl cursor-default" 
             onClick={(e) => e.stopPropagation()}
           />
         </div>

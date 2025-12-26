@@ -10,110 +10,113 @@ interface ProjectListProps {
 
 export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDelete, isAuthenticated }) => {
   return (
-    <div className="flex-1 bg-neutral-50 flex flex-col h-full overflow-hidden">
+    <div className="flex-1 ml-[100px] h-full overflow-hidden flex flex-col">
       {/* Fixed Header Section */}
-      <div className="px-8 pt-8 pb-6 shrink-0">
-        <div className="max-w-5xl mx-auto w-full">
-           <h1 className="text-2xl font-black text-neutral-900 flex items-center gap-2">
-              <span className="text-blue-600">📂</span> 项目列表
+      <div className="px-10 pt-10 pb-6 shrink-0">
+        <div className="max-w-6xl mx-auto w-full">
+           <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+              <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/30">📂</span> 
+              项目列表
            </h1>
         </div>
       </div>
       
       {/* Scrollable Table Section */}
-      <div className="flex-1 px-8 pb-8 overflow-hidden">
-         <div className="max-w-5xl mx-auto w-full h-full">
-           <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 h-full flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-neutral-50 border-b border-neutral-200 sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+      <div className="flex-1 px-10 pb-10 overflow-hidden">
+         <div className="max-w-6xl mx-auto w-full h-full">
+           <div className="glass-panel rounded-[2.5rem] h-full flex flex-col overflow-hidden p-2">
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-2">
+                <table className="w-full text-left border-collapse border-spacing-y-2 border-separate">
+                  <thead className="sticky top-0 z-10">
                     <tr>
-                       <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 whitespace-nowrap">项目名称</th>
-                       <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 whitespace-nowrap">品牌</th>
-                       <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 whitespace-nowrap">创作者</th>
-                       <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 whitespace-nowrap">状态</th>
-                       <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider bg-neutral-50 whitespace-nowrap">保存时间</th>
-                       <th className="px-6 py-4 text-xs font-black text-neutral-500 uppercase tracking-wider text-right bg-neutral-50 whitespace-nowrap">操作</th>
+                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider bg-white/0">项目名称</th>
+                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider bg-white/0">品牌</th>
+                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider bg-white/0">创作者</th>
+                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider bg-white/0">状态</th>
+                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider bg-white/0">日期</th>
+                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider text-right bg-white/0">操作</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-100">
+                  <tbody className="space-y-2">
                      {!isAuthenticated ? (
-                        /* Not Logged In State - Empty Blank Content with Helper Text */
                         <tr>
                             <td colSpan={6} className="px-6 py-32 text-center">
-                                <div className="flex flex-col items-center justify-center text-neutral-400">
-                                    <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mb-4 text-3xl">🔒</div>
-                                    <h3 className="text-sm font-bold text-neutral-600 mb-1">未授权访问</h3>
-                                    <p className="text-xs">请先登录账号以查看或管理项目列表</p>
+                                <div className="flex flex-col items-center justify-center text-slate-400">
+                                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-3xl">🔒</div>
+                                    <h3 className="text-sm font-bold text-slate-600 mb-1">访问受限</h3>
+                                    <p className="text-xs">请登录以查看项目</p>
                                 </div>
                             </td>
                         </tr>
                      ) : projects.length === 0 ? (
                        <tr>
                          <td colSpan={6} className="px-6 py-32 text-center">
-                            <div className="flex flex-col items-center justify-center text-neutral-400">
-                                <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mb-4 text-3xl">📁</div>
-                                <h3 className="text-sm font-bold text-neutral-600 mb-1">暂无项目</h3>
-                                <p className="text-xs">在“核心配置”中点击保存按钮即可创建项目</p>
+                            <div className="flex flex-col items-center justify-center text-slate-400">
+                                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-3xl">📁</div>
+                                <h3 className="text-sm font-bold text-slate-600 mb-1">暂无项目</h3>
+                                <p className="text-xs">请先创建并保存项目</p>
                             </div>
                          </td>
                        </tr>
                      ) : (
                        projects.map((project) => (
-                         <tr key={project.id} className="hover:bg-blue-50/30 transition-colors group">
-                            <td className="px-6 py-4">
+                         <tr key={project.id} className="group bg-white/40 hover:bg-white/80 transition-all duration-300 rounded-2xl shadow-sm hover:shadow-md hover:scale-[1.005]">
+                            <td className="px-6 py-5 rounded-l-2xl">
                                <button 
-                                 className="flex items-center gap-2 text-sm font-bold text-neutral-900 max-w-[240px] cursor-pointer hover:text-blue-600 transition-colors text-left group/btn" 
-                                 title="点击进入项目配置"
+                                 className="flex items-center gap-3 text-sm font-bold text-slate-800 max-w-[240px] cursor-pointer hover:text-blue-600 transition-colors text-left" 
                                  onClick={() => onLoad(project)}
                                >
-                                 <span className="truncate underline decoration-transparent group-hover/btn:decoration-blue-600 underline-offset-4 transition-all">{project.name}</span>
-                                 <svg className="w-4 h-4 opacity-0 group-hover/btn:opacity-100 transition-all -translate-x-2 group-hover/btn:translate-x-0 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                 <span className="w-2 h-2 rounded-full bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                                 <span className="truncate">{project.name}</span>
                                </button>
                             </td>
-                            <td className="px-6 py-4">
-                               <div className="text-xs font-bold text-neutral-600 bg-neutral-100 inline-block px-2 py-1 rounded truncate max-w-[150px]">
-                                 {project.brandName || project.data?.manualBrand || '未命名品牌'}
+                            <td className="px-6 py-5">
+                               <div className="text-xs font-bold text-slate-600 bg-white/50 border border-white inline-block px-3 py-1 rounded-lg truncate max-w-[150px] shadow-sm">
+                                 {project.brandName || project.data?.manualBrand || '未命名'}
                                </div>
                             </td>
-                            <td className="px-6 py-4">
-                               <div className="text-xs font-bold text-purple-600 bg-purple-50 inline-block px-2 py-1 rounded truncate max-w-[120px]">
-                                 {project.userName || (project.userId ? 'User ' + project.userId.slice(0,4) : '本地用户')}
+                            <td className="px-6 py-5">
+                               <div className="text-xs font-bold text-purple-600 bg-purple-50/50 border border-purple-100 inline-block px-3 py-1 rounded-lg truncate max-w-[120px]">
+                                 {project.userName || '本地用户'}
                                </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-6 py-5 whitespace-nowrap">
                               {project.isSynced ? (
-                                  <span className="inline-flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-1 rounded-md text-[10px] font-bold border border-green-100">
-                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
-                                      云端已同步
+                                  <span className="inline-flex items-center gap-1.5 text-green-600 bg-green-50/50 px-2.5 py-1 rounded-lg text-[10px] font-bold border border-green-100">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                      已同步
                                   </span>
                               ) : (
-                                  <span className="inline-flex items-center gap-1.5 text-neutral-500 bg-neutral-100 px-2 py-1 rounded-md text-[10px] font-bold border border-neutral-200">
-                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-                                      仅本地存储
+                                  <span className="inline-flex items-center gap-1.5 text-slate-500 bg-slate-100/50 px-2.5 py-1 rounded-lg text-[10px] font-bold border border-slate-200">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                      本地
                                   </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                               <div className="text-xs text-neutral-500 font-mono">
-                                  {new Date(project.timestamp).toLocaleString()}
+                            <td className="px-6 py-5 whitespace-nowrap">
+                               <div className="text-xs text-slate-500 font-mono">
+                                  {new Date(project.timestamp).toLocaleDateString()}
                                </div>
                             </td>
-                            <td className="px-6 py-4 text-right flex gap-3 justify-end whitespace-nowrap">
-                               <button 
-                                 onClick={() => {
-                                   const msg = project.isSynced 
-                                      ? `确定要删除云端项目 "${project.name}" 吗? 此操作不可恢复。` 
-                                      : `确定要删除本地项目 "${project.name}" 吗?`;
-                                   if(window.confirm(msg)) {
-                                     onDelete(project.id);
-                                   }
-                                 }}
-                                 className="text-xs font-bold text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
-                               >
-                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                 删除
-                               </button>
+                            <td className="px-6 py-5 text-right rounded-r-2xl">
+                               <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                   <button 
+                                    onClick={() => onLoad(project)}
+                                    className="text-xs font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-500 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                                    >
+                                    加载
+                                    </button>
+                                    <button 
+                                    onClick={() => {
+                                        if(window.confirm(`确定要删除 "${project.name}" 吗？`)) {
+                                        onDelete(project.id);
+                                        }
+                                    }}
+                                    className="text-xs font-bold text-red-500 hover:text-white bg-red-50 hover:bg-red-500 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                                    >
+                                    删除
+                                    </button>
+                               </div>
                             </td>
                          </tr>
                        ))

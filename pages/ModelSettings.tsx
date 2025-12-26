@@ -161,7 +161,7 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({ config, onSave, is
                    {defaultList.map(m => <option key={m} value={m}>{m}</option>)}
                  </optgroup>
                  {customList.length > 0 && (
-                   <optgroup label="自定义模型 (User)">
+                   <optgroup label="自定义模型 (用户)">
                      {customList.map(m => <option key={m} value={m}>{m}</option>)}
                    </optgroup>
                  )}
