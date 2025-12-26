@@ -20,6 +20,9 @@ interface MainContentProps {
   generateAllImages: () => void;
   promptModules: { title: string; content: string }[];
   aspectRatio: string;
+  projectName: string;
+  isSaving: boolean;
+  lastSaveTime: number | null;
 }
 
 // 定义固定的骨架模块结构
@@ -40,7 +43,8 @@ export const MainContent: React.FC<MainContentProps> = ({
   manualBrand, report, selectedStyle, selectedTypography,
   finalPrompts, generatedImages, imageSyncStatus = {}, generatingModules, isBatchGenerating,
   previewImageUrl, setPreviewImageUrl, generateSingleImage, generateAllImages,
-  promptModules, aspectRatio
+  promptModules, aspectRatio,
+  projectName, isSaving, lastSaveTime
 }) => {
   
   const [copiedStates, setCopiedStates] = useState<Record<number, boolean>>({});
@@ -129,7 +133,27 @@ export const MainContent: React.FC<MainContentProps> = ({
             <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] animate-pulse"></div>
             <h2 className="text-xs font-bold text-slate-700">生成效果预览</h2>
           </div>
-          <div className="flex gap-3"></div>
+          
+          <div className="flex items-center gap-4">
+              <div className="flex flex-col items-end">
+                  <span className="text-xs font-bold text-slate-700 max-w-[200px] truncate">{projectName}</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                      {isSaving ? (
+                          <>
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                            <span className="text-[10px] text-slate-400 font-medium">云端同步中...</span>
+                          </>
+                      ) : (
+                          <>
+                             <div className={`w-1.5 h-1.5 rounded-full ${lastSaveTime ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.4)]' : 'bg-slate-300'}`}></div>
+                             <span className="text-[10px] text-slate-400 font-medium font-mono">
+                                {lastSaveTime ? `已保存 ${new Date(lastSaveTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '未保存'}
+                             </span>
+                          </>
+                      )}
+                  </div>
+              </div>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto px-8 pb-10 custom-scrollbar">

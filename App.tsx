@@ -77,6 +77,10 @@ export const App: React.FC = () => {
   const [isProjectsLoading, setIsProjectsLoading] = useState(false);
   const [pendingUrlId, setPendingUrlId] = useState<string | null>(null);
 
+  // --- Save Status State (New) ---
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaveTime, setLastSaveTime] = useState<number | null>(null);
+
   // --- 辅助函数：从缓存读取初始值 ---
   const getCachedState = <T,>(key: string, defaultValue: T): T => {
     try {
@@ -125,6 +129,13 @@ export const App: React.FC = () => {
       const res = await fetch('/api/projects', { headers });
       if (res.ok) {
         cloudList = await res.json();
+        
+        // --- SECURITY FILTER (CLOUD) ---
+        // Double security: strictly filter cloud results on frontend as well
+        // If I am a regular user (and not currently in Admin mode), strictly show ONLY my projects.
+        if (currentUser && !isAdminLoggedIn) {
+             cloudList = cloudList.filter(p => p.userId === currentUser.id);
+        }
       }
     } catch (e) { console.warn("Cloud fetch failed", e); }
 
@@ -420,6 +431,7 @@ export const App: React.FC = () => {
     // Then upload to Cloud (ONLY IF LOGGED IN)
     // Non-login users will NOT upload generated data to server
     if (isAdminLoggedIn || currentUser) {
+        setIsSaving(true);
         try {
           const headers: Record<string, string> = { 'Content-Type': 'application/json' };
           if (isAdminLoggedIn && adminPassword) headers['X-Admin-Pass'] = adminPassword;
@@ -431,6 +443,7 @@ export const App: React.FC = () => {
           });
 
           if (res.ok) {
+            setLastSaveTime(Date.now()); // Update timestamp on success
             // Mark specific image as synced if specified (Immediate Green Dot)
             if (targetIndexToMarkSynced !== undefined) {
                 setImageSyncStatus(prev => ({ ...prev, [targetIndexToMarkSynced]: 'synced' }));
@@ -442,6 +455,8 @@ export const App: React.FC = () => {
           }
         } catch (e) {
           console.error("Auto-upload error", e);
+        } finally {
+          setIsSaving(false);
         }
     }
   }, [
@@ -538,6 +553,7 @@ export const App: React.FC = () => {
     } catch (e) { console.error(e); }
 
     // Save Cloud
+    setIsSaving(true);
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (isAdminLoggedIn && adminPassword) headers['X-Admin-Pass'] = adminPassword;
@@ -549,6 +565,7 @@ export const App: React.FC = () => {
       });
 
       if (res.ok) {
+        setLastSaveTime(Date.now());
         setProjects(prev => prev.map(p => p.id === pid ? { ...p, isSynced: true } : p));
         alert("项目保存成功 (已同步至云端)！");
       } else {
@@ -556,6 +573,8 @@ export const App: React.FC = () => {
       }
     } catch (e) {
       alert("项目已保存到本地 (云端同步失败，请检查网络或配置)");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -625,6 +644,7 @@ export const App: React.FC = () => {
     setGeneratingModules({});
     setIsBatchGenerating(false);
     setGenerationLoading(false);
+    setLastSaveTime(projectMeta.timestamp); // Set last save time to project timestamp on load
     
     // Switch view
     setCurrentView('core');
@@ -687,6 +707,7 @@ export const App: React.FC = () => {
     setIsBatchGenerating(false);
     setPreviewImageUrl(null);
     setGenerationLoading(false);
+    setLastSaveTime(null);
 
   }, []);
 
@@ -730,6 +751,7 @@ export const App: React.FC = () => {
     setIsBatchGenerating(false);
     setPreviewImageUrl(null);
     setGenerationLoading(false);
+    setLastSaveTime(null);
 
     // 4. Switch to core view
     setCurrentView('core');
@@ -992,6 +1014,9 @@ export const App: React.FC = () => {
                 generateAllImages={handleGenerateAll}
                 promptModules={promptModules}
                 aspectRatio={aspectRatio}
+                projectName={manualBrand || report?.brandName || "未命名项目"}
+                isSaving={isSaving}
+                lastSaveTime={lastSaveTime}
             />
         </>
       )}
