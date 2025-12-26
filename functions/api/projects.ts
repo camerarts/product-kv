@@ -6,7 +6,7 @@ interface KVNamespace {
 }
 
 interface R2Bucket {
-  put(key: string, value: string): Promise<void>;
+  put(key: string, value: any): Promise<void>;
 }
 
 type PagesFunction<Env = any> = (context: {
@@ -50,6 +50,16 @@ function isAdmin(request: Request, env: Env): boolean {
   const adminPass = request.headers.get("X-Admin-Pass");
   const envPass = env.ADMIN_PASSWORD;
   return !!(envPass && adminPass === envPass);
+}
+
+// Helper: Convert Base64 string to Uint8Array for R2
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -130,11 +140,51 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // Update project object with userId as well for R2 storage consistency
     project.userId = ownerId;
 
-    // 2. Parallel Store
-    const r2Promise = context.env.VISION_R2.put(`project-${project.id}`, JSON.stringify(project));
+    // --- 2. Save Images Separately to R2 (Fix for visibility) ---
+    // We do this asynchronously to not block the main save too much, 
+    // but we use Promise.all to ensure completion.
+    const imageUploadPromises: Promise<void>[] = [];
+
+    // A. Handle Uploaded Reference Images
+    if (project.data.images && Array.isArray(project.data.images)) {
+        project.data.images.forEach((b64: string, index: number) => {
+            if (b64) {
+                // b64 here is raw base64 (no data prefix) based on frontend logic
+                try {
+                    const buffer = base64ToUint8Array(b64);
+                    const key = `images/${project.id}/ref-${index}.jpg`;
+                    imageUploadPromises.push(context.env.VISION_R2.put(key, buffer));
+                } catch (e) {
+                    console.error(`Failed to upload ref image ${index}`, e);
+                }
+            }
+        });
+    }
+
+    // B. Handle Generated Poster Images
+    if (project.data.generatedImages) {
+        Object.entries(project.data.generatedImages).forEach(([keyIndex, dataUri]) => {
+            if (typeof dataUri === 'string') {
+                try {
+                    // dataUri format: "data:image/jpeg;base64,....."
+                    const split = dataUri.split(',');
+                    if (split.length > 1) {
+                        const buffer = base64ToUint8Array(split[1]);
+                        const key = `images/${project.id}/generated-${keyIndex}.jpg`;
+                        imageUploadPromises.push(context.env.VISION_R2.put(key, buffer));
+                    }
+                } catch (e) {
+                    console.error(`Failed to upload generated image ${keyIndex}`, e);
+                }
+            }
+        });
+    }
+
+    // 3. Parallel Store Everything
+    const r2MainPromise = context.env.VISION_R2.put(`project-${project.id}`, JSON.stringify(project));
     const kvPromise = context.env.VISION_KV.put(`meta:${project.id}`, JSON.stringify(metadata));
 
-    await Promise.all([r2Promise, kvPromise]);
+    await Promise.all([r2MainPromise, kvPromise, ...imageUploadPromises]);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { "Content-Type": "application/json" }

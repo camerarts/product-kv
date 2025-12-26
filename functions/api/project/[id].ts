@@ -9,9 +9,16 @@ interface R2ObjectBody {
   body: ReadableStream;
 }
 
+interface R2Objects {
+  objects: { key: string }[];
+  truncated: boolean;
+  cursor?: string;
+}
+
 interface R2Bucket {
   get(key: string): Promise<R2ObjectBody | null>;
-  delete(key: string): Promise<void>;
+  delete(key: string | string[]): Promise<void>;
+  list(options?: { prefix?: string; cursor?: string; limit?: number }): Promise<R2Objects>;
 }
 
 type PagesFunction<Env = any> = (context: {
@@ -59,11 +66,29 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    // 同时删除 KV 和 R2
-    await Promise.all([
-      context.env.VISION_KV.delete(`meta:${id}`),
-      context.env.VISION_R2.delete(`project-${id}`)
-    ]);
+    // 1. Delete main Project JSON
+    const deleteMainR2 = context.env.VISION_R2.delete(`project-${id}`);
+    
+    // 2. Delete Meta KV
+    const deleteKV = context.env.VISION_KV.delete(`meta:${id}`);
+
+    // 3. Delete Associated Images Folder (List then Delete)
+    // R2 doesn't have "delete folder", so we list objects with prefix "images/{id}/"
+    const imagePrefix = `images/${id}/`;
+    let listed = await context.env.VISION_R2.list({ prefix: imagePrefix });
+    const imageKeysToDelete = listed.objects.map(o => o.key);
+    
+    // Handle pagination if more than 1000 images (unlikely for this app, but good practice)
+    while(listed.truncated) {
+        listed = await context.env.VISION_R2.list({ prefix: imagePrefix, cursor: listed.cursor });
+        imageKeysToDelete.push(...listed.objects.map(o => o.key));
+    }
+
+    const deleteImages = imageKeysToDelete.length > 0 
+        ? context.env.VISION_R2.delete(imageKeysToDelete) 
+        : Promise.resolve();
+
+    await Promise.all([deleteMainR2, deleteKV, deleteImages]);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { "Content-Type": "application/json" }
