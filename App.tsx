@@ -819,9 +819,13 @@ export const App: React.FC = () => {
   }, [currentProjectId, manualBrand]);
 
   const handleNewProject = useCallback(() => {
-    if (images.length > 0 && currentProjectId) {
-        if (!window.confirm("当前有正在编辑的内容。创建新项目将跳转。是否继续？")) return;
+    // 1. Force a final sync if there's an active project with content.
+    // This ensures any debounced/pending changes (within the last 2s) are captured.
+    // 'syncProjectToCloud' will use the current state values from its closure.
+    if (currentProjectId && (images.length > 0 || manualBrand || description)) {
+        syncProjectToCloud(); 
     }
+
     const name = prompt("请输入新项目/品牌名称：");
     if (!name) return;
 
@@ -832,7 +836,7 @@ export const App: React.FC = () => {
     
     // Switch URL (This will trigger effect, but we already set local state, so it should match 'id' and skip loading)
     window.location.hash = `#/project/${newId}`;
-  }, [images, currentProjectId]);
+  }, [images, currentProjectId, manualBrand, description, syncProjectToCloud]);
 
   // Descriptions & Icons...
   const ratioIcons: Record<string, string> = { "1:1": "1:1", "16:9": "16:9", "9:16": "9:16", "3:4": "3:4", "4:3": "4:3", "2:3": "2:3", "3:2": "3:2" };
