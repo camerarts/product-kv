@@ -964,7 +964,6 @@ export const App: React.FC = () => {
         isAdminLoggedIn={isAdminLoggedIn}
         currentUser={currentUser}
         onUserClick={handleUserIconClick}
-        onSaveProject={saveCurrentProject}
         onNewProject={handleNewProject}
         onGoogleLogin={() => window.location.href = '/api/auth/google'}
         onGoogleLogout={handleGoogleLogout}

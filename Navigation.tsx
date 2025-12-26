@@ -7,7 +7,6 @@ interface NavigationProps {
   isAdminLoggedIn: boolean;
   currentUser: UserProfile | null;
   onUserClick: () => void;
-  onSaveProject: () => void;
   onNewProject: () => void;
   onGoogleLogin: () => void;
   onGoogleLogout: () => void;
@@ -16,7 +15,7 @@ interface NavigationProps {
 export const Navigation: React.FC<NavigationProps> = ({ 
   currentView, onChange, 
   isAdminLoggedIn, currentUser, 
-  onUserClick, onSaveProject, onNewProject,
+  onUserClick, onNewProject,
   onGoogleLogin, onGoogleLogout
 }) => {
   const menuItems: { id: ViewType; label: string; line1: string; line2: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
@@ -116,15 +115,6 @@ export const Navigation: React.FC<NavigationProps> = ({
       {/* Bottom Actions */}
       <div className="mt-auto flex flex-col gap-4 items-center w-full px-3">
         
-        {/* Save Button */}
-        <button 
-             onClick={onSaveProject}
-             className="liquid-button group flex flex-col items-center justify-center gap-1 p-3 rounded-2xl w-full bg-blue-50/50 hover:bg-blue-100/80 text-blue-600 shadow-sm border border-blue-100/50"
-             title="保存项目"
-        >
-              <svg className="w-5 h-5 transform group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-        </button>
-
         {/* Account Button */}
         <button 
           onClick={() => {
