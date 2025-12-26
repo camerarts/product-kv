@@ -94,7 +94,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
                     disabled={loading}
                     className="liquid-button w-full py-3.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2"
                   >
-                    {loading ? '验证中...' : '管理员登录'}
+                    {loading ? '验证中...' : '登录'}
                   </button>
 
                 <div className="relative py-4">

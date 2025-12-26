@@ -111,10 +111,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <div className="flex flex-col w-full pt-1">
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight">
-              视觉系统
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight leading-tight">
+              商品详情页<br/>视觉全案系统
             </h1>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-2">
               <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 text-[10px] font-bold tracking-widest uppercase border border-indigo-500/20">配置器</span>
             </div>
           </div>
@@ -122,29 +122,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="flex-1 overflow-y-auto px-6 py-2 space-y-6 custom-scrollbar relative z-10 pb-10">
           
-          {/* 01 Analysis */}
-          <section className="bg-white/40 backdrop-blur-md rounded-[2rem] p-5 border border-white/50 shadow-sm">
-            <div className="flex items-center gap-3 mb-5 pl-1">
+          {/* 01 Analysis - Compact Version */}
+          <section className="bg-white/40 backdrop-blur-md rounded-[2rem] p-4 border border-white/50 shadow-sm">
+            <div className="flex items-center gap-2 mb-3 pl-1">
               <div className="w-8 h-8 rounded-full bg-blue-100/50 text-blue-600 flex items-center justify-center text-xs font-black shadow-[inset_0_1px_4px_rgba(0,0,0,0.05)]">01</div>
               <h2 className="text-sm font-bold text-slate-700">产品智能分析</h2>
             </div>
             
-            <div className="grid grid-cols-2 gap-3 mb-3 h-36">
+            <div className="grid grid-cols-2 gap-2 mb-2 h-28">
               {[0, 1].map((idx) => (
                 <div key={idx} className="liquid-input relative rounded-3xl overflow-hidden group flex flex-col items-center justify-center cursor-pointer hover:border-blue-400/50 transition-colors">
                     {images[idx] ? (
                       <>
                         <img src={`data:image/jpeg;base64,${images[idx]}`} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                            <button onClick={(e) => {e.stopPropagation(); removeImage(idx);}} className="bg-white/20 hover:bg-red-500 text-white rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-md border border-white/30 transition-all">
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            <button onClick={(e) => {e.stopPropagation(); removeImage(idx);}} className="bg-white/20 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center backdrop-blur-md border border-white/30 transition-all">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="w-12 h-12 rounded-full bg-white/60 shadow-sm flex items-center justify-center mb-2 text-slate-300 group-hover:text-blue-500 group-hover:scale-110 transition-all">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                        <div className="w-8 h-8 rounded-full bg-white/60 shadow-sm flex items-center justify-center mb-1 text-slate-300 group-hover:text-blue-500 group-hover:scale-110 transition-all">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
                         </div>
                         <span className="text-[10px] font-bold text-slate-400 group-hover:text-blue-600 transition-colors">{idx === 0 ? '上传主图' : '上传参考'}</span>
                         <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleImageUpload(e, idx)} />
@@ -154,14 +154,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               ))}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
                 <textarea
                   value={description} 
                   onChange={e=>setDescription(e.target.value)} 
-                  className="liquid-input w-full flex-1 rounded-2xl p-3 text-[11px] font-medium text-slate-700 outline-none resize-none placeholder:text-slate-400 h-14" 
+                  className="liquid-input w-full flex-1 rounded-2xl px-3 py-2.5 text-[11px] font-medium text-slate-700 outline-none resize-none placeholder:text-slate-400 h-11 leading-tight" 
                   placeholder="输入产品卖点或详细说明..."
                 />
-                 <div className="liquid-input w-1/3 rounded-2xl p-3 flex flex-col justify-center">
+                 <div className="liquid-input w-1/3 rounded-2xl px-3 flex flex-col justify-center h-11">
                     <span className="text-[9px] font-bold text-slate-400 mb-0.5">品牌名称</span>
                     <input 
                       className="w-full bg-transparent text-xs font-bold text-slate-800 outline-none placeholder:text-slate-300"
