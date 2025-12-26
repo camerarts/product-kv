@@ -54,7 +54,10 @@ function isAdmin(request: Request, env: Env): boolean {
 
 // Helper: Convert Base64 string to Uint8Array for R2
 function base64ToUint8Array(base64: string): Uint8Array {
-  const binaryString = atob(base64);
+  // Handle Data URI prefix if present
+  const base64Clean = base64.includes(',') ? base64.split(',')[1] : base64;
+  
+  const binaryString = atob(base64Clean);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
@@ -108,6 +111,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
+    // 0. Configuration Check
+    if (!context.env.VISION_R2) {
+        throw new Error("Server Misconfiguration: VISION_R2 binding is missing. Please check Cloudflare Pages settings.");
+    }
+
     // Clone the request body so we don't mutate the original inputs if needed
     const project = await context.request.json() as any;
     
@@ -148,14 +156,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (project.data.images && Array.isArray(project.data.images)) {
         project.data.images.forEach((b64: string, index: number) => {
             if (b64) {
-                try {
-                    const buffer = base64ToUint8Array(b64);
-                    // Store as 'ref-{index}'
-                    const key = `images/${project.id}/ref-${index}`; 
-                    imageUploadPromises.push(context.env.VISION_R2.put(key, buffer));
-                } catch (e) {
-                    console.error(`Failed to upload ref image ${index}`, e);
-                }
+                // No try-catch here; let Promise.all fail if R2 fails so frontend knows
+                const buffer = base64ToUint8Array(b64);
+                // Store as 'ref-{index}'
+                const key = `images/${project.id}/ref-${index}`; 
+                imageUploadPromises.push(context.env.VISION_R2.put(key, buffer));
             }
         });
         // Clear images from the JSON to save space in KV
@@ -166,23 +171,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (project.data.generatedImages) {
         Object.entries(project.data.generatedImages).forEach(([keyIndex, dataUri]) => {
             if (typeof dataUri === 'string') {
-                try {
-                    // dataUri format: "data:image/jpeg;base64,....."
-                    const split = dataUri.split(',');
-                    if (split.length > 1) {
-                        const buffer = base64ToUint8Array(split[1]);
-                        // Store as 'gen-{index}'
-                        const key = `images/${project.id}/gen-${keyIndex}`;
-                        imageUploadPromises.push(context.env.VISION_R2.put(key, buffer));
-                    }
-                } catch (e) {
-                    console.error(`Failed to upload generated image ${keyIndex}`, e);
-                }
+                // No try-catch here; let Promise.all fail if R2 fails so frontend knows
+                const buffer = base64ToUint8Array(dataUri);
+                // Store as 'gen-{index}'
+                const key = `images/${project.id}/gen-${keyIndex}`;
+                imageUploadPromises.push(context.env.VISION_R2.put(key, buffer));
             }
         });
         // Clear generated images from the JSON
         project.data.generatedImages = {};
     }
+
+    // Wait for ALL uploads to succeed. If one fails, the whole request fails (500), alerting the user.
+    await Promise.all(imageUploadPromises);
 
     // 3. Store Text Data in KV
     // We use `project:{id}` to store the detailed JSON (minus images)
@@ -191,12 +192,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // We use `meta:{id}` to store the summary for lists
     const kvMetaPromise = context.env.VISION_KV.put(`meta:${project.id}`, JSON.stringify(metadata));
 
-    await Promise.all([kvProjectPromise, kvMetaPromise, ...imageUploadPromises]);
+    await Promise.all([kvProjectPromise, kvMetaPromise]);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { "Content-Type": "application/json" }
     });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    console.error("Project Save Error:", err);
+    return new Response(JSON.stringify({ error: err.message || "Unknown server error" }), { status: 500 });
   }
 };

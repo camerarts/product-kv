@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { extractProductInfo, generatePosterSystem, generateImageContent } from './geminiService';
 import { VisualStyle, TypographyStyle, RecognitionReport, SavedProject, ModelConfig, SyncStatus, UserProfile, ViewType } from './types';
@@ -383,26 +384,33 @@ export const App: React.FC = () => {
 
   // --- 自动上传/同步逻辑 (Backend Sync) ---
   const syncProjectToCloud = useCallback(async (targetIndexToMarkSynced?: number) => {
-    if (!currentProjectId) return; // Don't sync if no ID (shouldn't happen in auto-save context usually)
+    if (!currentProjectId) return;
     
+    // IMPORTANT: Construct the status object based on current state + the specific update we want.
+    // We cannot rely on `imageSyncStatus` state variable being up-to-date inside this callback due to React batching.
+    const optimisticSyncStatus = { ...imageSyncStatus };
+    if (targetIndexToMarkSynced !== undefined) {
+        optimisticSyncStatus[targetIndexToMarkSynced] = 'synced';
+    }
+
     // Prepare project data
     const projectDataToSave: SavedProject = {
       id: currentProjectId,
       name: manualBrand || report?.brandName || `自动保存 ${new Date().toLocaleString()}`,
       timestamp: Date.now(),
-      userId: currentUser?.id, // Bind to current user locally as well
-      userName: currentUser?.name, // Bind creator name
+      userId: currentUser?.id,
+      userName: currentUser?.name,
       data: {
         images, imageRatios, description, manualBrand, report,
         selectedStyle, selectedTypography, finalPrompts,
         needsModel, modelDesc, needsScene, sceneDesc,
         needsDataVis, otherNeeds, aspectRatio, 
-        generatedImages: generatedImagesRef.current, // Use ref for latest
-        imageSyncStatus // This might be slightly stale if called immediately, but we update optimistically below
+        generatedImages: generatedImagesRef.current, // Use ref for latest images
+        imageSyncStatus: optimisticSyncStatus // Use the optimistic status we just calculated
       }
     };
 
-    // First, save to local storage project list (Always happens, even for guests)
+    // First, save to local storage project list
     try {
         const stored = localStorage.getItem(PROJECTS_KEY);
         const currentProjects = stored ? JSON.parse(stored) : [];
@@ -416,20 +424,16 @@ export const App: React.FC = () => {
         }
         localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
         
-        // Update Project List UI
         setProjects(updated.map((p: any) => ({ 
             ...p, 
-            // If logged in, assume it will be synced shortly. If guest, force unsynced.
             isSynced: (isAdminLoggedIn || currentUser) ? (p.id === currentProjectId ? false : p.isSynced) : false 
         })).filter(p => {
-            // Apply same filtering to the immediate state update
             if (currentUser) return p.userId === currentUser.id;
             return !p.userId;
         })); 
-    } catch (e) { console.error("Auto-save local failed (quota likely exceeded)", e); }
+    } catch (e) { console.error("Auto-save local failed", e); }
 
     // Then upload to Cloud (ONLY IF LOGGED IN)
-    // Non-login users will NOT upload generated data to server
     if (isAdminLoggedIn || currentUser) {
         setIsSaving(true);
         try {
@@ -443,12 +447,12 @@ export const App: React.FC = () => {
           });
 
           if (res.ok) {
-            setLastSaveTime(Date.now()); // Update timestamp on success
-            // Mark specific image as synced if specified (Immediate Green Dot)
+            setLastSaveTime(Date.now());
+            // Update the UI state to match the optimistic status we successfully saved
             if (targetIndexToMarkSynced !== undefined) {
                 setImageSyncStatus(prev => ({ ...prev, [targetIndexToMarkSynced]: 'synced' }));
             }
-            // Update project list sync status
+            // Mark project as synced in list
             setProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, isSynced: true } : p));
           } else {
             console.warn("Auto-upload to cloud failed");
@@ -467,39 +471,33 @@ export const App: React.FC = () => {
   ]);
 
   // --- Trigger Sync on Login ---
-  // If user transitions from Guest -> Logged In, and has a current project with data, trigger sync immediately
   useEffect(() => {
     if ((isAdminLoggedIn || currentUser) && currentProjectId && (images.length > 0 || Object.keys(generatedImages).length > 0)) {
-        console.log("User logged in with pending data, triggering cloud sync...");
         syncProjectToCloud();
     }
-  }, [isAdminLoggedIn, currentUser]); // Depends only on auth state changes
+  }, [isAdminLoggedIn, currentUser]);
 
   // --- Auto-Save Effect (Debounced) ---
   useEffect(() => {
-    // Check if we are in a valid project state to auto-save
-    // We only auto-save if we have a currentProjectId AND we are not currently generating heavy content
     if (!currentProjectId || generationLoading) return;
 
-    // Use a timeout to debounce save operations (wait 2s after last change)
     const timer = setTimeout(() => {
         syncProjectToCloud();
     }, 2000);
 
     return () => clearTimeout(timer);
   }, [
-    // Watch all data fields that constitute a project
     currentProjectId,
     images, imageRatios, description, manualBrand, report,
     selectedStyle, selectedTypography, finalPrompts,
     needsModel, modelDesc, needsScene, sceneDesc,
     needsDataVis, otherNeeds, aspectRatio, 
-    generatedImages, // Watch generated images too
-    syncProjectToCloud, // Updates when Auth updates
+    generatedImages, // We watch state here for debounced saves
+    syncProjectToCloud,
     generationLoading
   ]);
 
-  // --- 手动保存项目 (Forcing a save/name change) ---
+  // --- 手动保存项目 ---
   const saveCurrentProject = async () => {
     if (!isAdminLoggedIn && !currentUser) {
         setIsLoginModalOpen(true); 
@@ -509,11 +507,8 @@ export const App: React.FC = () => {
     const name = prompt("请输入项目名称：", manualBrand || report?.brandName || "未命名项目");
     if (!name) return;
 
-    // Update brand name which triggers auto-save eventually, but we force it here
     setManualBrand(name);
     
-    // Force sync immediately with new name
-    // Generate 15-char ID if creating new
     const pid = currentProjectId || generateProjectId();
     if (!currentProjectId) {
       setCurrentProjectId(pid);
@@ -522,20 +517,20 @@ export const App: React.FC = () => {
 
     const projectDataToSave: SavedProject = {
       id: pid,
-      name, // Use new name
+      name,
       timestamp: Date.now(),
-      userId: currentUser?.id, // Bind user ID
-      userName: currentUser?.name, // Bind creator name
+      userId: currentUser?.id,
+      userName: currentUser?.name,
       data: {
         images, imageRatios, description, manualBrand: name, report,
         selectedStyle, selectedTypography, finalPrompts,
         needsModel, modelDesc, needsScene, sceneDesc,
-        needsDataVis, otherNeeds, aspectRatio, generatedImages,
+        needsDataVis, otherNeeds, aspectRatio, 
+        generatedImages: generatedImagesRef.current,
         imageSyncStatus
       }
     };
 
-    // Save Local
     try {
         const stored = localStorage.getItem(PROJECTS_KEY);
         const currentProjects = stored ? JSON.parse(stored) : [];
@@ -543,7 +538,6 @@ export const App: React.FC = () => {
         const updated = [projectDataToSave, ...filtered];
         localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
         
-        // Filter visible projects immediately
         setProjects(updated.map((p: any) => ({ ...p, isSynced: p.id === pid ? false : p.isSynced }))
             .filter((p: any) => {
                 if (currentUser) return p.userId === currentUser.id;
@@ -552,7 +546,6 @@ export const App: React.FC = () => {
         );
     } catch (e) { console.error(e); }
 
-    // Save Cloud
     setIsSaving(true);
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -579,9 +572,6 @@ export const App: React.FC = () => {
   };
 
   const loadProject = async (projectMeta: any) => {
-    // Only ask for confirmation if there's actual data in the current session
-    // AND the current session is NOT the one we are trying to load
-    // AND we are not just initializing (e.g. from URL)
     if (images.length > 0 && currentProjectId !== projectMeta.id && !pendingUrlId) {
         if (!window.confirm("当前有正在编辑的内容，加载项目将覆盖当前内容，是否继续？")) {
             return;
@@ -590,7 +580,6 @@ export const App: React.FC = () => {
 
     let projectData = projectMeta.data;
 
-    // 如果对象中没有 data (说明是来自云端的元数据列表)，需要去获取完整数据
     if (!projectData) {
         try {
             const res = await fetch(`/api/project/${projectMeta.id}`);
@@ -602,7 +591,6 @@ export const App: React.FC = () => {
             }
         } catch (e) {
             console.warn("Cloud load failed, trying local storage...");
-            // 尝试从本地查找
             const stored = localStorage.getItem(PROJECTS_KEY);
             if (stored) {
                 const list = JSON.parse(stored);
@@ -617,11 +605,9 @@ export const App: React.FC = () => {
         return;
     }
 
-    // Set Current ID - This will eventually trigger auto-save debounce which updates "last opened" timestamp
     setCurrentProjectId(projectMeta.id);
     updateUrl(projectMeta.id);
 
-    // 应用数据
     setImages(projectData.images || []);
     setImageRatios(projectData.imageRatios || []);
     setDescription(projectData.description || '');
@@ -640,18 +626,15 @@ export const App: React.FC = () => {
     setGeneratedImages(projectData.generatedImages || {});
     setImageSyncStatus(projectData.imageSyncStatus || {});
     
-    // Reset transient states
     setGeneratingModules({});
     setIsBatchGenerating(false);
     setGenerationLoading(false);
-    setLastSaveTime(projectMeta.timestamp); // Set last save time to project timestamp on load
+    setLastSaveTime(projectMeta.timestamp);
     
-    // Switch view
     setCurrentView('core');
   };
 
   const deleteProject = async (id: string) => {
-    // 1. 删除本地
     try {
         const stored = localStorage.getItem(PROJECTS_KEY);
         if (stored) {
@@ -661,31 +644,25 @@ export const App: React.FC = () => {
         }
     } catch(e) {}
 
-    // 2. 删除云端 (fire and forget)
     fetch(`/api/project/${id}`, { method: 'DELETE' }).catch(e => console.error(e));
 
-    // Update UI
     setProjects(prev => prev.filter(p => p.id !== id));
     
-    // If deleted current project, clear ID
     if (id === currentProjectId) {
         setCurrentProjectId(null);
         updateUrl(null);
     }
   };
 
-  // --- 重制（清空）功能 ---
   const handleReset = useCallback(() => {
     if (!window.confirm("确定要重制吗？\n这将清空所有当前输入的数据和生成结果。")) {
       return;
     }
     
-    // 清除 LocalStorage
     localStorage.removeItem(CACHE_KEY);
     updateUrl(null);
     
-    // 重置所有 State
-    setCurrentProjectId(null); // Setting null prevents auto-save until manual creation/naming
+    setCurrentProjectId(null);
     setImages([]);
     setImageRatios([]);
     setDescription('');
@@ -712,28 +689,25 @@ export const App: React.FC = () => {
   }, []);
 
   const handleNewProject = useCallback(() => {
-    // 1. Check for unsaved work
     if (images.length > 0) {
         if (!window.confirm("当前有正在进行的工作，创建新项目将清空当前内容。是否继续？")) {
             return;
         }
     }
 
-    // 2. Prompt for name
     const name = prompt("请输入新项目/品牌名称：");
     if (!name) return;
 
-    // 3. Reset and Initialize
     localStorage.removeItem(CACHE_KEY);
     
     const newId = generateProjectId();
-    setCurrentProjectId(newId); // Setting ID enables auto-save
+    setCurrentProjectId(newId);
     updateUrl(newId);
 
     setImages([]);
     setImageRatios([]);
     setDescription('');
-    setManualBrand(name); // Pre-fill brand name
+    setManualBrand(name);
     setReport(null);
     setSelectedStyle(VisualStyle.NORDIC);
     setSelectedTypography(TypographyStyle.GLASS_MODERN);
@@ -753,7 +727,6 @@ export const App: React.FC = () => {
     setGenerationLoading(false);
     setLastSaveTime(null);
 
-    // 4. Switch to core view
     setCurrentView('core');
   }, [images]);
 
@@ -767,7 +740,6 @@ export const App: React.FC = () => {
     "3:2": "3:2"
   };
 
-  // 映射描述（保持不变）
   const visualStyleDescriptions: Record<VisualStyle, string> = {
     [VisualStyle.MAGAZINE]: '高端时尚杂志排版，强调大图视觉张力、精致留白与现代感。适合奢侈品、美妆。',
     [VisualStyle.WATERCOLOR]: '艺术感水彩笔触，营造温润、通透且具有手工质感的视觉体验。适合护肤、食品。',
@@ -792,7 +764,6 @@ export const App: React.FC = () => {
     
     setGenerationLoading(true);
     try {
-      // 步骤 1: 执行产品解析
       const extractionRes = await extractProductInfo(
           images, 
           description, 
@@ -808,7 +779,6 @@ export const App: React.FC = () => {
         effectiveBrand = extractionRes.brandName;
       }
 
-      // 步骤 2: 执行方案生成
       const needsArray = [];
       if (needsModel) {
         let desc = "需要真人模特";
@@ -843,7 +813,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // 根据需求过滤：只保留“海报”相关的模块（过滤掉 LOGO 方案）
   const promptModules = useMemo(() => {
     if (!finalPrompts) return [];
     const sections = finalPrompts.split(/###\s*/).filter(s => s.trim());
@@ -854,7 +823,7 @@ export const App: React.FC = () => {
         const content = section.slice(firstLineEnd).trim();
         return { title, content };
       })
-      .filter(module => module.title.includes('海报')); // 核心过滤逻辑：只保留标题包含“海报”的项
+      .filter(module => module.title.includes('海报'));
   }, [finalPrompts]);
 
   const generateSingleImage = async (index: number, prompt: string, isLogo: boolean) => {
@@ -873,13 +842,14 @@ export const App: React.FC = () => {
       if (res) {
         const b64 = `data:image/jpeg;base64,${res}`;
         setGeneratedImages(prev => ({ ...prev, [index]: b64 }));
-        // Mark as unsynced initially
+        
+        // Mark as unsynced initially in UI
         setImageSyncStatus(prev => ({ ...prev, [index]: 'unsynced' }));
         
-        // Critical: Update Ref immediately for the sync function to pick it up, bypassing React render cycle lag
+        // Critical: Update Ref immediately
         generatedImagesRef.current = { ...generatedImagesRef.current, [index]: b64 };
         
-        // Trigger auto-upload (Real-time sync) immediately if logged in
+        // Trigger auto-upload
         if (isAdminLoggedIn || currentUser) {
            await syncProjectToCloud(index);
         }
@@ -891,13 +861,10 @@ export const App: React.FC = () => {
     }
   };
 
-  // --- 批量生成逻辑 ---
   const handleGenerateAll = async () => {
     if (!promptModules.length) return;
     if (isBatchGenerating) return;
 
-    // 1. 找出所有还没生成且当前没有正在生成的任务
-    // This filter logic ensures we only generate images for prompts that are currently empty.
     const pendingTasks = promptModules.map((m, i) => ({ ...m, index: i }))
       .filter(item => !generatedImages[item.index]);
 
@@ -909,7 +876,6 @@ export const App: React.FC = () => {
     setIsBatchGenerating(true);
 
     try {
-      // 2. 定义 Worker 池，最大并发 2
       const CONCURRENCY_LIMIT = 2;
       const taskQueue = [...pendingTasks];
 
@@ -944,7 +910,6 @@ export const App: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden font-sans text-slate-800 relative bg-transparent">
       
-      {/* Floating Navigation Rail */}
       <Navigation 
         currentView={currentView} 
         onChange={(view) => {
@@ -956,7 +921,6 @@ export const App: React.FC = () => {
                 }
             }
             if (view === 'users' && !isAdminLoggedIn) {
-                // Prevent navigation to users if not admin (though nav item is hidden)
                 return;
             }
             setCurrentView(view);
@@ -969,7 +933,6 @@ export const App: React.FC = () => {
         onGoogleLogout={handleGoogleLogout}
       />
 
-      {/* Main Area based on View */}
       {currentView === 'core' && (
         <>
             <Sidebar
@@ -1057,7 +1020,6 @@ export const App: React.FC = () => {
           />
       )}
 
-      {/* Global Modals */}
       <ApiKeyModal hasApiKey={hasApiKey} onSelectKey={handleSelectKey} />
       <LoginModal 
         isOpen={isLoginModalOpen} 
