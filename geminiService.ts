@@ -1,8 +1,9 @@
+
 import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { VisualStyle, TypographyStyle, RecognitionReport } from "./types";
 
 const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家和AI绘画提示词专家。
-你的任务是协助用户完成产品识别、卖点提取，并生成一套完整的（10张）电商海报提示词系统。
+你的任务是协助用户完成产品识别、卖点提取，并配合生成一套完整的（10张）电商海报提示词系统。
 
 核心目标：
 1. 识别产品细节（通过提供的1-2张参考图）。
@@ -15,21 +16,41 @@ const SYSTEM_INSTRUCTION = `你是一位世界顶级的电商视觉策划专家�
 
 // 获取有效 Key 的辅助函数
 const getEffectiveKey = (userApiKey?: string, isAdmin: boolean = false) => {
-  // 1. 用户手动输入的 Key 优先级最高
   if (userApiKey && userApiKey.trim().length > 0) {
     return userApiKey;
   }
-  
-  // 2. 其次是管理员模式下的环境变量 Key (严格限制: 仅管理员可用)
   if (isAdmin && process.env.API_KEY) { 
      return process.env.API_KEY;
   }
-  
   throw new Error("请配置 API Key 或登录管理员账号");
 };
 
+// Helper: Ensure we have base64 data (fetch if it's a URL)
+const ensureBase64 = async (img: string): Promise<string> => {
+    if (img.startsWith('data:')) {
+        return img.split(',')[1];
+    }
+    // Assume it is a URL
+    try {
+        const res = await fetch(img);
+        const blob = await res.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const res = reader.result as string;
+                resolve(res.split(',')[1]);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.error("Failed to fetch image for AI:", img, e);
+        throw new Error("无法读取图片数据，请检查网络");
+    }
+};
+
 export const extractProductInfo = async (
-  imagesB64: string[], 
+  imagesInput: string[], 
   textDescription: string, 
   userApiKey?: string, 
   isAdmin: boolean = false,
@@ -40,8 +61,11 @@ export const extractProductInfo = async (
   
   const parts: any[] = [];
   
-  if (imagesB64 && imagesB64.length > 0) {
-    imagesB64.forEach(b64 => {
+  if (imagesInput && imagesInput.length > 0) {
+    // Process all images to ensure they are base64
+    const processedImages = await Promise.all(imagesInput.map(ensureBase64));
+    
+    processedImages.forEach(b64 => {
       parts.push({
         inlineData: {
           mimeType: 'image/jpeg',
@@ -113,13 +137,11 @@ export const extractProductInfo = async (
   let text = response.text;
   
   if (!text) {
-    console.warn("AI returned empty text. Full response:", response);
-    // Return dummy data if extraction fails
     return {
        brandName: "识别失败",
        productType: "未知品类",
        productSpecs: "暂无数据",
-       coreSellingPoints: ["AI未能提取卖点", "请尝试更清晰的图片"],
+       coreSellingPoints: ["AI未能提取卖点"],
        mainColors: "暂无",
        auxColors: "暂无",
        designStyle: "暂无风格描述",
@@ -138,12 +160,8 @@ export const extractProductInfo = async (
     
     if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
         text = text.substring(firstOpen, lastClose + 1);
-    } else {
-        throw new Error("Cannot find JSON braces");
     }
-
     text = text.replace(/,(\s*[}\]])/g, '$1');
-
     const parsed = JSON.parse(text);
 
     return {
@@ -162,8 +180,8 @@ export const extractProductInfo = async (
       patternElements: parsed.patternElements || '纯色/渐变'
     };
   } catch (e) {
-    console.error("JSON Parse failed:", e);
-    throw new Error("解析产品报告失败。AI 返回的数据格式有误，请重试或检查图片是否清晰。");
+    console.error("JSON Parse failed", e);
+    throw new Error("解析产品报告失败。AI 返回的数据格式有误。");
   }
 };
 
@@ -233,7 +251,7 @@ export const generatePosterSystem = async (
 };
 
 export const generateImageContent = async (
-  imagesB64: string[],
+  imagesInput: string[],
   prompt: string,
   aspectRatio: string,
   userApiKey?: string, 
@@ -243,11 +261,13 @@ export const generateImageContent = async (
   const apiKey = getEffectiveKey(userApiKey, isAdmin);
   const ai = new GoogleGenAI({ apiKey });
 
+  const processedImages = await Promise.all(imagesInput.map(ensureBase64));
+
   const response = await ai.models.generateContent({
     model: modelName,
     contents: { 
       parts: [
-        ...imagesB64.map(img => ({ inlineData: { data: img, mimeType: 'image/jpeg' } })), 
+        ...processedImages.map(b64 => ({ inlineData: { data: b64, mimeType: 'image/jpeg' } })), 
         { text: `高端电商摄影风格。还原参考图产品。场景描述：${prompt}。比例：${aspectRatio}。电影级光影。` }
       ] 
     },

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { extractProductInfo, generatePosterSystem, generateImageContent } from './geminiService';
+import { uploadImage } from './services/storageService';
 import { VisualStyle, TypographyStyle, RecognitionReport, SavedProject, ModelConfig, SyncStatus, UserProfile, ViewType } from './types';
 import { Sidebar } from './Sidebar';
 import { MainContent } from './MainContent';
@@ -108,13 +109,9 @@ export const App: React.FC = () => {
     } catch(e) { console.error(e); }
 
     // --- SECURITY FILTER ---
-    // Prevent users from seeing other users' local projects on shared devices
     if (currentUser) {
-        // If logged in via Google, only show projects belonging to this user ID
         localList = localList.filter(p => p.userId === currentUser.id);
     } else {
-        // If Guest (or Admin login which is separate), only show projects with NO userId (Guest projects)
-        // This ensures that logging out hides the user's projects from the guest view
         localList = localList.filter(p => !p.userId);
     }
 
@@ -122,7 +119,6 @@ export const App: React.FC = () => {
     let cloudList: any[] = [];
     try {
       const headers: Record<string, string> = {};
-      // If admin and password present, send it to see all projects
       if (isAdminLoggedIn && adminPassword) {
          headers['X-Admin-Pass'] = adminPassword;
       }
@@ -132,8 +128,6 @@ export const App: React.FC = () => {
         cloudList = await res.json();
         
         // --- SECURITY FILTER (CLOUD) ---
-        // Double security: strictly filter cloud results on frontend as well
-        // If I am a regular user (and not currently in Admin mode), strictly show ONLY my projects.
         if (currentUser && !isAdminLoggedIn) {
              cloudList = cloudList.filter(p => p.userId === currentUser.id);
         }
@@ -143,19 +137,15 @@ export const App: React.FC = () => {
     // 3. Merge & Determine Status
     const map = new Map<string, any>();
 
-    // Initialize with local (default unsynced)
     localList.forEach(p => {
         map.set(p.id, { ...p, isSynced: false });
     });
 
-    // Merge cloud (mark synced)
     cloudList.forEach(p => {
         const existing = map.get(p.id);
         if (existing) {
-             // Exists locally, mark as synced
              map.set(p.id, { ...existing, isSynced: true });
         } else {
-             // Only in cloud
              map.set(p.id, { ...p, isSynced: true });
         }
     });
@@ -167,30 +157,21 @@ export const App: React.FC = () => {
 
   // --- Effects ---
 
-  // 1. Init Auth & Key (Run once)
+  // 1. Init Auth & Key
   useEffect(() => {
-    // Check for auth errors in URL (e.g. Expired Account)
     const urlParams = new URLSearchParams(window.location.search);
     const authError = urlParams.get('auth_error');
     if (authError === 'expired') {
       alert("⚠️ 您的账号已过期。\n\n账号有效期默认为首次登录后30天。请联系管理员进行延期处理。");
-      // Clear URL params
       updateUrl(null);
     }
 
-    // Check for project ID in URL
     const pid = urlParams.get('project');
-    if (pid) {
-        setPendingUrlId(pid);
-    }
+    if (pid) setPendingUrlId(pid);
 
-    // 恢复 API Key
     const storedKey = localStorage.getItem('USER_GEMINI_API_KEY');
-    if (storedKey) {
-      setUserApiKey(storedKey);
-    }
+    if (storedKey) setUserApiKey(storedKey);
     
-    // Check Google Auth Status
     const checkAuth = async () => {
        try {
          const res = await fetch('/api/auth/me');
@@ -213,22 +194,19 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // 2. Fetch Projects when Auth changes (Auto-Download)
+  // 2. Fetch Projects when Auth changes
   useEffect(() => {
-    // Always fetch projects to ensure the list reflects the current user state (including guest)
     fetchProjects();
   }, [isAdminLoggedIn, currentUser, adminPassword, fetchProjects]);
 
   
-  // 3. Load Project from URL if pending
+  // 3. Load Project from URL
   useEffect(() => {
       if (pendingUrlId && projects.length > 0) {
           const found = projects.find(p => p.id === pendingUrlId);
           if (found) {
-              console.log("Loading project from URL:", pendingUrlId);
               loadProject(found);
           }
-          // Clear pending ID so we don't reload or loop
           setPendingUrlId(null);
       }
   }, [projects, pendingUrlId]);
@@ -243,7 +221,6 @@ export const App: React.FC = () => {
   };
 
   const handleSaveKey = (key: string) => {
-    // Empty key means clear
     if (!key.trim()) {
        handleClearKey();
        return;
@@ -271,7 +248,6 @@ export const App: React.FC = () => {
     setIsAdminLoggedIn(false);
     localStorage.removeItem(ADMIN_SESSION_KEY);
     setAdminPassword(undefined);
-    // Logout clears the projects list from memory
     setProjects([]);
     if (currentView === 'users') setCurrentView('core');
   };
@@ -300,9 +276,8 @@ export const App: React.FC = () => {
     handleAdminLogin(pass);
   };
 
-  // --- 核心业务状态 (使用 lazy init 从缓存读取) ---
-  const [generationLoading, setGenerationLoading] = useState(false); // Loading 状态不缓存，防止卡死
-  
+  // --- Core State ---
+  const [generationLoading, setGenerationLoading] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(() => getCachedState('currentProjectId', null));
 
   const [images, setImages] = useState<string[]>(() => getCachedState('images', []));
@@ -316,7 +291,6 @@ export const App: React.FC = () => {
   
   const [finalPrompts, setFinalPrompts] = useState(() => getCachedState('finalPrompts', ''));
   
-  // 个性化需求状态
   const [needsModel, setNeedsModel] = useState(() => getCachedState('needsModel', false));
   const [modelDesc, setModelDesc] = useState(() => getCachedState('modelDesc', ''));
   
@@ -331,11 +305,10 @@ export const App: React.FC = () => {
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>(() => getCachedState('generatedImages', {}));
   const [imageSyncStatus, setImageSyncStatus] = useState<Record<number, SyncStatus>>(() => getCachedState('imageSyncStatus', {}));
 
-  const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({}); // Loading 状态不缓存
+  const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({}); 
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   
-  // Ref to track generating state for the batch process to avoid stale closures
   const generatingModulesRef = useRef<Record<number, boolean>>({});
   const generatedImagesRef = useRef<Record<number, string>>({});
 
@@ -347,7 +320,7 @@ export const App: React.FC = () => {
     generatedImagesRef.current = generatedImages;
   }, [generatedImages]);
 
-  // --- 数据持久化副作用 (Current State Local Cache) ---
+  // --- Local Cache ---
   useEffect(() => {
     try {
       const stateToCache = {
@@ -372,7 +345,7 @@ export const App: React.FC = () => {
       };
       localStorage.setItem(CACHE_KEY, JSON.stringify(stateToCache));
     } catch (e) {
-      console.warn("Local storage update failed (likely quota exceeded). This only affects offline cache, not cloud sync.", e);
+      console.warn("Local storage update failed", e);
     }
   }, [
     currentProjectId,
@@ -382,19 +355,17 @@ export const App: React.FC = () => {
     needsDataVis, otherNeeds, aspectRatio, generatedImages, imageSyncStatus
   ]);
 
-  // --- 自动上传/同步逻辑 (Backend Sync) ---
+  // --- Sync Logic (UPDATED: DIRECT UPLOAD) ---
   const syncProjectToCloud = useCallback(async (targetIndexToMarkSynced?: number) => {
     if (!currentProjectId) return;
     
-    // IMPORTANT: Construct the status object based on current state + the specific update we want.
-    // We cannot rely on `imageSyncStatus` state variable being up-to-date inside this callback due to React batching.
     const optimisticSyncStatus = { ...imageSyncStatus };
     if (targetIndexToMarkSynced !== undefined) {
         optimisticSyncStatus[targetIndexToMarkSynced] = 'synced';
     }
 
-    // Prepare project data
-    const projectDataToSave: SavedProject = {
+    // Prepare data (with local base64 for local save)
+    const localProjectData: SavedProject = {
       id: currentProjectId,
       name: manualBrand || report?.brandName || `自动保存 ${new Date().toLocaleString()}`,
       timestamp: Date.now(),
@@ -405,22 +376,22 @@ export const App: React.FC = () => {
         selectedStyle, selectedTypography, finalPrompts,
         needsModel, modelDesc, needsScene, sceneDesc,
         needsDataVis, otherNeeds, aspectRatio, 
-        generatedImages: generatedImagesRef.current, // Use ref for latest images
-        imageSyncStatus: optimisticSyncStatus // Use the optimistic status we just calculated
+        generatedImages: generatedImagesRef.current,
+        imageSyncStatus: optimisticSyncStatus
       }
     };
 
-    // First, save to local storage project list
+    // Save locally
     try {
         const stored = localStorage.getItem(PROJECTS_KEY);
         const currentProjects = stored ? JSON.parse(stored) : [];
         const existingIdx = currentProjects.findIndex((p: any) => p.id === currentProjectId);
         let updated;
         if (existingIdx >= 0) {
-            currentProjects[existingIdx] = projectDataToSave;
+            currentProjects[existingIdx] = localProjectData;
             updated = [...currentProjects];
         } else {
-            updated = [projectDataToSave, ...currentProjects];
+            updated = [localProjectData, ...currentProjects];
         }
         localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
         
@@ -433,32 +404,66 @@ export const App: React.FC = () => {
         })); 
     } catch (e) { console.error("Auto-save local failed", e); }
 
-    // Then upload to Cloud (ONLY IF LOGGED IN)
+    // Upload to Cloud (Separate Images)
     if (isAdminLoggedIn || currentUser) {
         setIsSaving(true);
         try {
+          // 1. UPLOAD REFERENCE IMAGES
+          // We clone the arrays to avoid mutating state directly
+          const imagesToSave = [...images]; 
+          const generatedImagesToSave = { ...generatedImagesRef.current };
+
+          // Upload Ref Images
+          for (let i = 0; i < imagesToSave.length; i++) {
+             const img = imagesToSave[i];
+             if (img && img.length > 500 && !img.startsWith('/api/images')) { 
+                // It's a base64 string, upload it
+                // Reconstruct full base64 if needed (assuming stored as pure b64 in state mostly)
+                const fullBase64 = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+                const url = await uploadImage(fullBase64, currentProjectId);
+                imagesToSave[i] = url; // Replace with URL for cloud storage
+             }
+          }
+
+          // Upload Generated Images
+          for (const key of Object.keys(generatedImagesToSave)) {
+              const k = parseInt(key);
+              const img = generatedImagesToSave[k];
+              if (img && img.length > 500 && !img.startsWith('/api/images')) {
+                 const fullBase64 = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+                 const url = await uploadImage(fullBase64, currentProjectId);
+                 generatedImagesToSave[k] = url;
+              }
+          }
+
+          // 2. SAVE JSON (With URLs)
+          const cloudProjectData = {
+             ...localProjectData,
+             data: {
+                 ...localProjectData.data,
+                 images: imagesToSave,
+                 generatedImages: generatedImagesToSave
+             }
+          };
+
           const headers: Record<string, string> = { 'Content-Type': 'application/json' };
           if (isAdminLoggedIn && adminPassword) headers['X-Admin-Pass'] = adminPassword;
 
           const res = await fetch('/api/projects', {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify(projectDataToSave)
+            body: JSON.stringify(cloudProjectData)
           });
 
           if (res.ok) {
             setLastSaveTime(Date.now());
-            // Update the UI state to match the optimistic status we successfully saved
             if (targetIndexToMarkSynced !== undefined) {
                 setImageSyncStatus(prev => ({ ...prev, [targetIndexToMarkSynced]: 'synced' }));
             }
-            // Mark project as synced in list
             setProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, isSynced: true } : p));
-          } else {
-            console.warn("Auto-upload to cloud failed");
           }
         } catch (e) {
-          console.error("Auto-upload error", e);
+          console.error("Cloud sync error", e);
         } finally {
           setIsSaving(false);
         }
@@ -470,21 +475,17 @@ export const App: React.FC = () => {
     isAdminLoggedIn, adminPassword, currentUser
   ]);
 
-  // --- Trigger Sync on Login ---
+  // --- Trigger Sync ---
   useEffect(() => {
     if ((isAdminLoggedIn || currentUser) && currentProjectId && (images.length > 0 || Object.keys(generatedImages).length > 0)) {
         syncProjectToCloud();
     }
   }, [isAdminLoggedIn, currentUser]);
 
-  // --- Auto-Save Effect (Debounced) ---
+  // --- Auto-Save ---
   useEffect(() => {
     if (!currentProjectId || generationLoading) return;
-
-    const timer = setTimeout(() => {
-        syncProjectToCloud();
-    }, 2000);
-
+    const timer = setTimeout(() => syncProjectToCloud(), 2000);
     return () => clearTimeout(timer);
   }, [
     currentProjectId,
@@ -492,83 +493,26 @@ export const App: React.FC = () => {
     selectedStyle, selectedTypography, finalPrompts,
     needsModel, modelDesc, needsScene, sceneDesc,
     needsDataVis, otherNeeds, aspectRatio, 
-    generatedImages, // We watch state here for debounced saves
-    syncProjectToCloud,
-    generationLoading
+    generatedImages, syncProjectToCloud, generationLoading
   ]);
 
-  // --- 手动保存项目 ---
+  // --- Manual Save ---
   const saveCurrentProject = async () => {
     if (!isAdminLoggedIn && !currentUser) {
         setIsLoginModalOpen(true); 
         return;
     }
-
     const name = prompt("请输入项目名称：", manualBrand || report?.brandName || "未命名项目");
     if (!name) return;
 
     setManualBrand(name);
-    
     const pid = currentProjectId || generateProjectId();
     if (!currentProjectId) {
       setCurrentProjectId(pid);
       updateUrl(pid);
     }
-
-    const projectDataToSave: SavedProject = {
-      id: pid,
-      name,
-      timestamp: Date.now(),
-      userId: currentUser?.id,
-      userName: currentUser?.name,
-      data: {
-        images, imageRatios, description, manualBrand: name, report,
-        selectedStyle, selectedTypography, finalPrompts,
-        needsModel, modelDesc, needsScene, sceneDesc,
-        needsDataVis, otherNeeds, aspectRatio, 
-        generatedImages: generatedImagesRef.current,
-        imageSyncStatus
-      }
-    };
-
-    try {
-        const stored = localStorage.getItem(PROJECTS_KEY);
-        const currentProjects = stored ? JSON.parse(stored) : [];
-        const filtered = currentProjects.filter((p: any) => p.id !== pid);
-        const updated = [projectDataToSave, ...filtered];
-        localStorage.setItem(PROJECTS_KEY, JSON.stringify(updated));
-        
-        setProjects(updated.map((p: any) => ({ ...p, isSynced: p.id === pid ? false : p.isSynced }))
-            .filter((p: any) => {
-                if (currentUser) return p.userId === currentUser.id;
-                return !p.userId;
-            })
-        );
-    } catch (e) { console.error(e); }
-
-    setIsSaving(true);
-    try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (isAdminLoggedIn && adminPassword) headers['X-Admin-Pass'] = adminPassword;
-
-      const res = await fetch('/api/projects', {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(projectDataToSave)
-      });
-
-      if (res.ok) {
-        setLastSaveTime(Date.now());
-        setProjects(prev => prev.map(p => p.id === pid ? { ...p, isSynced: true } : p));
-        alert("项目保存成功 (已同步至云端)！");
-      } else {
-        throw new Error('Cloud save failed');
-      }
-    } catch (e) {
-      alert("项目已保存到本地 (云端同步失败，请检查网络或配置)");
-    } finally {
-      setIsSaving(false);
-    }
+    // Logic handles the upload
+    setTimeout(() => syncProjectToCloud(), 100);
   };
 
   const loadProject = async (projectMeta: any) => {
@@ -590,7 +534,7 @@ export const App: React.FC = () => {
                 throw new Error("Cloud load failed");
             }
         } catch (e) {
-            console.warn("Cloud load failed, trying local storage...");
+            console.warn("Cloud load failed, trying local");
             const stored = localStorage.getItem(PROJECTS_KEY);
             if (stored) {
                 const list = JSON.parse(stored);
@@ -601,13 +545,15 @@ export const App: React.FC = () => {
     }
 
     if (!projectData) {
-        alert("加载失败：无法获取项目数据 (云端和本地均未找到)");
+        alert("加载失败");
         return;
     }
 
     setCurrentProjectId(projectMeta.id);
     updateUrl(projectMeta.id);
 
+    // If images are URLs, keep them. If Base64, keep them.
+    // The UI (Sidebar/MainContent) handles both via <img src={...}>
     setImages(projectData.images || []);
     setImageRatios(projectData.imageRatios || []);
     setDescription(projectData.description || '');
@@ -655,13 +601,9 @@ export const App: React.FC = () => {
   };
 
   const handleReset = useCallback(() => {
-    if (!window.confirm("确定要重制吗？\n这将清空所有当前输入的数据和生成结果。")) {
-      return;
-    }
-    
+    if (!window.confirm("确定要重制吗？")) return;
     localStorage.removeItem(CACHE_KEY);
     updateUrl(null);
-    
     setCurrentProjectId(null);
     setImages([]);
     setImageRatios([]);
@@ -685,21 +627,16 @@ export const App: React.FC = () => {
     setPreviewImageUrl(null);
     setGenerationLoading(false);
     setLastSaveTime(null);
-
   }, []);
 
   const handleNewProject = useCallback(() => {
     if (images.length > 0) {
-        if (!window.confirm("当前有正在进行的工作，创建新项目将清空当前内容。是否继续？")) {
-            return;
-        }
+        if (!window.confirm("创建新项目将清空当前内容。是否继续？")) return;
     }
-
     const name = prompt("请输入新项目/品牌名称：");
     if (!name) return;
 
     localStorage.removeItem(CACHE_KEY);
-    
     const newId = generateProjectId();
     setCurrentProjectId(newId);
     updateUrl(newId);
@@ -726,20 +663,11 @@ export const App: React.FC = () => {
     setPreviewImageUrl(null);
     setGenerationLoading(false);
     setLastSaveTime(null);
-
     setCurrentView('core');
   }, [images]);
 
-  const ratioIcons: Record<string, string> = {
-    "1:1": "1:1",
-    "16:9": "16:9",
-    "9:16": "9:16",
-    "3:4": "3:4",
-    "4:3": "4:3",
-    "2:3": "2:3",
-    "3:2": "3:2"
-  };
-
+  // Descriptions & Icons...
+  const ratioIcons: Record<string, string> = { "1:1": "1:1", "16:9": "16:9", "9:16": "9:16", "3:4": "3:4", "4:3": "4:3", "2:3": "2:3", "3:2": "3:2" };
   const visualStyleDescriptions: Record<VisualStyle, string> = {
     [VisualStyle.MAGAZINE]: '高端时尚杂志排版，强调大图视觉张力、精致留白与现代感。适合奢侈品、美妆。',
     [VisualStyle.WATERCOLOR]: '艺术感水彩笔触，营造温润、通透且具有手工质感的视觉体验。适合护肤、食品。',
@@ -749,7 +677,6 @@ export const App: React.FC = () => {
     [VisualStyle.NEON]: '强烈的霓虹发光色调，赛博朋克视觉风格，极具潮流冲击力。适合潮牌、游戏设备。',
     [VisualStyle.NATURAL]: '通透的自然光影，强调产品的真实性、有机感与生活气息。适合生鲜、原生态产品。'
   };
-
   const typographyDescriptions: Record<TypographyStyle, string> = {
     [TypographyStyle.SERIF_GRID]: '经典报刊网格系统，粗衬线标题极具权威感，排版严谨专业。',
     [TypographyStyle.GLASS_MODERN]: '现代毛玻璃拟态效果，半透明卡片与大圆角，视觉轻盈通透。',
@@ -761,24 +688,15 @@ export const App: React.FC = () => {
 
   const startGeneration = async () => {
     if (images.length === 0) return alert('请上传产品图片');
-    
     setGenerationLoading(true);
     try {
-      const extractionRes = await extractProductInfo(
-          images, 
-          description, 
-          userApiKey, 
-          isAdminLoggedIn, 
-          modelConfig.logicModel
-      );
+      const extractionRes = await extractProductInfo(images, description, userApiKey, isAdminLoggedIn, modelConfig.logicModel);
       setReport(extractionRes);
-      
       let effectiveBrand = manualBrand;
       if (!effectiveBrand && extractionRes.brandName) {
         setManualBrand(extractionRes.brandName);
         effectiveBrand = extractionRes.brandName;
       }
-
       const needsArray = [];
       if (needsModel) {
         let desc = "需要真人模特";
@@ -792,20 +710,13 @@ export const App: React.FC = () => {
       }
       if (needsDataVis) needsArray.push("需要数据可视化图表");
       if (otherNeeds) needsArray.push(otherNeeds);
-
       const combinedNeeds = needsArray.join('；');
 
       const promptRes = await generatePosterSystem(
         { ...extractionRes, brandName: effectiveBrand || extractionRes.brandName },
-        selectedStyle,
-        selectedTypography,
-        combinedNeeds,
-        userApiKey,
-        isAdminLoggedIn,
-        modelConfig.logicModel
+        selectedStyle, selectedTypography, combinedNeeds, userApiKey, isAdminLoggedIn, modelConfig.logicModel
       );
       setFinalPrompts(promptRes);
-
     } catch (err: any) {
       alert(`处理失败: ${err.message}`);
     } finally { 
@@ -816,14 +727,12 @@ export const App: React.FC = () => {
   const promptModules = useMemo(() => {
     if (!finalPrompts) return [];
     const sections = finalPrompts.split(/###\s*/).filter(s => s.trim());
-    return sections
-      .map(section => {
+    return sections.map(section => {
         const firstLineEnd = section.indexOf('\n');
         const title = section.slice(0, firstLineEnd).trim();
         const content = section.slice(firstLineEnd).trim();
         return { title, content };
-      })
-      .filter(module => module.title.includes('海报'));
+    }).filter(module => module.title.includes('海报'));
   }, [finalPrompts]);
 
   const generateSingleImage = async (index: number, prompt: string, isLogo: boolean) => {
@@ -831,28 +740,13 @@ export const App: React.FC = () => {
     setGeneratingModules(prev => ({ ...prev, [index]: true }));
     try {
       const actualRatio = isLogo ? "1:1" : aspectRatio;
-      const res = await generateImageContent(
-          images, 
-          prompt, 
-          actualRatio, 
-          userApiKey, 
-          isAdminLoggedIn, 
-          modelConfig.visualModel
-      );
+      const res = await generateImageContent(images, prompt, actualRatio, userApiKey, isAdminLoggedIn, modelConfig.visualModel);
       if (res) {
         const b64 = `data:image/jpeg;base64,${res}`;
         setGeneratedImages(prev => ({ ...prev, [index]: b64 }));
-        
-        // Mark as unsynced initially in UI
         setImageSyncStatus(prev => ({ ...prev, [index]: 'unsynced' }));
-        
-        // Critical: Update Ref immediately
         generatedImagesRef.current = { ...generatedImagesRef.current, [index]: b64 };
-        
-        // Trigger auto-upload
-        if (isAdminLoggedIn || currentUser) {
-           await syncProjectToCloud(index);
-        }
+        if (isAdminLoggedIn || currentUser) await syncProjectToCloud(index);
       }
     } catch (err: any) {
       console.error(`生成图片失败 (Index ${index}):`, err.message);
@@ -864,180 +758,75 @@ export const App: React.FC = () => {
   const handleGenerateAll = async () => {
     if (!promptModules.length) return;
     if (isBatchGenerating) return;
-
-    const pendingTasks = promptModules.map((m, i) => ({ ...m, index: i }))
-      .filter(item => !generatedImages[item.index]);
-
-    if (pendingTasks.length === 0) {
-      alert("所有图片已生成完毕！（一键出图仅对未生成的图片有效）");
-      return;
-    }
+    const pendingTasks = promptModules.map((m, i) => ({ ...m, index: i })).filter(item => !generatedImages[item.index]);
+    if (pendingTasks.length === 0) return alert("所有图片已生成完毕！");
 
     setIsBatchGenerating(true);
-
     try {
       const CONCURRENCY_LIMIT = 2;
       const taskQueue = [...pendingTasks];
-
       const runWorker = async () => {
         while (taskQueue.length > 0) {
           const task = taskQueue.shift();
           if (!task) break;
-
           if (generatingModulesRef.current[task.index]) continue;
-
           const isLogo = task.title.includes("LOGO");
           await generateSingleImage(task.index, task.content, isLogo);
         }
       };
-
       const workers = [];
-      for (let i = 0; i < Math.min(pendingTasks.length, CONCURRENCY_LIMIT); i++) {
-        workers.push(runWorker());
-      }
-
+      for (let i = 0; i < Math.min(pendingTasks.length, CONCURRENCY_LIMIT); i++) workers.push(runWorker());
       await Promise.all(workers);
     } finally {
       setIsBatchGenerating(false);
     }
   };
 
-  const checkAuth = () => {
-    const hasSystemKey = !!(process.env.API_KEY);
-    return !!(userApiKey || (isAdminLoggedIn && hasSystemKey));
-  };
+  const checkAuth = () => !!(userApiKey || (isAdminLoggedIn && process.env.API_KEY));
 
   return (
     <div className="flex h-screen w-screen overflow-hidden font-sans text-slate-800 relative bg-transparent">
-      
       <Navigation 
         currentView={currentView} 
         onChange={(view) => {
             if (view === 'projects') {
-                if (isAdminLoggedIn || currentUser) {
-                   fetchProjects();
-                } else {
-                   setProjects([]);
-                }
+                if (isAdminLoggedIn || currentUser) fetchProjects(); else setProjects([]);
             }
-            if (view === 'users' && !isAdminLoggedIn) {
-                return;
-            }
+            if (view === 'users' && !isAdminLoggedIn) return;
             setCurrentView(view);
         }} 
-        isAdminLoggedIn={isAdminLoggedIn}
-        currentUser={currentUser}
-        onUserClick={handleUserIconClick}
-        onNewProject={handleNewProject}
-        onGoogleLogin={() => window.location.href = '/api/auth/google'}
-        onGoogleLogout={handleGoogleLogout}
+        isAdminLoggedIn={isAdminLoggedIn} currentUser={currentUser} onUserClick={handleUserIconClick} onNewProject={handleNewProject} onGoogleLogin={() => window.location.href = '/api/auth/google'} onGoogleLogout={handleGoogleLogout}
       />
 
       {currentView === 'core' && (
         <>
             <Sidebar
-                images={images} setImages={setImages}
-                setImageRatios={setImageRatios}
-                description={description} setDescription={setDescription}
-                manualBrand={manualBrand} setManualBrand={setManualBrand}
-                selectedStyle={selectedStyle} setSelectedStyle={setSelectedStyle}
-                selectedTypography={selectedTypography} setSelectedTypography={setSelectedTypography}
-                needsModel={needsModel} setNeedsModel={setNeedsModel}
-                modelDesc={modelDesc} setModelDesc={setModelDesc}
-                needsScene={needsScene} setNeedsScene={setNeedsScene}
-                sceneDesc={sceneDesc} setSceneDesc={setSceneDesc}
-                needsDataVis={needsDataVis} setNeedsDataVis={setNeedsDataVis}
-                otherNeeds={otherNeeds} setOtherNeeds={setOtherNeeds}
-                aspectRatio={aspectRatio} setAspectRatio={setAspectRatio}
-                generationLoading={generationLoading} startGeneration={startGeneration}
-                report={report}
-                ratioIcons={ratioIcons}
-                visualStyleDescriptions={visualStyleDescriptions}
-                typographyDescriptions={typographyDescriptions}
-                onReset={handleReset}
-                isAdminLoggedIn={isAdminLoggedIn}
+                images={images} setImages={setImages} setImageRatios={setImageRatios} description={description} setDescription={setDescription} manualBrand={manualBrand} setManualBrand={setManualBrand} selectedStyle={selectedStyle} setSelectedStyle={setSelectedStyle} selectedTypography={selectedTypography} setSelectedTypography={setSelectedTypography} needsModel={needsModel} setNeedsModel={setNeedsModel} modelDesc={modelDesc} setModelDesc={setModelDesc} needsScene={needsScene} setNeedsScene={setNeedsScene} sceneDesc={sceneDesc} setSceneDesc={setSceneDesc} needsDataVis={needsDataVis} setNeedsDataVis={setNeedsDataVis} otherNeeds={otherNeeds} setOtherNeeds={setOtherNeeds} aspectRatio={aspectRatio} setAspectRatio={setAspectRatio} generationLoading={generationLoading} startGeneration={startGeneration} report={report} ratioIcons={ratioIcons} visualStyleDescriptions={visualStyleDescriptions} typographyDescriptions={typographyDescriptions} onReset={handleReset} isAdminLoggedIn={isAdminLoggedIn}
             />
-            
             <MainContent
-                checkAuth={checkAuth}
-                hasApiKey={hasApiKey}
-                manualBrand={manualBrand}
-                report={report}
-                selectedStyle={selectedStyle}
-                selectedTypography={selectedTypography}
-                finalPrompts={finalPrompts}
-                generatedImages={generatedImages}
-                imageSyncStatus={imageSyncStatus}
-                generatingModules={generatingModules}
-                isBatchGenerating={isBatchGenerating}
-                previewImageUrl={previewImageUrl}
-                setPreviewImageUrl={setPreviewImageUrl}
-                generateSingleImage={generateSingleImage}
-                generateAllImages={handleGenerateAll}
-                promptModules={promptModules}
-                aspectRatio={aspectRatio}
-                projectName={manualBrand || report?.brandName || "未命名项目"}
-                isSaving={isSaving}
-                lastSaveTime={lastSaveTime}
+                checkAuth={checkAuth} hasApiKey={hasApiKey} manualBrand={manualBrand} report={report} selectedStyle={selectedStyle} selectedTypography={selectedTypography} finalPrompts={finalPrompts} generatedImages={generatedImages} imageSyncStatus={imageSyncStatus} generatingModules={generatingModules} isBatchGenerating={isBatchGenerating} previewImageUrl={previewImageUrl} setPreviewImageUrl={setPreviewImageUrl} generateSingleImage={generateSingleImage} generateAllImages={handleGenerateAll} promptModules={promptModules} aspectRatio={aspectRatio} projectName={manualBrand || report?.brandName || "未命名项目"} isSaving={isSaving} lastSaveTime={lastSaveTime}
             />
         </>
       )}
 
       {currentView === 'projects' && (
-          <ProjectList 
-             projects={projects} 
-             onLoad={loadProject} 
-             onDelete={deleteProject} 
-             isAuthenticated={isAdminLoggedIn || !!currentUser}
-             isSaving={isSaving}
-             lastSaveTime={lastSaveTime}
-          />
+          <ProjectList projects={projects} onLoad={loadProject} onDelete={deleteProject} isAuthenticated={isAdminLoggedIn || !!currentUser} isSaving={isSaving} lastSaveTime={lastSaveTime} />
       )}
-
       {currentView === 'users' && (
-          <UserManagement 
-             adminPassword={adminPassword}
-             onRelogin={(pass) => setAdminPassword(pass)}
-          />
+          <UserManagement adminPassword={adminPassword} onRelogin={(pass) => setAdminPassword(pass)} />
       )}
-
       {currentView === 'key' && (
-          <KeyConfig 
-             userApiKey={userApiKey} 
-             onSave={handleSaveKey} 
-             onClear={handleClearKey}
-             isAdminLoggedIn={isAdminLoggedIn}
-             onAdminLogin={() => handleAdminLogin()}
-             onAdminLogout={handleAdminLogout}
-          />
+          <KeyConfig userApiKey={userApiKey} onSave={handleSaveKey} onClear={handleClearKey} isAdminLoggedIn={isAdminLoggedIn} onAdminLogin={() => handleAdminLogin()} onAdminLogout={handleAdminLogout} />
       )}
-
       {currentView === 'models' && (
-          <ModelSettings 
-             config={modelConfig} 
-             onSave={setModelConfig} 
-             isAuthenticated={!!currentUser}
-          />
+          <ModelSettings config={modelConfig} onSave={setModelConfig} isAuthenticated={!!currentUser} />
       )}
-
       <ApiKeyModal hasApiKey={hasApiKey} onSelectKey={handleSelectKey} />
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
-        onLoginSuccess={handleLoginSuccess} 
-        onGoogleLogin={() => window.location.href = '/api/auth/google'}
-      />
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} onLoginSuccess={handleLoginSuccess} onGoogleLogin={() => window.location.href = '/api/auth/google'} />
 
       {previewImageUrl && (
-        <div 
-          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-2xl flex items-center justify-center p-10 cursor-zoom-out animate-fade-in"
-          onClick={() => setPreviewImageUrl(null)}
-        >
-           <img 
-            src={previewImageUrl} 
-            className="max-w-full max-h-full object-contain rounded-3xl shadow-2xl cursor-default" 
-            onClick={(e) => e.stopPropagation()}
-          />
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-2xl flex items-center justify-center p-10 cursor-zoom-out animate-fade-in" onClick={() => setPreviewImageUrl(null)}>
+           <img src={previewImageUrl} className="max-w-full max-h-full object-contain rounded-3xl shadow-2xl cursor-default" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </div>
