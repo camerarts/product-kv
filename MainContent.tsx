@@ -85,24 +85,48 @@ export const MainContent: React.FC<MainContentProps> = ({
 
     const zip = new JSZip();
     let count = 0;
-
-    keys.forEach((keyStr) => {
+    
+    // Create an array of promises to handle async fetching if needed
+    const promises = keys.map(async (keyStr) => {
       const index = parseInt(keyStr, 10);
-      const dataUri = generatedImages[index];
-      if (!dataUri) return;
+      const dataUriOrUrl = generatedImages[index];
+      if (!dataUriOrUrl) return;
 
-      const base64Data = dataUri.split(',')[1];
       const moduleInfo = promptModules[index] || SKELETON_MODULES[index];
       const title = moduleInfo ? moduleInfo.title : `Image_${index + 1}`;
       
       const safeTitle = title.replace(/[\/\\?%*:|"<>]/g, '-').trim();
       const filename = `${safeTitle}.jpg`;
 
-      zip.file(filename, base64Data, { base64: true });
-      count++;
+      try {
+          if (dataUriOrUrl.startsWith('data:')) {
+              // Case 1: Base64 Data URI
+              const base64Data = dataUriOrUrl.split(',')[1];
+              zip.file(filename, base64Data, { base64: true });
+              count++;
+          } else {
+              // Case 2: Remote URL (synced image)
+              const response = await fetch(dataUriOrUrl);
+              if (response.ok) {
+                  const blob = await response.blob();
+                  zip.file(filename, blob);
+                  count++;
+              } else {
+                  console.error(`Failed to fetch image for download: ${dataUriOrUrl}`);
+              }
+          }
+      } catch (e) {
+          console.error(`Error processing image ${filename}`, e);
+      }
     });
 
-    if (count === 0) return;
+    // Wait for all images to be processed/fetched
+    await Promise.all(promises);
+
+    if (count === 0) {
+        alert("图片下载失败，无法获取图片数据");
+        return;
+    }
 
     try {
       const content = await zip.generateAsync({ type: "blob" });
