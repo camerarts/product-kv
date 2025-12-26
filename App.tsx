@@ -60,6 +60,9 @@ export const App: React.FC = () => {
         const timestamp = parseInt(stored, 10);
         if (!isNaN(timestamp) && (Date.now() - timestamp < SESSION_DURATION)) {
           return true;
+        } else {
+          // Clean up expired session
+          localStorage.removeItem(ADMIN_SESSION_KEY);
         }
       }
     } catch (e) {
@@ -308,22 +311,30 @@ export const App: React.FC = () => {
           setNeedsDataVis(projectData.needsDataVis || false);
           setOtherNeeds(projectData.otherNeeds || '');
           setAspectRatio(projectData.aspectRatio || "9:16");
-          setGeneratedImages(projectData.generatedImages || {});
           
-          // Re-calculate sync status based on content type
-          // If content is a URL, it is synced.
+          // --- IMPORTANT: Normalize Generated Images & Sync Status ---
+          // Backend returns keys as strings (JSON). We must convert to numbers for frontend logic.
+          const rawGenerated = projectData.generatedImages || {};
+          const normalizedGenerated: Record<number, string> = {};
           const derivedSyncStatus: Record<number, SyncStatus> = projectData.imageSyncStatus || {};
-          
-          if (projectData.generatedImages) {
-              Object.keys(projectData.generatedImages).forEach(key => {
-                  const k = Number(key);
-                  const val = projectData.generatedImages[k];
-                  if (val && typeof val === 'string' && val.startsWith('/api/images')) {
+
+          Object.keys(rawGenerated).forEach(key => {
+              const k = Number(key);
+              const val = rawGenerated[key];
+              if (val) {
+                  normalizedGenerated[k] = val;
+                  // Auto-detect sync status for URLs loaded from cloud
+                  if (typeof val === 'string' && val.startsWith('/api/images')) {
                       derivedSyncStatus[k] = 'synced';
                   }
-              });
-          }
+              }
+          });
+
+          setGeneratedImages(normalizedGenerated);
           setImageSyncStatus(derivedSyncStatus);
+          
+          // IMMEDIATE REF UPDATE: Vital for ensuring subsequent logic sees the data immediately
+          generatedImagesRef.current = normalizedGenerated;
           
           setGeneratingModules({});
           setIsBatchGenerating(false);
@@ -347,8 +358,8 @@ export const App: React.FC = () => {
               needsDataVis: projectData.needsDataVis || false,
               otherNeeds: projectData.otherNeeds || '',
               aspectRatio: projectData.aspectRatio || "9:16",
-              generatedImages: projectData.generatedImages || {},
-              imageSyncStatus: derivedSyncStatus // Update reference with derived status
+              generatedImages: normalizedGenerated, // Use normalized version
+              imageSyncStatus: derivedSyncStatus 
           });
       } else {
           setCurrentProjectId(id);
