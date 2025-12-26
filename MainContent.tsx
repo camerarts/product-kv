@@ -147,8 +147,21 @@ export const MainContent: React.FC<MainContentProps> = ({
   const isGeneratingAny = Object.values(generatingModules).some(v => v);
   
   // 如果有生成的 Prompt，使用生成的；否则使用骨架
-  const modulesToRender = promptModules.length > 0 ? promptModules : SKELETON_MODULES;
+  const baseModules = promptModules.length > 0 ? promptModules : SKELETON_MODULES;
   const hasContent = promptModules.length > 0;
+
+  // Determine the maximum index we need to render.
+  // It should be at least the prompt list length, OR the highest index found in generatedImages.
+  // This ensures that even if prompts are missing (data sync issue), the images still show up.
+  const maxImageIndex = Object.keys(generatedImages).length > 0 
+      ? Math.max(...Object.keys(generatedImages).map(Number)) 
+      : -1;
+  const renderLimit = Math.max(baseModules.length - 1, maxImageIndex);
+
+  const modulesToRender = [];
+  for (let i = 0; i <= renderLimit; i++) {
+      modulesToRender.push(baseModules[i] || { title: `海报${(i + 1).toString().padStart(2,'0')} (额外)`, content: "" });
+  }
 
   // Calculate Stats
   const generatedCount = Object.keys(generatedImages).length;
@@ -423,7 +436,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                               <span className="inline-block px-2.5 py-1 bg-blue-50/80 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-wide truncate border border-blue-100">
                                 {m.title}
                               </span>
-                              {hasContent && (
+                              {!isEmpty && (
                                 <button 
                                   onClick={() => handleCopy(m.content, idx)}
                                   className="text-slate-300 hover:text-blue-600 transition-colors p-1.5 hover:bg-blue-50 rounded-lg"
@@ -438,8 +451,8 @@ export const MainContent: React.FC<MainContentProps> = ({
                            </div>
                            <div className="flex-1 overflow-y-auto custom-scrollbar-thin pr-1">
                               {isEmpty ? (
-                                  // 骨架屏 Loading 效果
-                                  <div className="space-y-2 pt-2 animate-pulse">
+                                  // 骨架屏 Loading 效果 或 空状态
+                                  <div className="space-y-2 pt-2 animate-pulse opacity-50">
                                       <div className="h-2 bg-slate-200 rounded w-full"></div>
                                       <div className="h-2 bg-slate-200 rounded w-5/6"></div>
                                       <div className="h-2 bg-slate-200 rounded w-4/6"></div>

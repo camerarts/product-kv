@@ -16,6 +16,7 @@ import { LoginModal } from './LoginModal';
 const CACHE_KEY = 'VISION_APP_CACHE_V1';
 const PROJECTS_KEY = 'VISION_APP_PROJECTS_V1';
 const ADMIN_SESSION_KEY = 'VISION_ADMIN_SESSION_TIMESTAMP';
+const ADMIN_PASS_KEY = 'VISION_ADMIN_PASS_V1'; 
 const SESSION_DURATION = 4 * 60 * 60 * 1000; // 4 hours
 
 // Helper to generate a 15-character unique ID (Timestamp + Random)
@@ -63,6 +64,7 @@ export const App: React.FC = () => {
         } else {
           // Clean up expired session
           localStorage.removeItem(ADMIN_SESSION_KEY);
+          localStorage.removeItem(ADMIN_PASS_KEY);
         }
       }
     } catch (e) {
@@ -72,7 +74,9 @@ export const App: React.FC = () => {
   });
 
   // Store admin password in memory for API calls (User Management)
-  const [adminPassword, setAdminPassword] = useState<string | undefined>(undefined);
+  const [adminPassword, setAdminPassword] = useState<string | undefined>(() => {
+     return localStorage.getItem(ADMIN_PASS_KEY) || undefined;
+  });
 
   // --- Google Auth User State ---
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -149,8 +153,10 @@ export const App: React.FC = () => {
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   
+  // Refs for critical concurrent data
   const generatingModulesRef = useRef<Record<number, boolean>>({});
   const generatedImagesRef = useRef<Record<number, string>>({});
+  const imageSyncStatusRef = useRef<Record<number, SyncStatus>>({});
 
   useEffect(() => {
     generatingModulesRef.current = generatingModules;
@@ -159,6 +165,10 @@ export const App: React.FC = () => {
   useEffect(() => {
     generatedImagesRef.current = generatedImages;
   }, [generatedImages]);
+
+  useEffect(() => {
+    imageSyncStatusRef.current = imageSyncStatus;
+  }, [imageSyncStatus]);
 
   // --- Core State Reset Helper ---
   const resetCoreState = (newProjectId: string | null = null, newBrandName: string = '') => {
@@ -187,6 +197,8 @@ export const App: React.FC = () => {
       setGenerationLoading(false);
       setLastSaveTime(null);
       lastSavedDataRef.current = '';
+      generatedImagesRef.current = {};
+      imageSyncStatusRef.current = {};
   };
 
   // 获取项目列表 (Cloudflare API + LocalStorage Merge)
@@ -201,12 +213,9 @@ export const App: React.FC = () => {
     } catch(e) { console.error(e); }
 
     // --- SECURITY FILTER ---
-    // Only filter local list if we have a user. If still checking or null, we might be guest or just loading.
     if (currentUser) {
         localList = localList.filter(p => p.userId === currentUser.id);
     } else {
-        // If not logged in, we only show local projects that have NO userId (guest projects).
-        // On a new device, this list is naturally empty, which is correct.
         localList = localList.filter(p => !p.userId);
     }
 
@@ -221,11 +230,7 @@ export const App: React.FC = () => {
       const res = await fetch('/api/projects', { headers });
       if (res.ok) {
         cloudList = await res.json();
-        
-        // --- SECURITY FILTER (CLOUD) ---
-        // If logged in as user (not admin), only show own projects.
-        // If currentUser is null (during initial load), we might still receive data from the server
-        // if the session cookie is valid. We should trust the server's return in that case.
+        // Cloud filter
         if (currentUser && !isAdminLoggedIn) {
              cloudList = cloudList.filter(p => p.userId === currentUser.id);
         }
@@ -236,7 +241,6 @@ export const App: React.FC = () => {
     const map = new Map<string, any>();
 
     localList.forEach(p => {
-        // FIX: Respect existing local sync status instead of resetting to false.
         map.set(p.id, { ...p, isSynced: p.isSynced || false });
     });
 
@@ -262,7 +266,7 @@ export const App: React.FC = () => {
 
   // --- Load Project Logic ---
   const loadProjectById = useCallback(async (id: string, projectList: any[]) => {
-      // If we are already on this project and have data, don't reload to prevent overwriting unsaved changes if triggered by effect
+      // Avoid redundant loads if data is present
       if (currentProjectId === id && images.length > 0) return;
 
       // Find in list
@@ -281,7 +285,7 @@ export const App: React.FC = () => {
           } catch (e) { console.warn("Load failed", e); }
       }
       
-      // Fallback to local storage specific check
+      // Fallback to local storage
       if (!projectData) {
            const stored = localStorage.getItem(PROJECTS_KEY);
            if (stored) {
@@ -313,19 +317,21 @@ export const App: React.FC = () => {
           setAspectRatio(projectData.aspectRatio || "9:16");
           
           // --- IMPORTANT: Normalize Generated Images & Sync Status ---
-          // Backend returns keys as strings (JSON). We must convert to numbers for frontend logic.
           const rawGenerated = projectData.generatedImages || {};
           const normalizedGenerated: Record<number, string> = {};
-          const derivedSyncStatus: Record<number, SyncStatus> = projectData.imageSyncStatus || {};
+          const derivedSyncStatus: Record<number, SyncStatus> = {};
+          const rawSyncStatus = projectData.imageSyncStatus || {};
 
           Object.keys(rawGenerated).forEach(key => {
               const k = Number(key);
               const val = rawGenerated[key];
               if (val) {
                   normalizedGenerated[k] = val;
-                  // Auto-detect sync status for URLs loaded from cloud
+                  // Auto-detect synced state from URL
                   if (typeof val === 'string' && val.startsWith('/api/images')) {
                       derivedSyncStatus[k] = 'synced';
+                  } else if (rawSyncStatus[key]) {
+                      derivedSyncStatus[k] = rawSyncStatus[key];
                   }
               }
           });
@@ -333,15 +339,16 @@ export const App: React.FC = () => {
           setGeneratedImages(normalizedGenerated);
           setImageSyncStatus(derivedSyncStatus);
           
-          // IMMEDIATE REF UPDATE: Vital for ensuring subsequent logic sees the data immediately
+          // IMMEDIATE REF UPDATE: Vital for sync logic and preventing stale closures
           generatedImagesRef.current = normalizedGenerated;
+          imageSyncStatusRef.current = derivedSyncStatus;
           
           setGeneratingModules({});
           setIsBatchGenerating(false);
           setGenerationLoading(false);
           setLastSaveTime(projectMeta?.timestamp || null);
 
-          // Update Reference for comparison to avoid immediate save
+          // Update Reference for comparison
           lastSavedDataRef.current = JSON.stringify({
               images: projectData.images || [],
               imageRatios: projectData.imageRatios || [],
@@ -358,12 +365,14 @@ export const App: React.FC = () => {
               needsDataVis: projectData.needsDataVis || false,
               otherNeeds: projectData.otherNeeds || '',
               aspectRatio: projectData.aspectRatio || "9:16",
-              generatedImages: normalizedGenerated, // Use normalized version
+              generatedImages: normalizedGenerated, 
               imageSyncStatus: derivedSyncStatus 
           });
       } else {
           setCurrentProjectId(id);
           lastSavedDataRef.current = ''; 
+          generatedImagesRef.current = {};
+          imageSyncStatusRef.current = {};
       }
   }, [currentProjectId, images.length]);
 
@@ -375,8 +384,6 @@ export const App: React.FC = () => {
       setCurrentView(view);
       
       if (view === 'core' && id) {
-          // We are in project view. Ensure we have the latest list then load.
-          // If projects are already loaded, use them.
           let currentList = projects;
           if (currentList.length === 0) {
               currentList = await fetchProjects();
@@ -385,7 +392,6 @@ export const App: React.FC = () => {
       }
     };
     
-    // Initial check on mount
     if (!window.location.hash) {
        window.location.hash = '#/projects';
     } else {
@@ -397,7 +403,7 @@ export const App: React.FC = () => {
   }, [fetchProjects, loadProjectById, projects]);
 
 
-  // Background Sync Function
+  // Background Sync Function (Local to Cloud)
   const syncBackgroundProject = async (project: SavedProject) => {
       if (syncingProjectsRef.current.has(project.id)) return;
       syncingProjectsRef.current.add(project.id);
@@ -464,13 +470,10 @@ export const App: React.FC = () => {
       }
   };
 
-  // Effect: Watch projects and trigger background sync for unsynced items
   useEffect(() => {
      if (!isAdminLoggedIn && !currentUser) return;
-     
      const unsynced = projects.filter(p => !p.isSynced);
      if (unsynced.length === 0) return;
-
      const runSync = async () => {
          for (const p of unsynced) {
              await syncBackgroundProject(p);
@@ -479,22 +482,14 @@ export const App: React.FC = () => {
      runSync();
   }, [projects, isAdminLoggedIn, currentUser]);
 
-  // Effect: Polling for project list updates (ONLY IN PROJECT LIST VIEW)
   useEffect(() => {
-     // Strictly polling only when in project list view
      if (currentView !== 'projects' || (!isAdminLoggedIn && !currentUser)) return;
-     
-     const interval = setInterval(() => {
-         fetchProjects();
-     }, 10000); // Poll every 10 seconds
-
+     const interval = setInterval(() => { fetchProjects(); }, 10000); 
      return () => clearInterval(interval);
   }, [currentView, isAdminLoggedIn, currentUser, fetchProjects]);
 
 
   // --- Effects ---
-
-  // 1. Init Auth & Key
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const authError = urlParams.get('auth_error');
@@ -530,7 +525,6 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // 2. Fetch Projects when Auth changes
   useEffect(() => {
     fetchProjects();
   }, [isAdminLoggedIn, currentUser, adminPassword, fetchProjects]);
@@ -564,12 +558,14 @@ export const App: React.FC = () => {
     localStorage.setItem(ADMIN_SESSION_KEY, Date.now().toString());
     if(password) {
         setAdminPassword(password);
+        localStorage.setItem(ADMIN_PASS_KEY, password);
     }
   };
 
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
     localStorage.removeItem(ADMIN_SESSION_KEY);
+    localStorage.removeItem(ADMIN_PASS_KEY);
     setAdminPassword(undefined);
     setProjects([]);
     if (currentView === 'users') {
@@ -638,15 +634,19 @@ export const App: React.FC = () => {
     needsDataVis, otherNeeds, aspectRatio, generatedImages, imageSyncStatus
   ]);
 
-  // --- Sync Logic (UPDATED: DIRECT UPLOAD + STATE UPDATE) ---
+  // --- Sync Logic (UPDATED: Handle 401 & Concurrent Updates) ---
   const syncProjectToCloud = useCallback(async (targetIndexToMarkSynced?: number) => {
     if (!currentProjectId) return;
     
-    // Create optimistic update for sync status
-    let newSyncStatus = { ...imageSyncStatus };
+    // IMPORTANT: Use Refs for highly dynamic states to avoid stale closures in debounced/async calls
+    // But construct a new status object to update React state
+    let newSyncStatus = { ...imageSyncStatusRef.current };
     if (targetIndexToMarkSynced !== undefined) {
         newSyncStatus[targetIndexToMarkSynced] = 'synced';
     }
+
+    // Use Refs for images to ensure we always save the absolute latest generated images
+    const currentGeneratedImages = generatedImagesRef.current;
 
     // Prepare data
     const currentData = {
@@ -654,17 +654,16 @@ export const App: React.FC = () => {
         selectedStyle, selectedTypography, finalPrompts,
         needsModel, modelDesc, needsScene, sceneDesc,
         needsDataVis, otherNeeds, aspectRatio, 
-        generatedImages: generatedImagesRef.current,
+        generatedImages: currentGeneratedImages,
         imageSyncStatus: newSyncStatus
     };
     
-    // Check against last saved data to prevent redundant uploads (unless forcing an index update)
+    // Check against last saved data
     const currentDataStr = JSON.stringify(currentData);
     if (currentDataStr === lastSavedDataRef.current && targetIndexToMarkSynced === undefined) {
         return;
     }
 
-    // Prepare full project object
     const localProjectData: SavedProject = {
       id: currentProjectId,
       name: manualBrand || report?.brandName || `自动保存 ${new Date().toLocaleString()}`,
@@ -697,17 +696,16 @@ export const App: React.FC = () => {
         })); 
     } catch (e) { console.error("Auto-save local failed", e); }
 
-    // Upload to Cloud (Separate Images)
+    // Upload to Cloud
     if (isAdminLoggedIn || currentUser) {
         setIsSaving(true);
         try {
           // 1. UPLOAD REFERENCE IMAGES
           const imagesToSave = [...images]; 
-          const generatedImagesToSave = { ...generatedImagesRef.current };
+          const generatedImagesToSave = { ...currentGeneratedImages };
           let imagesUpdated = false;
           let generatedImagesUpdated = false;
 
-          // Upload Ref Images
           for (let i = 0; i < imagesToSave.length; i++) {
              const img = imagesToSave[i];
              if (img && img.length > 500 && !img.startsWith('/api/images')) { 
@@ -718,25 +716,19 @@ export const App: React.FC = () => {
              }
           }
 
-          if (imagesUpdated) {
-              setImages(imagesToSave);
-          }
+          if (imagesUpdated) setImages(imagesToSave);
 
-          // Upload Generated Images
           for (const key of Object.keys(generatedImagesToSave)) {
               const k = parseInt(key);
               const img = generatedImagesToSave[k];
-              // Check if it's base64 (long string) and NOT already an API URL
+              // Check if base64 (long string)
               if (img && img.length > 0 && !img.startsWith('/api/images')) {
                  const fullBase64 = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
                  const url = await uploadImage(fullBase64, currentProjectId);
                  generatedImagesToSave[k] = url;
-                 
-                 // Mark as synced immediately for this item
                  newSyncStatus[k] = 'synced';
                  generatedImagesUpdated = true;
               } else if (img && img.startsWith('/api/images') && newSyncStatus[k] !== 'synced') {
-                 // Ensure status is consistent if it's already a URL
                  newSyncStatus[k] = 'synced';
                  generatedImagesUpdated = true;
               }
@@ -746,9 +738,10 @@ export const App: React.FC = () => {
               setGeneratedImages(generatedImagesToSave);
               generatedImagesRef.current = generatedImagesToSave; 
               setImageSyncStatus(newSyncStatus);
+              imageSyncStatusRef.current = newSyncStatus;
           }
 
-          // 2. SAVE JSON (With URLs)
+          // 2. SAVE JSON
           const cloudProjectData = {
              ...localProjectData,
              isSynced: true, 
@@ -769,15 +762,20 @@ export const App: React.FC = () => {
             body: JSON.stringify(cloudProjectData)
           });
 
+          // --- 401 UNAUTHORIZED CHECK (SESSION EXPIRED) ---
+          if (res.status === 401) {
+              handleGoogleLogout();
+              alert("登录会话已过期 (4小时)，请重新登录。");
+              return;
+          }
+
           if (res.ok) {
             setLastSaveTime(Date.now());
-            // Update last saved reference
             lastSavedDataRef.current = JSON.stringify(cloudProjectData.data);
             
             // Final consistency check
             setImageSyncStatus(newSyncStatus);
             
-            // Update Local Storage Synced Status
             const stored = localStorage.getItem(PROJECTS_KEY);
             if (stored) {
                 const list = JSON.parse(stored);
@@ -787,7 +785,6 @@ export const App: React.FC = () => {
                     localStorage.setItem(PROJECTS_KEY, JSON.stringify(list));
                 }
             }
-            
             setProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, isSynced: true } : p));
           }
         } catch (e) {
@@ -799,14 +796,14 @@ export const App: React.FC = () => {
   }, [
     currentProjectId, manualBrand, report, images, imageRatios, description, 
     selectedStyle, selectedTypography, finalPrompts, needsModel, modelDesc, 
-    needsScene, sceneDesc, needsDataVis, otherNeeds, aspectRatio, imageSyncStatus,
+    needsScene, sceneDesc, needsDataVis, otherNeeds, aspectRatio, 
+    // Remove imageSyncStatus from dependencies to rely on Ref for fresh state
     isAdminLoggedIn, adminPassword, currentUser
   ]);
 
   // --- Trigger Sync ---
   useEffect(() => {
     if ((isAdminLoggedIn || currentUser) && currentProjectId && (images.length > 0 || Object.keys(generatedImages).length > 0)) {
-        // Initial sync on mount/auth if valid content exists but only if we have pending changes (handled by lastSavedDataRef check inside)
         syncProjectToCloud();
     }
   }, [isAdminLoggedIn, currentUser]);
@@ -814,7 +811,6 @@ export const App: React.FC = () => {
   // --- Auto-Save ---
   useEffect(() => {
     if (!currentProjectId || generationLoading) return;
-    // Debounce save
     const timer = setTimeout(() => syncProjectToCloud(), 2000);
     return () => clearTimeout(timer);
   }, [
@@ -848,27 +844,17 @@ export const App: React.FC = () => {
 
   const handleReset = useCallback(() => {
     if (!window.confirm("确定要重置当前项目内容吗？")) return;
-    // Don't change ID, just clear content
     resetCoreState(currentProjectId, manualBrand);
   }, [currentProjectId, manualBrand]);
 
   const handleNewProject = useCallback(() => {
-    // 1. Force a final sync if there's an active project with content.
-    // This ensures any debounced/pending changes (within the last 2s) are captured.
-    // 'syncProjectToCloud' will use the current state values from its closure.
     if (currentProjectId && (images.length > 0 || manualBrand || description)) {
         syncProjectToCloud(); 
     }
-
     const name = prompt("请输入新项目/品牌名称：");
     if (!name) return;
-
     const newId = generateProjectId();
-    
-    // Clear State first
     resetCoreState(newId, name);
-    
-    // Switch URL (This will trigger effect, but we already set local state, so it should match 'id' and skip loading)
     window.location.hash = `#/project/${newId}`;
   }, [images, currentProjectId, manualBrand, description, syncProjectToCloud]);
 
@@ -949,9 +935,13 @@ export const App: React.FC = () => {
       const res = await generateImageContent(images, prompt, actualRatio, userApiKey, isAdminLoggedIn, modelConfig.visualModel);
       if (res) {
         const b64 = `data:image/jpeg;base64,${res}`;
+        // Update both State and Ref
         setGeneratedImages(prev => ({ ...prev, [index]: b64 }));
         setImageSyncStatus(prev => ({ ...prev, [index]: 'unsynced' }));
+        
         generatedImagesRef.current = { ...generatedImagesRef.current, [index]: b64 };
+        imageSyncStatusRef.current = { ...imageSyncStatusRef.current, [index]: 'unsynced' };
+        
         if (isAdminLoggedIn || currentUser) await syncProjectToCloud(index);
       }
     } catch (err: any) {
@@ -1017,7 +1007,7 @@ export const App: React.FC = () => {
              onLoad={(p) => window.location.hash = `#/project/${p.id}`} 
              onDelete={deleteProject} 
              isAuthenticated={isAdminLoggedIn || !!currentUser} 
-             isAuthChecking={isAuthChecking} // Pass the checking state
+             isAuthChecking={isAuthChecking} 
              isSaving={isSaving} 
              lastSaveTime={lastSaveTime} 
           />
