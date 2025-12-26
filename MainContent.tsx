@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import JSZip from 'jszip';
 import { RecognitionReport, VisualStyle, TypographyStyle, SyncStatus } from './types';
@@ -123,6 +124,11 @@ export const MainContent: React.FC<MainContentProps> = ({
   // 如果有生成的 Prompt，使用生成的；否则使用骨架
   const modulesToRender = promptModules.length > 0 ? promptModules : SKELETON_MODULES;
   const hasContent = promptModules.length > 0;
+
+  // Calculate Stats
+  const generatedCount = Object.keys(generatedImages).length;
+  const uploadedCount = Object.values(imageSyncStatus).filter(s => s === 'synced').length;
+  const unsyncedCount = Object.values(imageSyncStatus).filter(s => s === 'unsynced').length;
 
   return (
     <main className="flex-1 ml-[550px] flex flex-col h-full relative z-10 overflow-hidden">
@@ -283,9 +289,31 @@ export const MainContent: React.FC<MainContentProps> = ({
 
            {/* Preview Area / Results */}
            <div className="animate-fade-in-up mb-20">
-               {/* Section Title & Actions */}
+               {/* Section Title & Actions & Stats */}
                <div className="flex items-center justify-between mb-5 pl-2 pr-2">
-                   <h3 className="text-xs font-black text-slate-500 tracking-widest uppercase opacity-80">商品详情图片</h3>
+                   <div className="flex items-center gap-4">
+                       <h3 className="text-xs font-black text-slate-500 tracking-widest uppercase opacity-80">商品详情图片</h3>
+                       
+                       {/* Image Statistics */}
+                       {generatedCount > 0 && (
+                          <div className="flex items-center gap-3 px-3 py-1.5 bg-white/40 rounded-full border border-white/50 shadow-sm backdrop-blur-sm animate-fade-in">
+                              <div className="flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                  <span className="text-[10px] font-bold text-slate-500">已生成 <span className="text-slate-800 font-black">{generatedCount}</span> 张</span>
+                              </div>
+                              <div className="w-px h-3 bg-slate-300/50"></div>
+                              <div className="flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                  <span className="text-[10px] font-bold text-slate-500">已上传 <span className="text-green-600 font-black">{uploadedCount}</span> 张</span>
+                              </div>
+                              <div className="w-px h-3 bg-slate-300/50"></div>
+                              <div className="flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400"></div>
+                                  <span className="text-[10px] font-bold text-slate-500">未上传 <span className="text-orange-600 font-black">{unsyncedCount}</span> 张</span>
+                              </div>
+                          </div>
+                       )}
+                   </div>
                    
                    <div className="flex items-center gap-3">
                       {hasContent && (
