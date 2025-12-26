@@ -22,6 +22,21 @@ interface MainContentProps {
   aspectRatio: string;
 }
 
+// 定义固定的骨架模块结构
+const SKELETON_MODULES = [
+  { title: "LOGO方案提示词", content: "" },
+  { title: "海报01 - 核心主KV", content: "" },
+  { title: "海报02 - 使用场景图", content: "" },
+  { title: "海报03 - 核心工艺拆解", content: "" },
+  { title: "海报04 - 细节质感图01", content: "" },
+  { title: "海报05 - 细节质感图02", content: "" },
+  { title: "海报06 - 核心功效说明", content: "" },
+  { title: "海报07 - 内部结构/成分图", content: "" },
+  { title: "海报08 - 品牌情感大片", content: "" },
+  { title: "海报09 - 详细参数图", content: "" },
+  { title: "海报10 - 使用流程图", content: "" },
+];
+
 export const MainContent: React.FC<MainContentProps> = ({
   manualBrand, report, selectedStyle, selectedTypography,
   finalPrompts, generatedImages, imageSyncStatus = {}, generatingModules, isBatchGenerating,
@@ -32,6 +47,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   const [copiedStates, setCopiedStates] = useState<Record<number, boolean>>({});
 
   const handleCopy = async (text: string, index: number) => {
+    if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedStates(prev => ({ ...prev, [index]: true }));
@@ -60,7 +76,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       if (!dataUri) return;
 
       const base64Data = dataUri.split(',')[1];
-      const moduleInfo = promptModules[index];
+      const moduleInfo = promptModules[index] || SKELETON_MODULES[index];
       const title = moduleInfo ? moduleInfo.title : `Image_${index + 1}`;
       
       const safeTitle = title.replace(/[\/\\?%*:|"<>]/g, '-').trim();
@@ -89,6 +105,10 @@ export const MainContent: React.FC<MainContentProps> = ({
   };
 
   const isGeneratingAny = Object.values(generatingModules).some(v => v);
+  
+  // 如果有生成的 Prompt，使用生成的；否则使用骨架
+  const modulesToRender = promptModules.length > 0 ? promptModules : SKELETON_MODULES;
+  const hasContent = promptModules.length > 0;
 
   return (
     <main className="flex-1 ml-[550px] flex flex-col h-full relative z-10 overflow-hidden">
@@ -228,29 +248,30 @@ export const MainContent: React.FC<MainContentProps> = ({
            </div>
 
            {/* Preview Area / Results */}
-           {finalPrompts ? (
-             <div className="animate-fade-in-up mb-20">
+           <div className="animate-fade-in-up mb-20">
                {/* Section Title & Actions */}
                <div className="flex items-center justify-between mb-5 pl-2 pr-2">
                    <h3 className="text-xs font-black text-slate-500 tracking-widest uppercase opacity-80">商品详情图片</h3>
                    
                    <div className="flex items-center gap-3">
-                      <button
-                         onClick={generateAllImages}
-                         disabled={isBatchGenerating}
-                         className={`liquid-button px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg ${
-                           isBatchGenerating 
-                             ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none' 
-                             : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:shadow-indigo-500/30 hover:scale-[1.02]'
-                         }`}
-                      >
-                          {isBatchGenerating ? (
-                             <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                          ) : (
-                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                          )}
-                          {isBatchGenerating ? '生成中...' : '一键生成'}
-                      </button>
+                      {hasContent && (
+                        <button
+                           onClick={generateAllImages}
+                           disabled={isBatchGenerating}
+                           className={`liquid-button px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg ${
+                             isBatchGenerating 
+                               ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none' 
+                               : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:shadow-indigo-500/30 hover:scale-[1.02]'
+                           }`}
+                        >
+                            {isBatchGenerating ? (
+                               <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            )}
+                            {isBatchGenerating ? '生成中...' : '一键生成'}
+                        </button>
+                      )}
 
                       {Object.keys(generatedImages).length > 0 && (
                           <button 
@@ -266,10 +287,13 @@ export const MainContent: React.FC<MainContentProps> = ({
 
                {/* Grid Layout */}
                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                 {promptModules.map((m, idx) => {
+                 {modulesToRender.map((m, idx) => {
                    const isLogo = m.title.includes("LOGO");
                    const isSynced = imageSyncStatus[idx] === 'synced';
                    const isUnsynced = imageSyncStatus[idx] === 'unsynced';
+                   
+                   // 检查是否是骨架屏状态 (即内容为空)
+                   const isEmpty = !m.content;
 
                    return (
                      <div key={idx} className="glass-card rounded-[2rem] border border-white/60 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden flex h-60 group hover:-translate-y-1">
@@ -280,26 +304,38 @@ export const MainContent: React.FC<MainContentProps> = ({
                         </div>
 
                         {/* Col 2: Prompt Details */}
-                        <div className="flex-1 p-5 flex flex-col min-w-0 border-r border-white/40 relative">
+                        {/* 添加了 bg-slate-50/50 来修复背景色问题，确保文字清晰且与页面流体背景区分 */}
+                        <div className="flex-1 p-5 flex flex-col min-w-0 border-r border-white/40 relative bg-slate-50/50">
                            <div className="mb-3 flex items-center justify-between gap-2">
                               <span className="inline-block px-2.5 py-1 bg-blue-50/80 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-wide truncate border border-blue-100">
                                 {m.title}
                               </span>
-                              <button 
-                                onClick={() => handleCopy(m.content, idx)}
-                                className="text-slate-300 hover:text-blue-600 transition-colors p-1.5 hover:bg-blue-50 rounded-lg"
-                              >
-                                 {copiedStates[idx] ? (
-                                     <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
-                                 ) : (
-                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                 )}
-                              </button>
+                              {hasContent && (
+                                <button 
+                                  onClick={() => handleCopy(m.content, idx)}
+                                  className="text-slate-300 hover:text-blue-600 transition-colors p-1.5 hover:bg-blue-50 rounded-lg"
+                                >
+                                  {copiedStates[idx] ? (
+                                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                  ) : (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                  )}
+                                </button>
+                              )}
                            </div>
                            <div className="flex-1 overflow-y-auto custom-scrollbar-thin pr-1">
-                              <p className="text-[11px] text-slate-600 font-medium leading-relaxed whitespace-pre-wrap font-mono">
-                                {m.content}
-                              </p>
+                              {isEmpty ? (
+                                  // 骨架屏 Loading 效果
+                                  <div className="space-y-2 pt-2 animate-pulse">
+                                      <div className="h-2 bg-slate-200 rounded w-full"></div>
+                                      <div className="h-2 bg-slate-200 rounded w-5/6"></div>
+                                      <div className="h-2 bg-slate-200 rounded w-4/6"></div>
+                                  </div>
+                              ) : (
+                                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed whitespace-pre-wrap font-mono">
+                                    {m.content}
+                                  </p>
+                              )}
                            </div>
                         </div>
 
@@ -339,8 +375,12 @@ export const MainContent: React.FC<MainContentProps> = ({
                            
                            <button 
                              onClick={() => generateSingleImage(idx, m.content, isLogo)} 
-                             disabled={generatingModules[idx]}
-                             className="liquid-button w-full py-2.5 bg-slate-800 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-black transition-colors disabled:opacity-50 shadow-lg"
+                             disabled={generatingModules[idx] || isEmpty}
+                             className={`liquid-button w-full py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg ${
+                                 isEmpty 
+                                 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                 : 'bg-slate-800 text-white hover:bg-black'
+                             }`}
                            >
                              {generatingModules[idx] ? '渲染中...' : '渲染'}
                            </button>
@@ -350,13 +390,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                    );
                  })}
                </div>
-             </div>
-           ) : (
-             <div className="glass-panel rounded-[2.5rem] h-[400px] flex flex-col items-center justify-center text-slate-300 animate-fade-in border-dashed border-2 border-white/40">
-               <span className="text-7xl font-black opacity-10 mb-6 tracking-tighter mix-blend-overlay">暂无内容</span>
-               <span className="text-sm font-bold text-slate-400">请上传图片并开始分析</span>
-             </div>
-           )}
+           </div>
         </div>
       </main>
   );
