@@ -54,63 +54,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     // 1. Get Text JSON from KV
+    // The KV JSON already contains the correct image URLs (e.g., /api/images/...)
+    // saved by the frontend's sync logic. We should return this directly
+    // to ensure the frontend treats them as synced assets.
     const projectStr = await context.env.VISION_KV.get(`project:${id}`);
 
     if (!projectStr) {
-      // Logic could be added here to check R2 for legacy `project-{id}` if needed for migration
       return new Response("Project not found", { status: 404 });
     }
 
     const project = JSON.parse(projectStr);
 
-    // 2. Fetch Images from R2
-    const imagePrefix = `images/${id}/`;
-    let listed = await context.env.VISION_R2.list({ prefix: imagePrefix });
-    const allObjects = [...listed.objects];
-    
-    // Handle pagination if necessary
-    while(listed.truncated) {
-        listed = await context.env.VISION_R2.list({ prefix: imagePrefix, cursor: listed.cursor });
-        allObjects.push(...listed.objects);
-    }
-
-    const imagePromises = allObjects.map(async (obj) => {
-        const r2Obj = await context.env.VISION_R2.get(obj.key);
-        if (!r2Obj) return null;
-        
-        const arrayBuffer = await r2Obj.arrayBuffer();
-        const base64 = uint8ArrayToBase64(new Uint8Array(arrayBuffer));
-        return { key: obj.key, base64 };
-    });
-
-    const imagesData = await Promise.all(imagePromises);
-
-    // 3. Reconstruct Project Data
-    // Ensure containers exist
-    if (!project.data.images) project.data.images = [];
-    if (!project.data.generatedImages) project.data.generatedImages = {};
-
-    imagesData.forEach(item => {
-        if (!item) return;
-        const filename = item.key.split('/').pop(); // e.g., ref-0, gen-1
-        if (!filename) return;
-
-        if (filename.startsWith('ref-')) {
-            const indexStr = filename.replace('ref-', '');
-            const index = parseInt(indexStr);
-            if (!isNaN(index)) {
-                // Restore Reference Image (Raw Base64)
-                project.data.images[index] = item.base64;
-            }
-        } else if (filename.startsWith('gen-')) {
-            const indexStr = filename.replace('gen-', '');
-            const index = parseInt(indexStr);
-            if (!isNaN(index)) {
-                // Restore Generated Image (Data URI)
-                project.data.generatedImages[index] = `data:image/jpeg;base64,${item.base64}`;
-            }
-        }
-    });
+    // Note: We deliberately DO NOT re-hydrate images from R2 back into Base64 here.
+    // Doing so would cause the frontend to treat them as "unsynced local images" 
+    // and transfer huge amounts of data unnecessarily.
+    // The frontend can simply render the URLs stored in project.data.
 
     return new Response(JSON.stringify(project), {
       headers: { "Content-Type": "application/json" }

@@ -302,7 +302,21 @@ export const App: React.FC = () => {
           setOtherNeeds(projectData.otherNeeds || '');
           setAspectRatio(projectData.aspectRatio || "9:16");
           setGeneratedImages(projectData.generatedImages || {});
-          setImageSyncStatus(projectData.imageSyncStatus || {});
+          
+          // Re-calculate sync status based on content type
+          // If content is a URL, it is synced.
+          const derivedSyncStatus: Record<number, SyncStatus> = projectData.imageSyncStatus || {};
+          
+          if (projectData.generatedImages) {
+              Object.keys(projectData.generatedImages).forEach(key => {
+                  const k = Number(key);
+                  const val = projectData.generatedImages[k];
+                  if (val && typeof val === 'string' && val.startsWith('/api/images')) {
+                      derivedSyncStatus[k] = 'synced';
+                  }
+              });
+          }
+          setImageSyncStatus(derivedSyncStatus);
           
           setGeneratingModules({});
           setIsBatchGenerating(false);
@@ -327,7 +341,7 @@ export const App: React.FC = () => {
               otherNeeds: projectData.otherNeeds || '',
               aspectRatio: projectData.aspectRatio || "9:16",
               generatedImages: projectData.generatedImages || {},
-              imageSyncStatus: projectData.imageSyncStatus || {}
+              imageSyncStatus: derivedSyncStatus // Update reference with derived status
           });
       } else {
           setCurrentProjectId(id);
