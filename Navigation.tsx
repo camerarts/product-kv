@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { UserProfile, ViewType } from './types';
 
@@ -80,7 +81,7 @@ export const Navigation: React.FC<NavigationProps> = ({
          </button>
       </div>
       
-      {/* Menu Items */}
+      {/* Menu Items (Now Links) */}
       <div className="flex-1 flex flex-col gap-4 w-full px-3">
         {menuItems.map((item) => {
           if (item.adminOnly && !isAdminLoggedIn) return null;
@@ -88,9 +89,9 @@ export const Navigation: React.FC<NavigationProps> = ({
           const isActive = currentView === item.id;
           
           return (
-            <button
+            <a
               key={item.id}
-              onClick={() => onChange(item.id)}
+              href={`#/${item.id}`}
               className={`
                 liquid-button group flex flex-col items-center justify-center gap-1 p-2 rounded-2xl w-full relative
                 ${isActive 
@@ -99,6 +100,14 @@ export const Navigation: React.FC<NavigationProps> = ({
                 }
               `}
               title={item.label}
+              // Optional: onClick to perform side effects if needed, 
+              // but hash change in App.tsx handles the view switch.
+              onClick={() => {
+                  if (item.id === 'projects' && (isAdminLoggedIn || currentUser)) {
+                      // Trigger refresh logic if needed, although App.tsx listens to hash change
+                      // and can trigger effects.
+                  }
+              }}
             >
               <div className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}>
                 {item.icon}
@@ -107,7 +116,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <span className="block">{item.line1}</span>
                 <span className="block mt-0.5">{item.line2}</span>
               </div>
-            </button>
+            </a>
           );
         })}
       </div>

@@ -25,7 +25,7 @@ const generateProjectId = () => {
   return (timestamp + random).slice(0, 15);
 };
 
-// Helper to update URL
+// Helper to update URL for Query Params (Project ID)
 const updateUrl = (id: string | null) => {
     const url = new URL(window.location.href);
     if (id) {
@@ -33,12 +33,39 @@ const updateUrl = (id: string | null) => {
     } else {
         url.searchParams.delete('project');
     }
+    // We use replaceState to keep query params without affecting history stack length too much for simple edits
+    // But pushState is better for back button navigation between projects
     window.history.pushState({}, '', url);
 };
 
+// Helper: Parse View from Hash
+const getViewFromHash = (): ViewType => {
+  const hash = window.location.hash.replace('#/', '');
+  const validViews: ViewType[] = ['core', 'projects', 'users', 'key', 'models'];
+  if (validViews.includes(hash as ViewType)) {
+    return hash as ViewType;
+  }
+  return 'core';
+};
+
 export const App: React.FC = () => {
-  // --- View State ---
-  const [currentView, setCurrentView] = useState<ViewType>('core');
+  // --- View State (Routing) ---
+  const [currentView, setCurrentView] = useState<ViewType>(getViewFromHash);
+
+  // --- Router Effect ---
+  useEffect(() => {
+    const handleHashChange = () => {
+      setCurrentView(getViewFromHash());
+    };
+    
+    // Initial check
+    if (!window.location.hash) {
+       window.location.hash = '#/core';
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // --- 全局 UI 状态 (持久化登录) ---
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
@@ -147,12 +174,6 @@ export const App: React.FC = () => {
     cloudList.forEach(p => {
         const existing = map.get(p.id);
         if (existing) {
-             // If local exists, we assume it might be newer or same. 
-             // Ideally we check timestamps, but for now we mark synced if it exists on cloud.
-             // However, if local has changes not on cloud, it should be synced.
-             // For simplicity, if it's in cloud list, we mark isSynced=true initially, 
-             // but our background sync logic below will handle deep comparison if we wanted.
-             // Here we just mark it as synced to indicate "connected to cloud".
              map.set(p.id, { ...existing, isSynced: true });
         } else {
              map.set(p.id, { ...p, isSynced: true });
@@ -356,7 +377,9 @@ export const App: React.FC = () => {
     localStorage.removeItem(ADMIN_SESSION_KEY);
     setAdminPassword(undefined);
     setProjects([]);
-    if (currentView === 'users') setCurrentView('core');
+    if (currentView === 'users') {
+        window.location.hash = '#/core';
+    }
   };
 
   const handleGoogleLogout = async () => {
@@ -705,7 +728,8 @@ export const App: React.FC = () => {
     setGenerationLoading(false);
     setLastSaveTime(projectMeta.timestamp);
     
-    setCurrentView('core');
+    // CHANGE: Switch URL to core view
+    window.location.hash = '#/core';
   };
 
   const deleteProject = async (id: string) => {
@@ -791,7 +815,9 @@ export const App: React.FC = () => {
     setPreviewImageUrl(null);
     setGenerationLoading(false);
     setLastSaveTime(null);
-    setCurrentView('core');
+    
+    // CHANGE: Switch URL to core view
+    window.location.hash = '#/core';
   }, [images]);
 
   // Descriptions & Icons...
@@ -917,11 +943,12 @@ export const App: React.FC = () => {
       <Navigation 
         currentView={currentView} 
         onChange={(view) => {
-            if (view === 'projects') {
-                if (isAdminLoggedIn || currentUser) fetchProjects(); else setProjects([]);
-            }
-            if (view === 'users' && !isAdminLoggedIn) return;
-            setCurrentView(view);
+           // We now drive this via hash, but we keep the callback for internal logic compatibility if needed
+           window.location.hash = `#/${view}`;
+           
+           if (view === 'projects') {
+               if (isAdminLoggedIn || currentUser) fetchProjects(); else setProjects([]);
+           }
         }} 
         isAdminLoggedIn={isAdminLoggedIn} currentUser={currentUser} onUserClick={handleUserIconClick} onNewProject={handleNewProject} onGoogleLogin={() => window.location.href = '/api/auth/google'} onGoogleLogout={handleGoogleLogout}
       />
