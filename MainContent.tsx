@@ -63,6 +63,17 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
   };
 
+  const handleDownloadSingle = (e: React.MouseEvent, dataUri: string, title: string) => {
+    e.stopPropagation();
+    const a = document.createElement("a");
+    a.href = dataUri;
+    const safeTitle = title.replace(/[\/\\?%*:|"<>]/g, '-').trim();
+    a.download = `${safeTitle}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   const handleDownloadAll = async () => {
     const keys = Object.keys(generatedImages);
     if (keys.length === 0) return alert("暂无生成的图片可下载");
@@ -342,15 +353,22 @@ export const MainContent: React.FC<MainContentProps> = ({
                         {/* Col 3: Visual Preview */}
                         <div className="w-48 bg-white/20 p-4 flex flex-col gap-3 shrink-0 backdrop-blur-sm">
                            <div 
-                              className="flex-1 w-full bg-white/40 rounded-2xl border border-white/50 overflow-hidden relative group/img shadow-inner"
+                              className="flex-1 w-full bg-slate-100/50 rounded-2xl border border-white/50 overflow-hidden relative group/img shadow-inner flex items-center justify-center"
                            >
                               {generatedImages[idx] ? (
                                 <>
                                   <img 
                                     src={generatedImages[idx]} 
-                                    className="w-full h-full object-cover cursor-zoom-in transition-transform duration-700 group-hover/img:scale-110" 
+                                    className="w-full h-full object-contain cursor-zoom-in transition-transform duration-700 group-hover/img:scale-105" 
                                     onClick={()=>setPreviewImageUrl(generatedImages[idx])} 
                                   />
+                                  <button 
+                                     onClick={(e) => handleDownloadSingle(e, generatedImages[idx], m.title)}
+                                     className="absolute bottom-2 right-2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-xl backdrop-blur-md opacity-0 group-hover/img:opacity-100 transition-all z-30 transform translate-y-2 group-hover/img:translate-y-0"
+                                     title="下载图片"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0l-4-4m4 4v12"></path></svg>
+                                  </button>
                                   <div className="absolute top-2 left-2 z-20">
                                      {isSynced && (
                                          <div className="w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-white shadow-sm animate-pulse"></div>
