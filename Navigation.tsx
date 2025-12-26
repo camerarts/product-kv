@@ -21,13 +21,6 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const menuItems: { id: ViewType; label: string; line1: string; line2: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
     {
-      id: 'core',
-      label: '核心配置',
-      line1: '核心',
-      line2: '配置',
-      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-    },
-    {
       id: 'projects',
       label: '项目列表',
       line1: '项目',
@@ -86,7 +79,9 @@ export const Navigation: React.FC<NavigationProps> = ({
         {menuItems.map((item) => {
           if (item.adminOnly && !isAdminLoggedIn) return null;
 
-          const isActive = currentView === item.id;
+          // Note: "core" is no longer a menu item. If currentView is 'core', it usually means we are inside a project.
+          // We can optionally highlight 'projects' if we are in 'core' view to show we are in that section.
+          const isActive = currentView === item.id || (currentView === 'core' && item.id === 'projects');
           
           return (
             <a
@@ -100,14 +95,6 @@ export const Navigation: React.FC<NavigationProps> = ({
                 }
               `}
               title={item.label}
-              // Optional: onClick to perform side effects if needed, 
-              // but hash change in App.tsx handles the view switch.
-              onClick={() => {
-                  if (item.id === 'projects' && (isAdminLoggedIn || currentUser)) {
-                      // Trigger refresh logic if needed, although App.tsx listens to hash change
-                      // and can trigger effects.
-                  }
-              }}
             >
               <div className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}>
                 {item.icon}

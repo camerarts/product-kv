@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { SavedProject } from '../types';
 
@@ -59,7 +60,6 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                        <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider bg-white/0">项目名称</th>
                        <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider bg-white/0">品牌</th>
                        <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider bg-white/0">创作者</th>
-                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider bg-white/0">状态</th>
                        <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider bg-white/0">日期</th>
                        <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-wider text-right bg-white/0">操作</th>
                     </tr>
@@ -67,7 +67,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                   <tbody className="space-y-2">
                      {!isAuthenticated ? (
                         <tr>
-                            <td colSpan={6} className="px-6 py-32 text-center">
+                            <td colSpan={5} className="px-6 py-32 text-center">
                                 <div className="flex flex-col items-center justify-center text-slate-400">
                                     <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-3xl">🔒</div>
                                     <h3 className="text-sm font-bold text-slate-600 mb-1">访问受限</h3>
@@ -77,7 +77,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                         </tr>
                      ) : projects.length === 0 ? (
                        <tr>
-                         <td colSpan={6} className="px-6 py-32 text-center">
+                         <td colSpan={5} className="px-6 py-32 text-center">
                             <div className="flex flex-col items-center justify-center text-slate-400">
                                 <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-3xl">📁</div>
                                 <h3 className="text-sm font-bold text-slate-600 mb-1">暂无项目</h3>
@@ -106,19 +106,6 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                                <div className="text-xs font-bold text-purple-600 bg-purple-50/50 border border-purple-100 inline-block px-3 py-1 rounded-lg truncate max-w-[120px]">
                                  {project.userName || '本地用户'}
                                </div>
-                            </td>
-                            <td className="px-6 py-5 whitespace-nowrap">
-                              {project.isSynced ? (
-                                  <span className="inline-flex items-center gap-1.5 text-green-600 bg-green-50/50 px-2.5 py-1 rounded-lg text-[10px] font-bold border border-green-100">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                      已同步
-                                  </span>
-                              ) : (
-                                  <span className="inline-flex items-center gap-1.5 text-slate-500 bg-slate-100/50 px-2.5 py-1 rounded-lg text-[10px] font-bold border border-slate-200">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                      本地
-                                  </span>
-                              )}
                             </td>
                             <td className="px-6 py-5 whitespace-nowrap">
                                <div className="text-xs text-slate-500 font-mono">

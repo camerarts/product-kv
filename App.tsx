@@ -25,47 +25,32 @@ const generateProjectId = () => {
   return (timestamp + random).slice(0, 15);
 };
 
-// Helper to update URL for Query Params (Project ID)
-const updateUrl = (id: string | null) => {
-    const url = new URL(window.location.href);
-    if (id) {
-        url.searchParams.set('project', id);
-    } else {
-        url.searchParams.delete('project');
-    }
-    // We use replaceState to keep query params without affecting history stack length too much for simple edits
-    // But pushState is better for back button navigation between projects
-    window.history.pushState({}, '', url);
-};
-
-// Helper: Parse View from Hash
-const getViewFromHash = (): ViewType => {
-  const hash = window.location.hash.replace('#/', '');
-  const validViews: ViewType[] = ['core', 'projects', 'users', 'key', 'models'];
-  if (validViews.includes(hash as ViewType)) {
-    return hash as ViewType;
+// Helper: Parse View and ID from Hash
+const parseHash = () => {
+  const hash = window.location.hash; // e.g., #/project/123 or #/projects
+  
+  if (hash.startsWith('#/project/')) {
+      const id = hash.replace('#/project/', '');
+      return { view: 'core' as ViewType, id };
   }
-  return 'core';
+
+  const cleanHash = hash.replace('#/', '');
+  const validViews: ViewType[] = ['projects', 'users', 'key', 'models'];
+  
+  if (validViews.includes(cleanHash as ViewType)) {
+    return { view: cleanHash as ViewType, id: null };
+  }
+  
+  // Default to projects list if unknown
+  return { view: 'projects' as ViewType, id: null };
 };
 
 export const App: React.FC = () => {
   // --- View State (Routing) ---
-  const [currentView, setCurrentView] = useState<ViewType>(getViewFromHash);
-
-  // --- Router Effect ---
-  useEffect(() => {
-    const handleHashChange = () => {
-      setCurrentView(getViewFromHash());
-    };
-    
-    // Initial check
-    if (!window.location.hash) {
-       window.location.hash = '#/core';
-    }
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  const [currentView, setCurrentView] = useState<ViewType>('projects');
+  
+  // --- Core State (Lifted for ID tracking) ---
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
   // --- 全局 UI 状态 (持久化登录) ---
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
@@ -104,7 +89,6 @@ export const App: React.FC = () => {
   // --- Projects State ---
   const [projects, setProjects] = useState<any[]>([]);
   const [isProjectsLoading, setIsProjectsLoading] = useState(false);
-  const [pendingUrlId, setPendingUrlId] = useState<string | null>(null);
 
   // --- Save Status State (New) ---
   const [isSaving, setIsSaving] = useState(false);
@@ -125,6 +109,77 @@ export const App: React.FC = () => {
       console.warn('Failed to load cache', e);
     }
     return defaultValue;
+  };
+
+  // --- Core Editor State ---
+  const [generationLoading, setGenerationLoading] = useState(false);
+
+  const [images, setImages] = useState<string[]>(() => getCachedState('images', []));
+  const [imageRatios, setImageRatios] = useState<number[]>(() => getCachedState('imageRatios', []));
+  const [description, setDescription] = useState(() => getCachedState('description', ''));
+  const [manualBrand, setManualBrand] = useState(() => getCachedState('manualBrand', ''));
+  const [report, setReport] = useState<RecognitionReport | null>(() => getCachedState('report', null));
+  
+  const [selectedStyle, setSelectedStyle] = useState<VisualStyle>(() => getCachedState('selectedStyle', VisualStyle.NORDIC));
+  const [selectedTypography, setSelectedTypography] = useState<TypographyStyle>(() => getCachedState('selectedTypography', TypographyStyle.GLASS_MODERN));
+  
+  const [finalPrompts, setFinalPrompts] = useState(() => getCachedState('finalPrompts', ''));
+  
+  const [needsModel, setNeedsModel] = useState(() => getCachedState('needsModel', false));
+  const [modelDesc, setModelDesc] = useState(() => getCachedState('modelDesc', ''));
+  
+  const [needsScene, setNeedsScene] = useState(() => getCachedState('needsScene', false));
+  const [sceneDesc, setSceneDesc] = useState(() => getCachedState('sceneDesc', ''));
+
+  const [needsDataVis, setNeedsDataVis] = useState(() => getCachedState('needsDataVis', false));
+  const [otherNeeds, setOtherNeeds] = useState(() => getCachedState('otherNeeds', ''));
+  
+  const [aspectRatio, setAspectRatio] = useState(() => getCachedState('aspectRatio', "9:16"));
+
+  const [generatedImages, setGeneratedImages] = useState<Record<number, string>>(() => getCachedState('generatedImages', {}));
+  const [imageSyncStatus, setImageSyncStatus] = useState<Record<number, SyncStatus>>(() => getCachedState('imageSyncStatus', {}));
+
+  const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({}); 
+  const [isBatchGenerating, setIsBatchGenerating] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  
+  const generatingModulesRef = useRef<Record<number, boolean>>({});
+  const generatedImagesRef = useRef<Record<number, string>>({});
+
+  useEffect(() => {
+    generatingModulesRef.current = generatingModules;
+  }, [generatingModules]);
+
+  useEffect(() => {
+    generatedImagesRef.current = generatedImages;
+  }, [generatedImages]);
+
+  // --- Core State Reset Helper ---
+  const resetCoreState = (newProjectId: string | null = null, newBrandName: string = '') => {
+      localStorage.removeItem(CACHE_KEY);
+      setCurrentProjectId(newProjectId);
+      setImages([]);
+      setImageRatios([]);
+      setDescription('');
+      setManualBrand(newBrandName);
+      setReport(null);
+      setSelectedStyle(VisualStyle.NORDIC);
+      setSelectedTypography(TypographyStyle.GLASS_MODERN);
+      setFinalPrompts('');
+      setNeedsModel(false);
+      setModelDesc('');
+      setNeedsScene(false);
+      setSceneDesc('');
+      setNeedsDataVis(false);
+      setOtherNeeds('');
+      setAspectRatio("9:16");
+      setGeneratedImages({});
+      setImageSyncStatus({});
+      setGeneratingModules({});
+      setIsBatchGenerating(false);
+      setPreviewImageUrl(null);
+      setGenerationLoading(false);
+      setLastSaveTime(null);
   };
 
   // 获取项目列表 (Cloudflare API + LocalStorage Merge)
@@ -169,7 +224,6 @@ export const App: React.FC = () => {
 
     localList.forEach(p => {
         // FIX: Respect existing local sync status instead of resetting to false.
-        // If local storage says it's synced, we assume it is (unless cloud explicitly says otherwise, which implies deletion, but here we trust local 'true' to avoid flickering on eventual consistency lag)
         map.set(p.id, { ...p, isSynced: p.isSynced || false });
     });
 
@@ -184,14 +238,116 @@ export const App: React.FC = () => {
 
     const merged = Array.from(map.values()).sort((a: any, b: any) => b.timestamp - a.timestamp);
     
-    // Prevent unnecessary state updates if data hasn't changed (deep comparison approximation)
     setProjects(prev => {
         if (JSON.stringify(prev) === JSON.stringify(merged)) return prev;
         return merged;
     });
     
     setIsProjectsLoading(false);
+    return merged;
   }, [isAdminLoggedIn, adminPassword, currentUser]);
+
+  // --- Load Project Logic ---
+  const loadProjectById = useCallback(async (id: string, projectList: any[]) => {
+      // If we are already on this project and have data, don't reload to prevent overwriting unsaved changes if triggered by effect
+      if (currentProjectId === id && images.length > 0) return;
+
+      // Find in list
+      let projectMeta = projectList.find(p => p.id === id);
+      let projectData = projectMeta?.data;
+
+      // If not in list or missing data, try fetch
+      if (!projectData) {
+          try {
+              const res = await fetch(`/api/project/${id}`);
+              if (res.ok) {
+                  const fullProject = await res.json();
+                  projectData = fullProject.data;
+                  projectMeta = fullProject;
+              }
+          } catch (e) { console.warn("Load failed", e); }
+      }
+      
+      // Fallback to local storage specific check
+      if (!projectData) {
+           const stored = localStorage.getItem(PROJECTS_KEY);
+           if (stored) {
+               const list = JSON.parse(stored);
+               const found = list.find((p: any) => p.id === id);
+               if (found) {
+                   projectData = found.data;
+                   projectMeta = found;
+               }
+           }
+      }
+
+      if (projectData) {
+          setCurrentProjectId(id);
+          setImages(projectData.images || []);
+          setImageRatios(projectData.imageRatios || []);
+          setDescription(projectData.description || '');
+          setManualBrand(projectData.manualBrand || '');
+          setReport(projectData.report);
+          setSelectedStyle(projectData.selectedStyle);
+          setSelectedTypography(projectData.selectedTypography);
+          setFinalPrompts(projectData.finalPrompts || '');
+          setNeedsModel(projectData.needsModel || false);
+          setModelDesc(projectData.modelDesc || '');
+          setNeedsScene(projectData.needsScene || false);
+          setSceneDesc(projectData.sceneDesc || '');
+          setNeedsDataVis(projectData.needsDataVis || false);
+          setOtherNeeds(projectData.otherNeeds || '');
+          setAspectRatio(projectData.aspectRatio || "9:16");
+          setGeneratedImages(projectData.generatedImages || {});
+          setImageSyncStatus(projectData.imageSyncStatus || {});
+          
+          setGeneratingModules({});
+          setIsBatchGenerating(false);
+          setGenerationLoading(false);
+          setLastSaveTime(projectMeta?.timestamp || null);
+      } else {
+          // If project ID is valid but not found (e.g. new project via URL or deleted), handle gracefully
+          // For now, if we have an ID in URL but no data, we treat it as a fresh/empty project state 
+          // waiting to be saved, unless it's clearly a 404.
+          // However, for safety, if we explicitly navigated to a project ID that doesn't exist in our list,
+          // we might just initialize it as empty with that ID.
+          setCurrentProjectId(id);
+      }
+  }, [currentProjectId, images.length]);
+
+
+  // --- Router Effect (The Core Driver) ---
+  useEffect(() => {
+    const handleHashChange = async () => {
+      const { view, id } = parseHash();
+      setCurrentView(view);
+      
+      if (view === 'core' && id) {
+          // We are in project view. Ensure we have the latest list then load.
+          // If projects are already loaded, use them.
+          let currentList = projects;
+          if (currentList.length === 0) {
+              currentList = await fetchProjects();
+          }
+          loadProjectById(id, currentList);
+      } else if (view !== 'core') {
+          // Leaving project view, we can reset currentProjectId if desired, 
+          // but keeping it might be useful for state persistence until explicit change.
+          // For now, let's keep it.
+      }
+    };
+    
+    // Initial check on mount
+    if (!window.location.hash) {
+       window.location.hash = '#/projects';
+    } else {
+       handleHashChange();
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [fetchProjects, loadProjectById, projects]); // Added dependencies
+
 
   // Background Sync Function
   const syncBackgroundProject = async (project: SavedProject) => {
@@ -284,9 +440,6 @@ export const App: React.FC = () => {
   useEffect(() => {
      if (currentView !== 'projects' || (!isAdminLoggedIn && !currentUser)) return;
      
-     // Run immediately once
-     fetchProjects();
-
      const interval = setInterval(() => {
          fetchProjects();
      }, 10000); // Poll every 10 seconds
@@ -303,11 +456,9 @@ export const App: React.FC = () => {
     const authError = urlParams.get('auth_error');
     if (authError === 'expired') {
       alert("⚠️ 您的账号已过期。\n\n账号有效期默认为首次登录后30天。请联系管理员进行延期处理。");
-      updateUrl(null);
+      // Remove query param cleanly
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
     }
-
-    const pid = urlParams.get('project');
-    if (pid) setPendingUrlId(pid);
 
     const storedKey = localStorage.getItem('USER_GEMINI_API_KEY');
     if (storedKey) setUserApiKey(storedKey);
@@ -338,19 +489,6 @@ export const App: React.FC = () => {
   useEffect(() => {
     fetchProjects();
   }, [isAdminLoggedIn, currentUser, adminPassword, fetchProjects]);
-
-  
-  // 3. Load Project from URL
-  useEffect(() => {
-      if (pendingUrlId && projects.length > 0) {
-          const found = projects.find(p => p.id === pendingUrlId);
-          if (found) {
-              loadProject(found);
-          }
-          setPendingUrlId(null);
-      }
-  }, [projects, pendingUrlId]);
-
 
   const handleSelectKey = async () => {
     if (window.aistudio) {
@@ -390,7 +528,7 @@ export const App: React.FC = () => {
     setAdminPassword(undefined);
     setProjects([]);
     if (currentView === 'users') {
-        window.location.hash = '#/core';
+        window.location.hash = '#/projects';
     }
   };
 
@@ -399,6 +537,7 @@ export const App: React.FC = () => {
       await fetch('/api/auth/logout', { method: 'POST' });
       setCurrentUser(null);
       setProjects([]);
+      window.location.hash = '#/projects';
     } catch (e) {
       console.error("Logout failed", e);
     }
@@ -418,52 +557,9 @@ export const App: React.FC = () => {
     handleAdminLogin(pass);
   };
 
-  // --- Core State ---
-  const [generationLoading, setGenerationLoading] = useState(false);
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(() => getCachedState('currentProjectId', null));
-
-  const [images, setImages] = useState<string[]>(() => getCachedState('images', []));
-  const [imageRatios, setImageRatios] = useState<number[]>(() => getCachedState('imageRatios', []));
-  const [description, setDescription] = useState(() => getCachedState('description', ''));
-  const [manualBrand, setManualBrand] = useState(() => getCachedState('manualBrand', ''));
-  const [report, setReport] = useState<RecognitionReport | null>(() => getCachedState('report', null));
-  
-  const [selectedStyle, setSelectedStyle] = useState<VisualStyle>(() => getCachedState('selectedStyle', VisualStyle.NORDIC));
-  const [selectedTypography, setSelectedTypography] = useState<TypographyStyle>(() => getCachedState('selectedTypography', TypographyStyle.GLASS_MODERN));
-  
-  const [finalPrompts, setFinalPrompts] = useState(() => getCachedState('finalPrompts', ''));
-  
-  const [needsModel, setNeedsModel] = useState(() => getCachedState('needsModel', false));
-  const [modelDesc, setModelDesc] = useState(() => getCachedState('modelDesc', ''));
-  
-  const [needsScene, setNeedsScene] = useState(() => getCachedState('needsScene', false));
-  const [sceneDesc, setSceneDesc] = useState(() => getCachedState('sceneDesc', ''));
-
-  const [needsDataVis, setNeedsDataVis] = useState(() => getCachedState('needsDataVis', false));
-  const [otherNeeds, setOtherNeeds] = useState(() => getCachedState('otherNeeds', ''));
-  
-  const [aspectRatio, setAspectRatio] = useState(() => getCachedState('aspectRatio', "9:16"));
-
-  const [generatedImages, setGeneratedImages] = useState<Record<number, string>>(() => getCachedState('generatedImages', {}));
-  const [imageSyncStatus, setImageSyncStatus] = useState<Record<number, SyncStatus>>(() => getCachedState('imageSyncStatus', {}));
-
-  const [generatingModules, setGeneratingModules] = useState<Record<number, boolean>>({}); 
-  const [isBatchGenerating, setIsBatchGenerating] = useState(false);
-  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-  
-  const generatingModulesRef = useRef<Record<number, boolean>>({});
-  const generatedImagesRef = useRef<Record<number, string>>({});
-
-  useEffect(() => {
-    generatingModulesRef.current = generatingModules;
-  }, [generatingModules]);
-
-  useEffect(() => {
-    generatedImagesRef.current = generatedImages;
-  }, [generatedImages]);
-
   // --- Local Cache ---
   useEffect(() => {
+    if (!currentProjectId) return;
     try {
       const stateToCache = {
         currentProjectId,
@@ -577,7 +673,7 @@ export const App: React.FC = () => {
               const k = parseInt(key);
               const img = generatedImagesToSave[k];
               // Check if it's base64 (long string) and NOT already an API URL
-              if (img && img.length > 500 && !img.startsWith('/api/images')) {
+              if (img && img.length > 0 && !img.startsWith('/api/images')) {
                  const fullBase64 = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
                  const url = await uploadImage(fullBase64, currentProjectId);
                  generatedImagesToSave[k] = url;
@@ -672,91 +768,6 @@ export const App: React.FC = () => {
     generatedImages, syncProjectToCloud, generationLoading
   ]);
 
-  // --- Manual Save ---
-  const saveCurrentProject = async () => {
-    if (!isAdminLoggedIn && !currentUser) {
-        setIsLoginModalOpen(true); 
-        return;
-    }
-    const name = prompt("请输入项目名称：", manualBrand || report?.brandName || "未命名项目");
-    if (!name) return;
-
-    setManualBrand(name);
-    const pid = currentProjectId || generateProjectId();
-    if (!currentProjectId) {
-      setCurrentProjectId(pid);
-      updateUrl(pid);
-    }
-    // Logic handles the upload
-    setTimeout(() => syncProjectToCloud(), 100);
-  };
-
-  const loadProject = async (projectMeta: any) => {
-    if (images.length > 0 && currentProjectId !== projectMeta.id && !pendingUrlId) {
-        if (!window.confirm("当前有正在编辑的内容，加载项目将覆盖当前内容，是否继续？")) {
-            return;
-        }
-    }
-
-    let projectData = projectMeta.data;
-
-    if (!projectData) {
-        try {
-            const res = await fetch(`/api/project/${projectMeta.id}`);
-            if (res.ok) {
-                const fullProject = await res.json();
-                projectData = fullProject.data;
-            } else {
-                throw new Error("Cloud load failed");
-            }
-        } catch (e) {
-            console.warn("Cloud load failed, trying local");
-            const stored = localStorage.getItem(PROJECTS_KEY);
-            if (stored) {
-                const list = JSON.parse(stored);
-                const found = list.find((p: any) => p.id === projectMeta.id);
-                if (found) projectData = found.data;
-            }
-        }
-    }
-
-    if (!projectData) {
-        alert("加载失败");
-        return;
-    }
-
-    setCurrentProjectId(projectMeta.id);
-    updateUrl(projectMeta.id);
-
-    // If images are URLs, keep them. If Base64, keep them.
-    // The UI (Sidebar/MainContent) handles both via <img src={...}>
-    setImages(projectData.images || []);
-    setImageRatios(projectData.imageRatios || []);
-    setDescription(projectData.description || '');
-    setManualBrand(projectData.manualBrand || '');
-    setReport(projectData.report);
-    setSelectedStyle(projectData.selectedStyle);
-    setSelectedTypography(projectData.selectedTypography);
-    setFinalPrompts(projectData.finalPrompts || '');
-    setNeedsModel(projectData.needsModel || false);
-    setModelDesc(projectData.modelDesc || '');
-    setNeedsScene(projectData.needsScene || false);
-    setSceneDesc(projectData.sceneDesc || '');
-    setNeedsDataVis(projectData.needsDataVis || false);
-    setOtherNeeds(projectData.otherNeeds || '');
-    setAspectRatio(projectData.aspectRatio || "9:16");
-    setGeneratedImages(projectData.generatedImages || {});
-    setImageSyncStatus(projectData.imageSyncStatus || {});
-    
-    setGeneratingModules({});
-    setIsBatchGenerating(false);
-    setGenerationLoading(false);
-    setLastSaveTime(projectMeta.timestamp);
-    
-    // CHANGE: Switch URL to core view
-    window.location.hash = '#/core';
-  };
-
   const deleteProject = async (id: string) => {
     try {
         const stored = localStorage.getItem(PROJECTS_KEY);
@@ -772,78 +783,32 @@ export const App: React.FC = () => {
     setProjects(prev => prev.filter(p => p.id !== id));
     
     if (id === currentProjectId) {
-        setCurrentProjectId(null);
-        updateUrl(null);
+        resetCoreState(null);
+        window.location.hash = '#/projects';
     }
   };
 
   const handleReset = useCallback(() => {
-    if (!window.confirm("确定要重制吗？")) return;
-    localStorage.removeItem(CACHE_KEY);
-    updateUrl(null);
-    setCurrentProjectId(null);
-    setImages([]);
-    setImageRatios([]);
-    setDescription('');
-    setManualBrand('');
-    setReport(null);
-    setSelectedStyle(VisualStyle.NORDIC);
-    setSelectedTypography(TypographyStyle.GLASS_MODERN);
-    setFinalPrompts('');
-    setNeedsModel(false);
-    setModelDesc('');
-    setNeedsScene(false);
-    setSceneDesc('');
-    setNeedsDataVis(false);
-    setOtherNeeds('');
-    setAspectRatio("9:16");
-    setGeneratedImages({});
-    setImageSyncStatus({});
-    setGeneratingModules({});
-    setIsBatchGenerating(false);
-    setPreviewImageUrl(null);
-    setGenerationLoading(false);
-    setLastSaveTime(null);
-  }, []);
+    if (!window.confirm("确定要重置当前项目内容吗？")) return;
+    // Don't change ID, just clear content
+    resetCoreState(currentProjectId, manualBrand);
+  }, [currentProjectId, manualBrand]);
 
   const handleNewProject = useCallback(() => {
-    if (images.length > 0) {
-        if (!window.confirm("创建新项目将清空当前内容。是否继续？")) return;
+    if (images.length > 0 && currentProjectId) {
+        if (!window.confirm("当前有正在编辑的内容。创建新项目将跳转。是否继续？")) return;
     }
     const name = prompt("请输入新项目/品牌名称：");
     if (!name) return;
 
-    localStorage.removeItem(CACHE_KEY);
     const newId = generateProjectId();
-    setCurrentProjectId(newId);
-    updateUrl(newId);
-
-    setImages([]);
-    setImageRatios([]);
-    setDescription('');
-    setManualBrand(name);
-    setReport(null);
-    setSelectedStyle(VisualStyle.NORDIC);
-    setSelectedTypography(TypographyStyle.GLASS_MODERN);
-    setFinalPrompts('');
-    setNeedsModel(false);
-    setModelDesc('');
-    setNeedsScene(false);
-    setSceneDesc('');
-    setNeedsDataVis(false);
-    setOtherNeeds('');
-    setAspectRatio("9:16");
-    setGeneratedImages({});
-    setImageSyncStatus({});
-    setGeneratingModules({});
-    setIsBatchGenerating(false);
-    setPreviewImageUrl(null);
-    setGenerationLoading(false);
-    setLastSaveTime(null);
     
-    // CHANGE: Switch URL to core view
-    window.location.hash = '#/core';
-  }, [images]);
+    // Clear State first
+    resetCoreState(newId, name);
+    
+    // Switch URL (This will trigger effect, but we already set local state, so it should match 'id' and skip loading)
+    window.location.hash = `#/project/${newId}`;
+  }, [images, currentProjectId]);
 
   // Descriptions & Icons...
   const ratioIcons: Record<string, string> = { "1:1": "1:1", "16:9": "16:9", "9:16": "9:16", "3:4": "3:4", "4:3": "4:3", "2:3": "2:3", "3:2": "3:2" };
@@ -968,12 +933,7 @@ export const App: React.FC = () => {
       <Navigation 
         currentView={currentView} 
         onChange={(view) => {
-           // We now drive this via hash, but we keep the callback for internal logic compatibility if needed
            window.location.hash = `#/${view}`;
-           
-           if (view === 'projects') {
-               if (isAdminLoggedIn || currentUser) fetchProjects(); else setProjects([]);
-           }
         }} 
         isAdminLoggedIn={isAdminLoggedIn} currentUser={currentUser} onUserClick={handleUserIconClick} onNewProject={handleNewProject} onGoogleLogin={() => window.location.href = '/api/auth/google'} onGoogleLogout={handleGoogleLogout}
       />
@@ -990,7 +950,14 @@ export const App: React.FC = () => {
       )}
 
       {currentView === 'projects' && (
-          <ProjectList projects={projects} onLoad={loadProject} onDelete={deleteProject} isAuthenticated={isAdminLoggedIn || !!currentUser} isSaving={isSaving} lastSaveTime={lastSaveTime} />
+          <ProjectList 
+             projects={projects} 
+             onLoad={(p) => window.location.hash = `#/project/${p.id}`} 
+             onDelete={deleteProject} 
+             isAuthenticated={isAdminLoggedIn || !!currentUser} 
+             isSaving={isSaving} 
+             lastSaveTime={lastSaveTime} 
+          />
       )}
       {currentView === 'users' && (
           <UserManagement adminPassword={adminPassword} onRelogin={(pass) => setAdminPassword(pass)} />
