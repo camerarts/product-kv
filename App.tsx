@@ -352,7 +352,7 @@ export const App: React.FC = () => {
       }
     };
 
-    // First, save to local storage project list
+    // First, save to local storage project list (Always happens, even for guests)
     try {
         const stored = localStorage.getItem(PROJECTS_KEY);
         const currentProjects = stored ? JSON.parse(stored) : [];
@@ -369,7 +369,8 @@ export const App: React.FC = () => {
         // Update Project List UI
         setProjects(updated.map((p: any) => ({ 
             ...p, 
-            isSynced: p.id === currentProjectId ? false : p.isSynced // Temporarily mark as local until cloud confirms
+            // If logged in, assume it will be synced shortly. If guest, force unsynced.
+            isSynced: (isAdminLoggedIn || currentUser) ? (p.id === currentProjectId ? false : p.isSynced) : false 
         })).filter(p => {
             // Apply same filtering to the immediate state update
             if (currentUser) return p.userId === currentUser.id;
@@ -377,7 +378,8 @@ export const App: React.FC = () => {
         })); 
     } catch (e) { console.error("Auto-save local failed (quota likely exceeded)", e); }
 
-    // Then upload to Cloud
+    // Then upload to Cloud (ONLY IF LOGGED IN)
+    // Non-login users will NOT upload generated data to server
     if (isAdminLoggedIn || currentUser) {
         try {
           const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -410,10 +412,19 @@ export const App: React.FC = () => {
     isAdminLoggedIn, adminPassword, currentUser
   ]);
 
+  // --- Trigger Sync on Login ---
+  // If user transitions from Guest -> Logged In, and has a current project with data, trigger sync immediately
+  useEffect(() => {
+    if ((isAdminLoggedIn || currentUser) && currentProjectId && (images.length > 0 || Object.keys(generatedImages).length > 0)) {
+        console.log("User logged in with pending data, triggering cloud sync...");
+        syncProjectToCloud();
+    }
+  }, [isAdminLoggedIn, currentUser]); // Depends only on auth state changes
+
   // --- Auto-Save Effect (Debounced) ---
   useEffect(() => {
     // Check if we are in a valid project state to auto-save
-    // We only auto-save if we have a currentProjectId AND we are not currently generating heavy content (to avoid partial saves)
+    // We only auto-save if we have a currentProjectId AND we are not currently generating heavy content
     if (!currentProjectId || generationLoading) return;
 
     // Use a timeout to debounce save operations (wait 2s after last change)
@@ -430,7 +441,7 @@ export const App: React.FC = () => {
     needsModel, modelDesc, needsScene, sceneDesc,
     needsDataVis, otherNeeds, aspectRatio, 
     generatedImages, // Watch generated images too
-    syncProjectToCloud,
+    syncProjectToCloud, // Updates when Auth updates
     generationLoading
   ]);
 
