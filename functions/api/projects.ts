@@ -74,7 +74,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         });
     }
 
-    // List all projects metadata
+    // List all projects metadata from KV
     const list = await context.env.VISION_KV.list({ prefix: "meta:" });
     const projects = [];
 
@@ -108,6 +108,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
+    // Clone the request body so we don't mutate the original inputs if needed
     const project = await context.request.json() as any;
     
     if (!project.id || !project.data) {
@@ -127,7 +128,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         return new Response("Unauthorized: Please login to save", { status: 401 });
     }
 
-    // 1. Extract Meta
+    // 1. Extract Meta for Listing
     const metadata = {
       id: project.id,
       name: project.name,
@@ -137,31 +138,31 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       userName: project.userName || 'Unknown' // Save creator name for display
     };
 
-    // Update project object with userId as well for R2 storage consistency
+    // Update project object with userId
     project.userId = ownerId;
 
-    // --- 2. Save Images Separately to R2 (Fix for visibility) ---
-    // We do this asynchronously to not block the main save too much, 
-    // but we use Promise.all to ensure completion.
+    // --- 2. Separate Images from Text Data ---
     const imageUploadPromises: Promise<void>[] = [];
 
-    // A. Handle Uploaded Reference Images
+    // A. Handle Uploaded Reference Images (Raw Base64)
     if (project.data.images && Array.isArray(project.data.images)) {
         project.data.images.forEach((b64: string, index: number) => {
             if (b64) {
-                // b64 here is raw base64 (no data prefix) based on frontend logic
                 try {
                     const buffer = base64ToUint8Array(b64);
-                    const key = `images/${project.id}/ref-${index}.jpg`;
+                    // Store as 'ref-{index}'
+                    const key = `images/${project.id}/ref-${index}`; 
                     imageUploadPromises.push(context.env.VISION_R2.put(key, buffer));
                 } catch (e) {
                     console.error(`Failed to upload ref image ${index}`, e);
                 }
             }
         });
+        // Clear images from the JSON to save space in KV
+        project.data.images = [];
     }
 
-    // B. Handle Generated Poster Images
+    // B. Handle Generated Poster Images (Data URIs)
     if (project.data.generatedImages) {
         Object.entries(project.data.generatedImages).forEach(([keyIndex, dataUri]) => {
             if (typeof dataUri === 'string') {
@@ -170,7 +171,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                     const split = dataUri.split(',');
                     if (split.length > 1) {
                         const buffer = base64ToUint8Array(split[1]);
-                        const key = `images/${project.id}/generated-${keyIndex}.jpg`;
+                        // Store as 'gen-{index}'
+                        const key = `images/${project.id}/gen-${keyIndex}`;
                         imageUploadPromises.push(context.env.VISION_R2.put(key, buffer));
                     }
                 } catch (e) {
@@ -178,13 +180,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                 }
             }
         });
+        // Clear generated images from the JSON
+        project.data.generatedImages = {};
     }
 
-    // 3. Parallel Store Everything
-    const r2MainPromise = context.env.VISION_R2.put(`project-${project.id}`, JSON.stringify(project));
-    const kvPromise = context.env.VISION_KV.put(`meta:${project.id}`, JSON.stringify(metadata));
+    // 3. Store Text Data in KV
+    // We use `project:{id}` to store the detailed JSON (minus images)
+    const kvProjectPromise = context.env.VISION_KV.put(`project:${project.id}`, JSON.stringify(project));
+    
+    // We use `meta:{id}` to store the summary for lists
+    const kvMetaPromise = context.env.VISION_KV.put(`meta:${project.id}`, JSON.stringify(metadata));
 
-    await Promise.all([r2MainPromise, kvPromise, ...imageUploadPromises]);
+    await Promise.all([kvProjectPromise, kvMetaPromise, ...imageUploadPromises]);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { "Content-Type": "application/json" }
