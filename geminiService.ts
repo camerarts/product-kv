@@ -67,13 +67,13 @@ export const extractProductInfo = async (
     "coreSellingPoints": ["卖点1", "卖点2", "卖点3", "卖点4", "卖点5"],
     "mainColors": "配色说明（如：活力橙、深海蓝）",
     "auxColors": "辅助色说明",
-    "designStyle": "设计语言描述",
+    "designStyle": "设计语言描述（例如：极简主义、科技未来、复古国潮等）",
     "targetAudience": "目标受众",
     "brandTone": "品牌调性",
     "packagingHighlights": "包装亮点",
-    "packagingStyle": "包装风格关键词（如：极简主义、国潮复古、科技感、INS风等）",
-    "fontStyle": "字体特征描述（如：现代无衬线、艺术手写、粗黑体等）",
-    "patternElements": "装饰纹理或图案（如：几何色块、植物插画、纯色磨砂、光影渐变等）"
+    "packagingStyle": "包装风格关键词",
+    "fontStyle": "字体特征描述",
+    "patternElements": "装饰纹理或图案"
   }
   用户提供的描述：${textDescription || '无'}` });
 
@@ -122,7 +122,7 @@ export const extractProductInfo = async (
        coreSellingPoints: ["AI未能提取卖点", "请尝试更清晰的图片"],
        mainColors: "暂无",
        auxColors: "暂无",
-       designStyle: "暂无",
+       designStyle: "暂无风格描述",
        targetAudience: "未知",
        brandTone: "未知",
        packagingHighlights: "暂无",
@@ -153,11 +153,11 @@ export const extractProductInfo = async (
       coreSellingPoints: Array.isArray(parsed.coreSellingPoints) ? parsed.coreSellingPoints : [],
       mainColors: parsed.mainColors || '',
       auxColors: parsed.auxColors || '',
-      designStyle: parsed.designStyle || '',
+      designStyle: parsed.designStyle || '现代简约风格',
       targetAudience: parsed.targetAudience || '',
       brandTone: parsed.brandTone || '',
-      packagingHighlights: parsed.packagingHighlights || '',
-      packagingStyle: parsed.packagingStyle || '简约风格', // Fallback defaults if empty
+      packagingHighlights: parsed.packagingHighlights || '暂无更多细节',
+      packagingStyle: parsed.packagingStyle || '简约风格', 
       fontStyle: parsed.fontStyle || '现代无衬线',
       patternElements: parsed.patternElements || '纯色/渐变'
     };

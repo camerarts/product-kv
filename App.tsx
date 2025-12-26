@@ -392,7 +392,7 @@ export const App: React.FC = () => {
           });
 
           if (res.ok) {
-            // Mark image as synced if specified
+            // Mark specific image as synced if specified (Immediate Green Dot)
             if (targetIndexToMarkSynced !== undefined) {
                 setImageSyncStatus(prev => ({ ...prev, [targetIndexToMarkSynced]: 'synced' }));
             }
@@ -800,8 +800,13 @@ export const App: React.FC = () => {
         // Mark as unsynced initially
         setImageSyncStatus(prev => ({ ...prev, [index]: 'unsynced' }));
         
-        // Trigger auto-upload (Real-time sync) - The useEffect debounce will handle this, 
-        // but we can force a faster update here if desired. Relying on useEffect is safer to avoid race conditions.
+        // Critical: Update Ref immediately for the sync function to pick it up, bypassing React render cycle lag
+        generatedImagesRef.current = { ...generatedImagesRef.current, [index]: b64 };
+        
+        // Trigger auto-upload (Real-time sync) immediately if logged in
+        if (isAdminLoggedIn || currentUser) {
+           await syncProjectToCloud(index);
+        }
       }
     } catch (err: any) {
       console.error(`生成图片失败 (Index ${index}):`, err.message);

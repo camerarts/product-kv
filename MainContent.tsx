@@ -201,7 +201,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                     {report ? (
                       <div className="animate-fade-in flex-1 flex flex-col justify-center">
                          <h4 className="text-base font-black text-slate-800 leading-snug mb-2">
-                            {report.designStyle}
+                            {report.designStyle || '暂无风格定义'}
                          </h4>
                          <p className="text-[10px] text-slate-500 font-medium leading-relaxed mb-4 line-clamp-2">
                             {report.packagingHighlights || '暂无更多细节描述'}
@@ -210,7 +210,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                          <div className="mt-auto space-y-3">
                             <div className="inline-flex items-center gap-2 bg-slate-50/80 rounded-full pl-2 pr-3 py-1 border border-white/50 shadow-sm">
                                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                               <span className="text-[10px] font-bold text-slate-700">{report.brandTone}</span>
+                               <span className="text-[10px] font-bold text-slate-700">{report.brandTone || '通用'}</span>
                             </div>
                          </div>
                       </div>
@@ -232,7 +232,7 @@ export const MainContent: React.FC<MainContentProps> = ({
              <div className="animate-fade-in-up mb-20">
                {/* Section Title & Actions */}
                <div className="flex items-center justify-between mb-5 pl-2 pr-2">
-                   <h3 className="text-xs font-black text-slate-500 tracking-widest uppercase opacity-80">视觉资产</h3>
+                   <h3 className="text-xs font-black text-slate-500 tracking-widest uppercase opacity-80">商品详情图片</h3>
                    
                    <div className="flex items-center gap-3">
                       <button
