@@ -27,26 +27,43 @@ const getEffectiveKey = (userApiKey?: string, isAdmin: boolean = false) => {
 
 // Helper: Ensure we have base64 data (fetch if it's a URL)
 const ensureBase64 = async (img: string): Promise<string> => {
+    if (!img) return '';
+
+    // Case 1: Full Data URI (e.g. data:image/jpeg;base64,...)
     if (img.startsWith('data:')) {
         return img.split(',')[1];
     }
-    // Assume it is a URL
-    try {
-        const res = await fetch(img);
-        const blob = await res.blob();
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const res = reader.result as string;
-                resolve(res.split(',')[1]);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
-    } catch (e) {
-        console.error("Failed to fetch image for AI:", img, e);
-        throw new Error("无法读取图片数据，请检查网络");
+
+    // Case 2: URL (Remote image http... or Local API path /api/...)
+    // A raw base64 string for an image is typically very large (> 1KB).
+    // A URL is typically short. We check for common URL prefixes or length.
+    const isLikelyUrl = img.startsWith('http') || img.startsWith('/') || img.length < 2048;
+
+    if (isLikelyUrl) {
+        try {
+            const res = await fetch(img);
+            if (!res.ok) throw new Error(`Fetch error: ${res.status}`);
+            const blob = await res.blob();
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const res = reader.result as string;
+                    // FileReader returns data:uri, we need to strip it again for Gemini
+                    resolve(res.split(',')[1]);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } catch (e) {
+            console.error("Failed to fetch image for AI:", img, e);
+            throw new Error("无法读取图片数据，请检查网络或图片地址");
+        }
     }
+
+    // Case 3: Raw Base64 string
+    // If it's not a Data URI and not a URL, it must be the raw base64 string stored in state.
+    // We return it directly.
+    return img;
 };
 
 export const extractProductInfo = async (
