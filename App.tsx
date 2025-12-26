@@ -82,6 +82,9 @@ export const App: React.FC = () => {
   // --- Save Status State (New) ---
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<number | null>(null);
+  
+  // Track syncing projects to prevent duplicates
+  const syncingProjectsRef = useRef<Set<string>>(new Set());
 
   // --- 辅助函数：从缓存读取初始值 ---
   const getCachedState = <T,>(key: string, defaultValue: T): T => {
@@ -144,6 +147,12 @@ export const App: React.FC = () => {
     cloudList.forEach(p => {
         const existing = map.get(p.id);
         if (existing) {
+             // If local exists, we assume it might be newer or same. 
+             // Ideally we check timestamps, but for now we mark synced if it exists on cloud.
+             // However, if local has changes not on cloud, it should be synced.
+             // For simplicity, if it's in cloud list, we mark isSynced=true initially, 
+             // but our background sync logic below will handle deep comparison if we wanted.
+             // Here we just mark it as synced to indicate "connected to cloud".
              map.set(p.id, { ...existing, isSynced: true });
         } else {
              map.set(p.id, { ...p, isSynced: true });
@@ -154,6 +163,104 @@ export const App: React.FC = () => {
     setProjects(merged);
     setIsProjectsLoading(false);
   }, [isAdminLoggedIn, adminPassword, currentUser]);
+
+  // Background Sync Function
+  const syncBackgroundProject = async (project: SavedProject) => {
+      if (syncingProjectsRef.current.has(project.id)) return;
+      syncingProjectsRef.current.add(project.id);
+
+      try {
+          const data = project.data;
+          let changed = false;
+          
+          // Clone arrays to modify
+          const images = [...(data.images || [])];
+          for(let i=0; i<images.length; i++) {
+              if (images[i] && images[i].length > 500 && !images[i].startsWith('/api/images')) {
+                  const url = await uploadImage(images[i], project.id);
+                  images[i] = url;
+                  changed = true;
+              }
+          }
+
+          const generatedImages = { ...(data.generatedImages || {}) };
+          for(const key in generatedImages) {
+              const k = parseInt(key);
+              const img = generatedImages[k];
+              if (img && img.length > 500 && !img.startsWith('/api/images')) {
+                   const url = await uploadImage(img, project.id);
+                   generatedImages[k] = url;
+                   changed = true;
+              }
+          }
+
+          const projectToUpload = {
+              ...project,
+              data: {
+                  ...data,
+                  images,
+                  generatedImages,
+              }
+          };
+
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (isAdminLoggedIn && adminPassword) headers['X-Admin-Pass'] = adminPassword;
+
+          const res = await fetch('/api/projects', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(projectToUpload)
+          });
+
+          if (res.ok) {
+              // Update Local Storage with URLs to prevent re-upload
+              const stored = localStorage.getItem(PROJECTS_KEY);
+              if (stored) {
+                  const list = JSON.parse(stored);
+                  const idx = list.findIndex((p: any) => p.id === project.id);
+                  if (idx >= 0) {
+                      list[idx] = projectToUpload;
+                      localStorage.setItem(PROJECTS_KEY, JSON.stringify(list));
+                  }
+              }
+              
+              // Update State
+              setProjects(prev => prev.map(p => p.id === project.id ? { ...p, isSynced: true } : p));
+          }
+      } catch (e) {
+          console.error("Background sync failed for", project.id, e);
+      } finally {
+          syncingProjectsRef.current.delete(project.id);
+      }
+  };
+
+  // Effect: Watch projects and trigger background sync for unsynced items
+  useEffect(() => {
+     if (!isAdminLoggedIn && !currentUser) return;
+     
+     const unsynced = projects.filter(p => !p.isSynced);
+     if (unsynced.length === 0) return;
+
+     const runSync = async () => {
+         // Process one by one to avoid network congestion
+         for (const p of unsynced) {
+             await syncBackgroundProject(p);
+         }
+     };
+     runSync();
+  }, [projects, isAdminLoggedIn, currentUser]);
+
+  // Effect: Polling for project list updates
+  useEffect(() => {
+     if (currentView !== 'projects' || (!isAdminLoggedIn && !currentUser)) return;
+     
+     const interval = setInterval(() => {
+         fetchProjects();
+     }, 10000); // Poll every 10 seconds
+
+     return () => clearInterval(interval);
+  }, [currentView, isAdminLoggedIn, currentUser, fetchProjects]);
+
 
   // --- Effects ---
 
