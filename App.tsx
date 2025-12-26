@@ -1026,6 +1026,8 @@ export const App: React.FC = () => {
              onLoad={loadProject} 
              onDelete={deleteProject} 
              isAuthenticated={isAdminLoggedIn || !!currentUser}
+             isSaving={isSaving}
+             lastSaveTime={lastSaveTime}
           />
       )}
 

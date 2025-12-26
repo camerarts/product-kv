@@ -6,18 +6,45 @@ interface ProjectListProps {
   onLoad: (project: SavedProject) => void;
   onDelete: (id: string) => void;
   isAuthenticated: boolean;
+  isSaving: boolean;
+  lastSaveTime: number | null;
 }
 
-export const ProjectList: React.FC<ProjectListProps> = ({ projects, onLoad, onDelete, isAuthenticated }) => {
+export const ProjectList: React.FC<ProjectListProps> = ({ 
+  projects, onLoad, onDelete, isAuthenticated,
+  isSaving, lastSaveTime 
+}) => {
   return (
     <div className="flex-1 ml-[100px] h-full overflow-hidden flex flex-col">
       {/* Fixed Header Section */}
       <div className="px-10 pt-10 pb-6 shrink-0">
-        <div className="max-w-6xl mx-auto w-full">
+        <div className="max-w-6xl mx-auto w-full flex items-center justify-between">
            <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
               <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/30">📂</span> 
               项目列表
            </h1>
+
+           {/* Save Status & Timestamp */}
+           <div className="flex items-center gap-4 bg-white/40 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/50 shadow-sm">
+              <div className="flex flex-col items-end">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">系统状态</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                      {isSaving ? (
+                          <>
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                            <span className="text-[10px] text-slate-400 font-medium">数据同步中...</span>
+                          </>
+                      ) : (
+                          <>
+                             <div className={`w-1.5 h-1.5 rounded-full ${lastSaveTime ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.4)]' : 'bg-slate-300'}`}></div>
+                             <span className="text-[10px] text-slate-400 font-medium font-mono">
+                                {lastSaveTime ? `已同步 ${new Date(lastSaveTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '就绪'}
+                             </span>
+                          </>
+                      )}
+                  </div>
+              </div>
+          </div>
         </div>
       </div>
       
