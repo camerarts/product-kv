@@ -412,6 +412,7 @@ export const App: React.FC = () => {
           // We clone the arrays to avoid mutating state directly
           const imagesToSave = [...images]; 
           const generatedImagesToSave = { ...generatedImagesRef.current };
+          let imagesUpdated = false;
 
           // Upload Ref Images
           for (let i = 0; i < imagesToSave.length; i++) {
@@ -422,7 +423,14 @@ export const App: React.FC = () => {
                 const fullBase64 = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
                 const url = await uploadImage(fullBase64, currentProjectId);
                 imagesToSave[i] = url; // Replace with URL for cloud storage
+                imagesUpdated = true;
              }
+          }
+
+          // If we uploaded new images, update the local state to use the URLs immediately
+          // This prevents re-uploading and also triggers the green dot UI
+          if (imagesUpdated) {
+              setImages(imagesToSave);
           }
 
           // Upload Generated Images

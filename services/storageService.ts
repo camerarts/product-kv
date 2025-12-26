@@ -1,9 +1,13 @@
 
 export const uploadImage = async (base64Data: string, projectId: string): Promise<string> => {
   try {
-    // 1. Convert Base64 to Blob
-    const byteString = atob(base64Data.split(',')[1]);
-    const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
+    // 1. Convert Base64 to Blob/ArrayBuffer
+    const parts = base64Data.split(',');
+    const meta = parts[0];
+    const rawData = parts[1];
+    
+    const byteString = atob(rawData);
+    const mimeString = meta.split(':')[1].split(';')[0];
     const ab = new ArrayBuffer(byteString.length);
     const ia = new Uint8Array(ab);
     for (let i = 0; i < byteString.length; i++) {
@@ -11,11 +15,18 @@ export const uploadImage = async (base64Data: string, projectId: string): Promis
     }
     const blob = new Blob([ab], { type: mimeString });
 
-    // 2. Generate UUID Filename
-    const filename = crypto.randomUUID();
+    // 2. Generate SHA-256 Hash as Filename (Deduplication Logic)
+    // Instead of randomUUID, we use the hash of the content. 
+    // If the same image is uploaded again, it overwrites the existing one, saving space.
+    const hashBuffer = await crypto.subtle.digest('SHA-256', ab);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    // Determine extension
+    const ext = mimeString.split('/')[1] || 'jpg';
+    const filename = `${hashHex}.${ext}`;
 
     // 3. Send PUT Request
-    // We send the raw blob as the body for efficient streaming
     const res = await fetch(`/api/images/${filename}?project=${projectId}`, {
       method: 'PUT',
       headers: {
@@ -29,7 +40,7 @@ export const uploadImage = async (base64Data: string, projectId: string): Promis
     }
 
     const data = await res.json();
-    return data.url; // Expected format: /api/images/<uuid>?project=<id>
+    return data.url; // Expected format: /api/images/<hash>.<ext>?project=<id>
   } catch (e) {
     console.error("Storage Service Error:", e);
     throw e;

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { VisualStyle, TypographyStyle, RecognitionReport } from './types';
 
@@ -130,11 +131,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             
             <div className="grid grid-cols-2 gap-2 mb-2 h-28">
-              {[0, 1].map((idx) => (
-                <div key={idx} className="liquid-input relative rounded-3xl overflow-hidden group flex flex-col items-center justify-center cursor-pointer hover:border-blue-400/50 transition-colors">
-                    {images[idx] ? (
+              {[0, 1].map((idx) => {
+                const imgSource = images[idx];
+                const isUploaded = imgSource && imgSource.startsWith('/api/images');
+                const displaySrc = isUploaded ? imgSource : (imgSource ? `data:image/jpeg;base64,${imgSource}` : null);
+
+                return (
+                  <div key={idx} className="liquid-input relative rounded-3xl overflow-hidden group flex flex-col items-center justify-center cursor-pointer hover:border-blue-400/50 transition-colors">
+                    {displaySrc ? (
                       <>
-                        <img src={`data:image/jpeg;base64,${images[idx]}`} className="w-full h-full object-contain" />
+                        <img src={displaySrc} className="w-full h-full object-contain" />
+                        {isUploaded && (
+                            <div className="absolute top-2 left-2 w-2.5 h-2.5 bg-green-500 rounded-full border border-white shadow-sm z-10" title="已同步到云端"></div>
+                        )}
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                             <button onClick={(e) => {e.stopPropagation(); removeImage(idx);}} className="bg-white/20 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center backdrop-blur-md border border-white/30 transition-all">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -150,8 +159,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleImageUpload(e, idx)} />
                       </>
                     )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="flex gap-2">
