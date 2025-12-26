@@ -24,7 +24,6 @@ interface MainContentProps {
 
 // 定义固定的骨架模块结构
 const SKELETON_MODULES = [
-  { title: "LOGO方案提示词", content: "" },
   { title: "海报01 - 核心主KV", content: "" },
   { title: "海报02 - 使用场景图", content: "" },
   { title: "海报03 - 核心工艺拆解", content: "" },

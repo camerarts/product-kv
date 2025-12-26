@@ -16,6 +16,24 @@ const PROJECTS_KEY = 'VISION_APP_PROJECTS_V1';
 const ADMIN_SESSION_KEY = 'VISION_ADMIN_SESSION_TIMESTAMP';
 const SESSION_DURATION = 4 * 60 * 60 * 1000; // 4 hours
 
+// Helper to generate a 15-character unique ID (Timestamp + Random)
+const generateProjectId = () => {
+  const timestamp = Date.now().toString(36).toUpperCase(); // ~8 chars
+  const random = Math.random().toString(36).substring(2, 9).toUpperCase(); // 7 chars
+  return (timestamp + random).slice(0, 15);
+};
+
+// Helper to update URL
+const updateUrl = (id: string | null) => {
+    const url = new URL(window.location.href);
+    if (id) {
+        url.searchParams.set('project', id);
+    } else {
+        url.searchParams.delete('project');
+    }
+    window.history.pushState({}, '', url);
+};
+
 export const App: React.FC = () => {
   // --- View State ---
   const [currentView, setCurrentView] = useState<ViewType>('core');
@@ -57,6 +75,7 @@ export const App: React.FC = () => {
   // --- Projects State ---
   const [projects, setProjects] = useState<any[]>([]);
   const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+  const [pendingUrlId, setPendingUrlId] = useState<string | null>(null);
 
   // --- 辅助函数：从缓存读取初始值 ---
   const getCachedState = <T,>(key: string, defaultValue: T): T => {
@@ -143,8 +162,14 @@ export const App: React.FC = () => {
     const authError = urlParams.get('auth_error');
     if (authError === 'expired') {
       alert("⚠️ 您的账号已过期。\n\n账号有效期默认为首次登录后30天。请联系管理员进行延期处理。");
-      // Clear URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Clear URL params
+      updateUrl(null);
+    }
+
+    // Check for project ID in URL
+    const pid = urlParams.get('project');
+    if (pid) {
+        setPendingUrlId(pid);
     }
 
     // 恢复 API Key
@@ -181,6 +206,20 @@ export const App: React.FC = () => {
     // Always fetch projects to ensure the list reflects the current user state (including guest)
     fetchProjects();
   }, [isAdminLoggedIn, currentUser, adminPassword, fetchProjects]);
+
+  
+  // 3. Load Project from URL if pending
+  useEffect(() => {
+      if (pendingUrlId && projects.length > 0) {
+          const found = projects.find(p => p.id === pendingUrlId);
+          if (found) {
+              console.log("Loading project from URL:", pendingUrlId);
+              loadProject(found);
+          }
+          // Clear pending ID so we don't reload or loop
+          setPendingUrlId(null);
+      }
+  }, [projects, pendingUrlId]);
 
 
   const handleSelectKey = async () => {
@@ -459,9 +498,12 @@ export const App: React.FC = () => {
     setManualBrand(name);
     
     // Force sync immediately with new name
-    
-    const pid = currentProjectId || Date.now().toString();
-    if (!currentProjectId) setCurrentProjectId(pid);
+    // Generate 15-char ID if creating new
+    const pid = currentProjectId || generateProjectId();
+    if (!currentProjectId) {
+      setCurrentProjectId(pid);
+      updateUrl(pid);
+    }
 
     const projectDataToSave: SavedProject = {
       id: pid,
@@ -518,8 +560,13 @@ export const App: React.FC = () => {
   };
 
   const loadProject = async (projectMeta: any) => {
-    if (images.length > 0 && !window.confirm("当前有正在编辑的内容，加载项目将覆盖当前内容，是否继续？")) {
-        return;
+    // Only ask for confirmation if there's actual data in the current session
+    // AND the current session is NOT the one we are trying to load
+    // AND we are not just initializing (e.g. from URL)
+    if (images.length > 0 && currentProjectId !== projectMeta.id && !pendingUrlId) {
+        if (!window.confirm("当前有正在编辑的内容，加载项目将覆盖当前内容，是否继续？")) {
+            return;
+        }
     }
 
     let projectData = projectMeta.data;
@@ -553,6 +600,7 @@ export const App: React.FC = () => {
 
     // Set Current ID - This will eventually trigger auto-save debounce which updates "last opened" timestamp
     setCurrentProjectId(projectMeta.id);
+    updateUrl(projectMeta.id);
 
     // 应用数据
     setImages(projectData.images || []);
@@ -602,6 +650,7 @@ export const App: React.FC = () => {
     // If deleted current project, clear ID
     if (id === currentProjectId) {
         setCurrentProjectId(null);
+        updateUrl(null);
     }
   };
 
@@ -613,6 +662,7 @@ export const App: React.FC = () => {
     
     // 清除 LocalStorage
     localStorage.removeItem(CACHE_KEY);
+    updateUrl(null);
     
     // 重置所有 State
     setCurrentProjectId(null); // Setting null prevents auto-save until manual creation/naming
@@ -654,7 +704,11 @@ export const App: React.FC = () => {
 
     // 3. Reset and Initialize
     localStorage.removeItem(CACHE_KEY);
-    setCurrentProjectId(Date.now().toString()); // Setting ID enables auto-save
+    
+    const newId = generateProjectId();
+    setCurrentProjectId(newId); // Setting ID enables auto-save
+    updateUrl(newId);
+
     setImages([]);
     setImageRatios([]);
     setDescription('');
