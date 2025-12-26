@@ -96,14 +96,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const sceneTags = ["极简纯色", "自然户外", "家居生活", "办公商务", "科技炫光"];
 
   return (
-    <aside className="fixed left-[120px] top-6 bottom-6 w-[480px] glass-panel rounded-[2.5rem] flex flex-col z-40 overflow-hidden transition-all duration-500">
+    <aside className="fixed left-[120px] top-6 bottom-6 w-[410px] glass-panel rounded-[2.5rem] flex flex-col z-40 overflow-hidden transition-all duration-500">
         
         {/* Header Area */}
         <div className="px-8 pt-8 pb-4 shrink-0 relative z-10 flex flex-col gap-4">
-          <div className="absolute right-8 top-8 z-20">
+          <div className="absolute right-6 top-8 z-20">
             <button 
               onClick={onReset}
-              className="liquid-button w-10 h-10 rounded-full bg-white/50 border border-white/60 text-slate-400 hover:text-red-500 hover:bg-white flex items-center justify-center shadow-sm"
+              className="liquid-button w-9 h-9 rounded-full bg-white/50 border border-white/60 text-slate-400 hover:text-red-500 hover:bg-white flex items-center justify-center shadow-sm"
               title="重制"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -111,8 +111,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <div className="flex flex-col w-full pt-1">
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight leading-tight">
-              商品详情页<br/>视觉全案系统
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-tight whitespace-nowrap">
+              商品详情页视觉全案系统
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 text-[10px] font-bold tracking-widest uppercase border border-indigo-500/20">配置器</span>
@@ -134,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div key={idx} className="liquid-input relative rounded-3xl overflow-hidden group flex flex-col items-center justify-center cursor-pointer hover:border-blue-400/50 transition-colors">
                     {images[idx] ? (
                       <>
-                        <img src={`data:image/jpeg;base64,${images[idx]}`} className="w-full h-full object-cover" />
+                        <img src={`data:image/jpeg;base64,${images[idx]}`} className="w-full h-full object-contain" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                             <button onClick={(e) => {e.stopPropagation(); removeImage(idx);}} className="bg-white/20 hover:bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center backdrop-blur-md border border-white/30 transition-all">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>

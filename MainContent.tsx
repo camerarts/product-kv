@@ -91,7 +91,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   const isGeneratingAny = Object.values(generatingModules).some(v => v);
 
   return (
-    <main className="flex-1 ml-[620px] flex flex-col h-full relative z-10 overflow-hidden">
+    <main className="flex-1 ml-[550px] flex flex-col h-full relative z-10 overflow-hidden">
         
         {/* Header */}
         <header className="h-20 px-8 flex items-center justify-between shrink-0">
