@@ -168,7 +168,9 @@ export const App: React.FC = () => {
     const map = new Map<string, any>();
 
     localList.forEach(p => {
-        map.set(p.id, { ...p, isSynced: false });
+        // FIX: Respect existing local sync status instead of resetting to false.
+        // If local storage says it's synced, we assume it is (unless cloud explicitly says otherwise, which implies deletion, but here we trust local 'true' to avoid flickering on eventual consistency lag)
+        map.set(p.id, { ...p, isSynced: p.isSynced || false });
     });
 
     cloudList.forEach(p => {
@@ -181,7 +183,13 @@ export const App: React.FC = () => {
     });
 
     const merged = Array.from(map.values()).sort((a: any, b: any) => b.timestamp - a.timestamp);
-    setProjects(merged);
+    
+    // Prevent unnecessary state updates if data hasn't changed (deep comparison approximation)
+    setProjects(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(merged)) return prev;
+        return merged;
+    });
+    
     setIsProjectsLoading(false);
   }, [isAdminLoggedIn, adminPassword, currentUser]);
 
@@ -217,6 +225,7 @@ export const App: React.FC = () => {
 
           const projectToUpload = {
               ...project,
+              isSynced: true, // FIX: Explicitly set synced true for payload
               data: {
                   ...data,
                   images,
@@ -234,13 +243,13 @@ export const App: React.FC = () => {
           });
 
           if (res.ok) {
-              // Update Local Storage with URLs to prevent re-upload
+              // Update Local Storage with URLs AND isSynced=true
               const stored = localStorage.getItem(PROJECTS_KEY);
               if (stored) {
                   const list = JSON.parse(stored);
                   const idx = list.findIndex((p: any) => p.id === project.id);
                   if (idx >= 0) {
-                      list[idx] = projectToUpload;
+                      list[idx] = { ...projectToUpload, isSynced: true }; // Persist synced status
                       localStorage.setItem(PROJECTS_KEY, JSON.stringify(list));
                   }
               }
@@ -275,6 +284,9 @@ export const App: React.FC = () => {
   useEffect(() => {
      if (currentView !== 'projects' || (!isAdminLoggedIn && !currentUser)) return;
      
+     // Run immediately once
+     fetchProjects();
+
      const interval = setInterval(() => {
          fetchProjects();
      }, 10000); // Poll every 10 seconds
@@ -590,6 +602,7 @@ export const App: React.FC = () => {
           // 2. SAVE JSON (With URLs)
           const cloudProjectData = {
              ...localProjectData,
+             isSynced: true, // FIX: Explicitly set synced true for payload
              data: {
                  ...localProjectData.data,
                  images: imagesToSave,
@@ -611,6 +624,18 @@ export const App: React.FC = () => {
             setLastSaveTime(Date.now());
             // Final consistency check
             setImageSyncStatus(newSyncStatus);
+            
+            // FIX: Update Local Storage Synced Status
+            const stored = localStorage.getItem(PROJECTS_KEY);
+            if (stored) {
+                const list = JSON.parse(stored);
+                const idx = list.findIndex((p: any) => p.id === currentProjectId);
+                if (idx >= 0) {
+                    list[idx] = { ...cloudProjectData, isSynced: true };
+                    localStorage.setItem(PROJECTS_KEY, JSON.stringify(list));
+                }
+            }
+            
             setProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, isSynced: true } : p));
           }
         } catch (e) {
