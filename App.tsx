@@ -355,13 +355,14 @@ export const App: React.FC = () => {
     needsDataVis, otherNeeds, aspectRatio, generatedImages, imageSyncStatus
   ]);
 
-  // --- Sync Logic (UPDATED: DIRECT UPLOAD) ---
+  // --- Sync Logic (UPDATED: DIRECT UPLOAD + STATE UPDATE) ---
   const syncProjectToCloud = useCallback(async (targetIndexToMarkSynced?: number) => {
     if (!currentProjectId) return;
     
-    const optimisticSyncStatus = { ...imageSyncStatus };
+    // Create optimistic update for sync status
+    let newSyncStatus = { ...imageSyncStatus };
     if (targetIndexToMarkSynced !== undefined) {
-        optimisticSyncStatus[targetIndexToMarkSynced] = 'synced';
+        newSyncStatus[targetIndexToMarkSynced] = 'synced';
     }
 
     // Prepare data (with local base64 for local save)
@@ -377,7 +378,7 @@ export const App: React.FC = () => {
         needsModel, modelDesc, needsScene, sceneDesc,
         needsDataVis, otherNeeds, aspectRatio, 
         generatedImages: generatedImagesRef.current,
-        imageSyncStatus: optimisticSyncStatus
+        imageSyncStatus: newSyncStatus
       }
     };
 
@@ -409,26 +410,22 @@ export const App: React.FC = () => {
         setIsSaving(true);
         try {
           // 1. UPLOAD REFERENCE IMAGES
-          // We clone the arrays to avoid mutating state directly
           const imagesToSave = [...images]; 
           const generatedImagesToSave = { ...generatedImagesRef.current };
           let imagesUpdated = false;
+          let generatedImagesUpdated = false;
 
           // Upload Ref Images
           for (let i = 0; i < imagesToSave.length; i++) {
              const img = imagesToSave[i];
              if (img && img.length > 500 && !img.startsWith('/api/images')) { 
-                // It's a base64 string, upload it
-                // Reconstruct full base64 if needed (assuming stored as pure b64 in state mostly)
                 const fullBase64 = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
                 const url = await uploadImage(fullBase64, currentProjectId);
-                imagesToSave[i] = url; // Replace with URL for cloud storage
+                imagesToSave[i] = url; 
                 imagesUpdated = true;
              }
           }
 
-          // If we uploaded new images, update the local state to use the URLs immediately
-          // This prevents re-uploading and also triggers the green dot UI
           if (imagesUpdated) {
               setImages(imagesToSave);
           }
@@ -437,11 +434,27 @@ export const App: React.FC = () => {
           for (const key of Object.keys(generatedImagesToSave)) {
               const k = parseInt(key);
               const img = generatedImagesToSave[k];
+              // Check if it's base64 (long string) and NOT already an API URL
               if (img && img.length > 500 && !img.startsWith('/api/images')) {
                  const fullBase64 = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
                  const url = await uploadImage(fullBase64, currentProjectId);
                  generatedImagesToSave[k] = url;
+                 
+                 // Mark as synced immediately for this item
+                 newSyncStatus[k] = 'synced';
+                 generatedImagesUpdated = true;
+              } else if (img && img.startsWith('/api/images') && newSyncStatus[k] !== 'synced') {
+                 // Ensure status is consistent if it's already a URL
+                 newSyncStatus[k] = 'synced';
+                 generatedImagesUpdated = true;
               }
+          }
+
+          // CRITICAL FIX: Update React State with new URLs so we don't re-upload
+          if (generatedImagesUpdated) {
+              setGeneratedImages(generatedImagesToSave);
+              generatedImagesRef.current = generatedImagesToSave; // Update Ref immediately
+              setImageSyncStatus(newSyncStatus);
           }
 
           // 2. SAVE JSON (With URLs)
@@ -450,7 +463,8 @@ export const App: React.FC = () => {
              data: {
                  ...localProjectData.data,
                  images: imagesToSave,
-                 generatedImages: generatedImagesToSave
+                 generatedImages: generatedImagesToSave,
+                 imageSyncStatus: newSyncStatus // Save correct status to cloud
              }
           };
 
@@ -465,9 +479,8 @@ export const App: React.FC = () => {
 
           if (res.ok) {
             setLastSaveTime(Date.now());
-            if (targetIndexToMarkSynced !== undefined) {
-                setImageSyncStatus(prev => ({ ...prev, [targetIndexToMarkSynced]: 'synced' }));
-            }
+            // Final consistency check
+            setImageSyncStatus(newSyncStatus);
             setProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, isSynced: true } : p));
           }
         } catch (e) {
