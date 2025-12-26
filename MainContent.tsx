@@ -24,6 +24,7 @@ interface MainContentProps {
   projectName: string;
   isSaving: boolean;
   lastSaveTime: number | null;
+  onManualSave: () => void; // New Prop
 }
 
 // 定义固定的骨架模块结构
@@ -45,7 +46,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   finalPrompts, generatedImages, imageSyncStatus = {}, generatingModules, isBatchGenerating,
   previewImageUrl, setPreviewImageUrl, generateSingleImage, generateAllImages,
   promptModules, aspectRatio,
-  projectName, isSaving, lastSaveTime
+  projectName, isSaving, lastSaveTime, onManualSave
 }) => {
   
   const [copiedStates, setCopiedStates] = useState<Record<number, boolean>>({});
@@ -143,20 +144,46 @@ export const MainContent: React.FC<MainContentProps> = ({
           <div className="flex items-center gap-4">
               <div className="flex flex-col items-end">
                   <span className="text-xs font-bold text-slate-700 max-w-[200px] truncate">{projectName}</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                      {isSaving ? (
-                          <>
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                            <span className="text-[10px] text-slate-400 font-medium">云端同步中...</span>
-                          </>
-                      ) : (
-                          <>
-                             <div className={`w-1.5 h-1.5 rounded-full ${lastSaveTime ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.4)]' : 'bg-slate-300'}`}></div>
-                             <span className="text-[10px] text-slate-400 font-medium font-mono">
-                                {lastSaveTime ? `已保存 ${new Date(lastSaveTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '未保存'}
-                             </span>
-                          </>
-                      )}
+                  <div className="flex items-center gap-3 mt-1">
+                      {/* Manual Upload Button */}
+                      <button
+                        onClick={onManualSave}
+                        disabled={isSaving}
+                        className={`
+                            flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all shadow-sm
+                            ${isSaving 
+                                ? 'bg-slate-100 text-slate-400 border-transparent cursor-not-allowed' 
+                                : 'bg-white/60 border-white/60 text-indigo-600 hover:bg-white hover:text-indigo-700 hover:shadow-md cursor-pointer active:scale-95'
+                            }
+                        `}
+                        title={isSaving ? "正在同步中..." : "点击强制同步数据到云端"}
+                      >
+                         {isSaving ? (
+                             <div className="w-3 h-3 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin"></div>
+                         ) : (
+                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                         )}
+                         <span>{isSaving ? '同步中' : '手工上传'}</span>
+                      </button>
+
+                      <div className="w-px h-3 bg-slate-300/50"></div>
+
+                      {/* Status Indicator */}
+                      <div className="flex items-center gap-1.5">
+                          {isSaving ? (
+                              <>
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                                <span className="text-[10px] text-slate-400 font-medium">自动保存...</span>
+                              </>
+                          ) : (
+                              <>
+                                <div className={`w-1.5 h-1.5 rounded-full ${lastSaveTime ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.4)]' : 'bg-slate-300'}`}></div>
+                                <span className="text-[10px] text-slate-400 font-medium font-mono">
+                                    {lastSaveTime ? `${new Date(lastSaveTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '未保存'}
+                                </span>
+                              </>
+                          )}
+                      </div>
                   </div>
               </div>
           </div>
