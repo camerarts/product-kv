@@ -102,12 +102,6 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                             </td>
                             <td className="px-6 py-5 text-right rounded-r-2xl">
                                <div className="flex gap-2 justify-end">
-                                   <button 
-                                    onClick={() => onLoad(project)}
-                                    className="text-xs font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-500 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
-                                    >
-                                    加载
-                                    </button>
                                     <button 
                                     onClick={() => {
                                         if(window.confirm(`确定要删除 "${project.name}" 吗？`)) {
