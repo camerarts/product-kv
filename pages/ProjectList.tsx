@@ -101,7 +101,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                                </div>
                             </td>
                             <td className="px-6 py-5 text-right rounded-r-2xl">
-                               <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                               <div className="flex gap-2 justify-end">
                                    <button 
                                     onClick={() => onLoad(project)}
                                     className="text-xs font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-500 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
