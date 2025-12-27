@@ -227,7 +227,8 @@ export const App: React.FC = () => {
          headers['X-Admin-Pass'] = adminPassword;
       }
 
-      const res = await fetch('/api/projects', { headers });
+      // 修复：增加时间戳防止浏览器缓存 API 请求
+      const res = await fetch(`/api/projects?t=${Date.now()}`, { headers, cache: 'no-store' });
       if (res.ok) {
         cloudList = await res.json();
         // Cloud filter
@@ -247,7 +248,12 @@ export const App: React.FC = () => {
     cloudList.forEach(p => {
         const existing = map.get(p.id);
         if (existing) {
-             map.set(p.id, { ...existing, isSynced: true });
+             // 修复：如果云端时间戳更新，优先使用云端数据（解决多端不一致问题）
+             if (p.timestamp > existing.timestamp) {
+                map.set(p.id, { ...p, isSynced: true });
+             } else {
+                map.set(p.id, { ...existing, isSynced: true });
+             }
         } else {
              map.set(p.id, { ...p, isSynced: true });
         }
